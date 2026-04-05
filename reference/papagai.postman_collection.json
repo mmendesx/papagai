@@ -1,0 +1,256 @@
+{
+  "info": {
+    "name": "Papagai",
+    "description": "WhatsApp gateway with Meta Cloud API-compatible send endpoint.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "instance",
+      "value": "papagai01",
+      "type": "string"
+    },
+    {
+      "key": "to",
+      "value": "5561999990000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Instances",
+      "item": [
+        {
+          "name": "Create instance",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/instances/create",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{instance}}\",\n  \"webhook\": \"https://example.com/webhook\",\n  \"webhookHeaders\": {\n    \"Authorization\": \"Bearer token\"\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "List instances",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/instances"
+          }
+        },
+        {
+          "name": "Get QR code",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/instances/{{instance}}/qr"
+          }
+        },
+        {
+          "name": "Get status",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/instances/{{instance}}/status"
+          }
+        },
+        {
+          "name": "Delete instance",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/instances/{{instance}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Contacts & Chats",
+      "item": [
+        {
+          "name": "Get contact info",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/instances/{{instance}}/contact/{{to}}"
+          }
+        },
+        {
+          "name": "Get chats",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/instances/{{instance}}/chats?include_messages=false",
+              "host": ["{{baseUrl}}"],
+              "path": ["instances", "{{instance}}", "chats"],
+              "query": [{ "key": "include_messages", "value": "false" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Send Messages",
+      "item": [
+        {
+          "name": "Text",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/instances/{{instance}}/messages",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"text\",\n  \"to\": \"{{to}}\",\n  \"text\": {\n    \"body\": \"Hello from Papagai! 🦜\"\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Image",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/instances/{{instance}}/messages",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"image\",\n  \"to\": \"{{to}}\",\n  \"image\": {\n    \"link\": \"https://example.com/photo.jpg\",\n    \"caption\": \"Check this out!\"\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Audio",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/instances/{{instance}}/messages",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"audio\",\n  \"to\": \"{{to}}\",\n  \"audio\": {\n    \"link\": \"https://example.com/audio.mp3\"\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Video",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/instances/{{instance}}/messages",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"video\",\n  \"to\": \"{{to}}\",\n  \"video\": {\n    \"link\": \"https://example.com/video.mp4\",\n    \"caption\": \"Watch this!\"\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Document",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/instances/{{instance}}/messages",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"document\",\n  \"to\": \"{{to}}\",\n  \"document\": {\n    \"link\": \"https://example.com/report.pdf\",\n    \"filename\": \"report.pdf\",\n    \"caption\": \"Monthly report\"\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Sticker",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/instances/{{instance}}/messages",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"sticker\",\n  \"to\": \"{{to}}\",\n  \"sticker\": {\n    \"link\": \"https://example.com/sticker.webp\"\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Location",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/instances/{{instance}}/messages",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"location\",\n  \"to\": \"{{to}}\",\n  \"location\": {\n    \"latitude\": -15.7801,\n    \"longitude\": -47.9292,\n    \"name\": \"Brasília\",\n    \"address\": \"Praça dos Três Poderes\"\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Contact",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/instances/{{instance}}/messages",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"contacts\",\n  \"to\": \"{{to}}\",\n  \"contacts\": [\n    {\n      \"name\": { \"formatted_name\": \"Alice\" },\n      \"phones\": [\n        { \"phone\": \"5561988880000\" }\n      ]\n    }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Reaction",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/instances/{{instance}}/messages",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"reaction\",\n  \"to\": \"{{to}}\",\n  \"reaction\": {\n    \"message_id\": \"REPLACE_WITH_MESSAGE_ID\",\n    \"emoji\": \"👍\"\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Interactive — Buttons",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/instances/{{instance}}/messages",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"interactive\",\n  \"to\": \"{{to}}\",\n  \"interactive\": {\n    \"type\": \"button\",\n    \"header\": { \"type\": \"text\", \"text\": \"Choose an option\" },\n    \"body\": { \"text\": \"What would you like to do?\" },\n    \"footer\": { \"text\": \"Powered by Papagai\" },\n    \"action\": {\n      \"buttons\": [\n        { \"type\": \"reply\", \"reply\": { \"id\": \"btn_yes\", \"title\": \"Yes\" } },\n        { \"type\": \"reply\", \"reply\": { \"id\": \"btn_no\",  \"title\": \"No\"  } }\n      ]\n    }\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Interactive — List",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/instances/{{instance}}/messages",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"interactive\",\n  \"to\": \"{{to}}\",\n  \"interactive\": {\n    \"type\": \"list\",\n    \"body\": { \"text\": \"Select a plan\" },\n    \"footer\": { \"text\": \"Powered by Papagai\" },\n    \"action\": {\n      \"button\": \"View plans\",\n      \"sections\": [\n        {\n          \"title\": \"Available Plans\",\n          \"rows\": [\n            { \"id\": \"plan_basic\",   \"title\": \"Basic\",      \"description\": \"R$ 29/mo\" },\n            { \"id\": \"plan_pro\",     \"title\": \"Pro\",        \"description\": \"R$ 79/mo\" },\n            { \"id\": \"plan_premium\", \"title\": \"Premium\",    \"description\": \"R$ 149/mo\" }\n          ]\n        }\n      ]\n    }\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Interactive — CTA URL",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/instances/{{instance}}/messages",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"interactive\",\n  \"to\": \"{{to}}\",\n  \"interactive\": {\n    \"type\": \"cta_url\",\n    \"body\": { \"text\": \"Visit our store and get 20% off\" },\n    \"footer\": { \"text\": \"Limited time offer\" },\n    \"action\": {\n      \"name\": \"cta_url\",\n      \"parameters\": {\n        \"display_text\": \"Open store\",\n        \"url\": \"https://example.com/store\"\n      }\n    }\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Interactive — Copy Code",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/instances/{{instance}}/messages",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"interactive\",\n  \"to\": \"{{to}}\",\n  \"interactive\": {\n    \"type\": \"cta_copy\",\n    \"body\": { \"text\": \"Your Pix key is ready to copy\" },\n    \"action\": {\n      \"name\": \"cta_copy\",\n      \"parameters\": {\n        \"display_text\": \"Copy Pix key\",\n        \"copy_code\": \"chave@pix.com\"\n      }\n    }\n  }\n}"
+            }
+          }
+        }
+      ]
+    }
+  ]
+} 

@@ -6,21 +6,14 @@ jest.mock('@whiskeysockets/baileys', () => ({
   downloadContentFromMessage: jest.fn(),
 }));
 
-jest.mock('fs', () => ({
-  ...jest.requireActual('fs'),
-  existsSync: jest.fn().mockReturnValue(true),
-  mkdirSync: jest.fn(),
-}));
-
 import { Test, TestingModule } from '@nestjs/testing';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
-import { App } from 'supertest/types';
-import { AppModule } from './../src/app.module';
-import { WhatsappService } from './../src/whatsapp/whatsapp.service';
-import { HttpExceptionFilter } from './../src/common/filters/http-exception.filter';
-import { LoggingInterceptor } from './../src/common/interceptors/logging.interceptor';
+import { AppModule } from '../src/app.module.js';
+import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter.js';
+import { LoggingInterceptor } from '../src/common/interceptors/logging.interceptor.js';
+import { WhatsappService } from '../src/whatsapp/whatsapp.service.js';
 
 const mockWhatsappService = {
   createInstance: jest.fn(),
@@ -42,8 +35,8 @@ const mockWhatsappService = {
   getChats: jest.fn().mockResolvedValue([]),
 };
 
-describe('App (e2e)', () => {
-  let app: NestExpressApplication;
+describe('Validation (e2e)', () => {
+  let app: INestApplication;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -54,9 +47,13 @@ describe('App (e2e)', () => {
       .compile();
 
     app = moduleFixture.createNestApplication<NestExpressApplication>();
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: false }));
+
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: false }),
+    );
     app.useGlobalFilters(new HttpExceptionFilter());
     app.useGlobalInterceptors(new LoggingInterceptor());
+
     await app.init();
   });
 
@@ -64,20 +61,30 @@ describe('App (e2e)', () => {
     await app.close();
   });
 
-  it('GET /instances returns instance list', () => {
-    return request(app.getHttpServer() as App)
-      .get('/instances')
-      .expect(200)
-      .expect(res => {
-        expect(res.body.total).toBe(0);
-        expect(res.body.instances).toEqual([]);
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('POST /instances/create with name too short returns 400 with structured body', () => {
+    return request(app.getHttpServer())
+      .post('/instances/create')
+      .send({ name: 'ab' })
+      .expect(400)
+      .expect((res) => {
+        expect(res.body.statusCode).toBe(400);
+        expect(res.body.path).toBe('/instances/create');
+        expect(res.body.timestamp).toBeDefined();
+        expect(() => new Date(res.body.timestamp)).not.toThrow();
+        expect(new Date(res.body.timestamp).toString()).not.toBe('Invalid Date');
+        expect(res.body.message).toBeDefined();
       });
   });
 
-  it('POST /instances/create with invalid name returns 400', () => {
-    return request(app.getHttpServer() as App)
+  it('POST /instances/create with valid name succeeds (delegates to mocked service)', () => {
+    mockWhatsappService.createInstance.mockResolvedValue(undefined);
+    return request(app.getHttpServer())
       .post('/instances/create')
-      .send({ name: 'ab' })
-      .expect(400);
+      .send({ name: 'validBot' })
+      .expect(201);
   });
 });

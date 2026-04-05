@@ -1,0 +1,13 @@
+services:
+  app:
+    build:
+      context: .
+      target: builder
+    command: npm run start:dev
+    environment:
+      NODE_ENV: development
+      LOG_LEVEL: info
+    volumes:
+      - .:/app
+      - /app/node_modules
+    restart: unless-stopped
