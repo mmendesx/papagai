@@ -41,6 +41,9 @@ services:
     environment:
       PORT: 3000
       NODE_ENV: production
+      # Required — compose fails fast if unset (no weak defaults). See README.md and .env.example.
+      APP_KEY: ${APP_KEY:?Set APP_KEY in your environment or a .env file next to this compose file}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in your environment or a .env file next to this compose file}
       DB_HOST: db
       DB_PORT: 5432
       DB_USER: papagai

@@ -155,4 +155,19 @@ describe('HttpExceptionFilter', () => {
       expect(body.path).toBe('/api/messages');
     });
   });
+
+  describe('custom code field', () => {
+    it('includes string code from exception response body when present', () => {
+      const { mockHost, json } = buildMockHost('/api/auth/register', 'POST');
+      const exception = new HttpException(
+        { message: 'Invalid application key', error: 'Forbidden', code: 'INVALID_APP_KEY' },
+        HttpStatus.FORBIDDEN,
+      );
+
+      filter.catch(exception, mockHost as any);
+
+      const body = json.mock.calls[0][0];
+      expect(body.code).toBe('INVALID_APP_KEY');
+    });
+  });
 });

@@ -4,10 +4,11 @@ node_modules/
 # Build
 dist/
 build/
+*.tsbuildinfo
 
-# Arquivos do Papagai
-instances/
-media/
+# Arquivos do Papagai (root only — do not use `instances/` or it ignores src/instances/)
+/instances/
+/media/
 *.log
 *.pid
 

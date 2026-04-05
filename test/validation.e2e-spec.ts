@@ -9,6 +9,7 @@ jest.mock('@whiskeysockets/baileys', () => ({
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { JwtService } from '@nestjs/jwt';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter.js';
@@ -37,8 +38,11 @@ const mockWhatsappService = {
 
 describe('Validation (e2e)', () => {
   let app: INestApplication;
+  let authHeader: { Authorization: string };
 
   beforeAll(async () => {
+    process.env.JWT_SECRET = 'e2e-jwt-secret-for-validation-spec';
+    process.env.APP_KEY = 'e2e-app-key';
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
@@ -55,6 +59,14 @@ describe('Validation (e2e)', () => {
     app.useGlobalInterceptors(new LoggingInterceptor());
 
     await app.init();
+    const jwtService = app.get(JwtService);
+    const token = await jwtService.signAsync({
+      sub: '00000000-0000-4000-8000-000000000002',
+      email: 'validation-e2e@test.com',
+      name: 'Validation E2E',
+      role: 'user',
+    });
+    authHeader = { Authorization: `Bearer ${token}` };
   });
 
   afterAll(async () => {
@@ -65,14 +77,15 @@ describe('Validation (e2e)', () => {
     jest.clearAllMocks();
   });
 
-  it('POST /instances/create with name too short returns 400 with structured body', () => {
+  it('POST /api/instances/create with name too short returns 400 with structured body', () => {
     return request(app.getHttpServer())
-      .post('/instances/create')
+      .post('/api/instances/create')
+      .set(authHeader)
       .send({ name: 'ab' })
       .expect(400)
       .expect((res) => {
         expect(res.body.statusCode).toBe(400);
-        expect(res.body.path).toBe('/instances/create');
+        expect(res.body.path).toBe('/api/instances/create');
         expect(res.body.timestamp).toBeDefined();
         expect(() => new Date(res.body.timestamp)).not.toThrow();
         expect(new Date(res.body.timestamp).toString()).not.toBe('Invalid Date');
@@ -80,10 +93,11 @@ describe('Validation (e2e)', () => {
       });
   });
 
-  it('POST /instances/create with valid name succeeds (delegates to mocked service)', () => {
+  it('POST /api/instances/create with valid name succeeds (delegates to mocked service)', () => {
     mockWhatsappService.createInstance.mockResolvedValue(undefined);
     return request(app.getHttpServer())
-      .post('/instances/create')
+      .post('/api/instances/create')
+      .set(authHeader)
       .send({ name: 'validBot' })
       .expect(201);
   });

@@ -1,3 +1,6 @@
+/** Dev-only default; production bootstrap rejects this value. */
+export const DEV_JWT_SECRET_PLACEHOLDER = 'papagai-dev-jwt-secret';
+
 export default () => ({
   port: parseInt(process.env.PORT ?? '3000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
@@ -8,6 +11,10 @@ export default () => ({
   maxInstances: parseInt(process.env.MAX_INSTANCES ?? '10', 10),
   logLevel: process.env.LOG_LEVEL || 'debug',
   redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
+  appKey: process.env.APP_KEY ?? '',
+  jwtSecret: process.env.JWT_SECRET ?? DEV_JWT_SECRET_PLACEHOLDER,
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '24h',
+  corsOrigin: process.env.CORS_ORIGIN ?? '*',
   db: {
     host: process.env.DB_HOST || 'localhost',
     port: parseInt(process.env.DB_PORT ?? '5432', 10),
