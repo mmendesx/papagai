@@ -33,3 +33,6 @@ coverage/
 # Temp
 tmp/
 temp/
+
+# Planning artifacts (local only)
+tasks/
