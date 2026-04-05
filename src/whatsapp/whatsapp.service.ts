@@ -42,6 +42,23 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
   private mediaDir: string;
   private readonly redis: Redis;
 
+  private readonly MESSAGE_TYPE_DETECTORS: Array<{
+    test: (m: any) => boolean;
+    resolve: string | ((m: any) => string);
+  }> = [
+    { test: (m) => !!(m.conversation || m.extendedTextMessage), resolve: 'text' },
+    { test: (m) => !!m.imageMessage, resolve: 'image' },
+    { test: (m) => !!m.audioMessage, resolve: (m) => (m.audioMessage.ptt ? 'voice' : 'audio') },
+    { test: (m) => !!m.videoMessage, resolve: 'video' },
+    { test: (m) => !!m.documentMessage, resolve: 'document' },
+    { test: (m) => !!m.stickerMessage, resolve: 'sticker' },
+    { test: (m) => !!m.locationMessage, resolve: 'location' },
+    { test: (m) => !!m.contactMessage, resolve: 'contact' },
+    { test: (m) => !!m.buttonsResponseMessage, resolve: 'button_response' },
+    { test: (m) => !!m.listResponseMessage, resolve: 'list_response' },
+    { test: (m) => !!m.reactionMessage, resolve: 'reaction' },
+  ];
+
   constructor(
     private configService: ConfigService,
     private webhookService: WebhookService,
@@ -310,110 +327,74 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
     msg: any,
     messageType: string,
   ): Promise<void> {
-    switch (messageType) {
-      case 'text':
-        webhookData.text =
-          msg.message?.conversation ||
-          msg.message?.extendedTextMessage?.text;
-        break;
-      case 'image': {
-        const image = await this.downloadMedia(msg, 'image');
-        if (image) {
-          webhookData.image = image;
-          webhookData.caption = image.caption;
-        }
-        break;
-      }
-      case 'audio': {
-        const audio = await this.downloadMedia(msg, 'audio');
-        if (audio) {
-          webhookData.audio = audio;
-          webhookData.duration = audio.duration;
-        }
-        break;
-      }
-      case 'voice': {
-        const voice = await this.downloadMedia(msg, 'audio');
-        if (voice) {
-          webhookData.voice = voice;
-          webhookData.duration = voice.duration;
-        }
-        break;
-      }
-      case 'video': {
-        const video = await this.downloadMedia(msg, 'video');
-        if (video) {
-          webhookData.video = video;
-          webhookData.caption = video.caption;
-          webhookData.duration = video.duration;
-        }
-        break;
-      }
-      case 'document': {
-        const document = await this.downloadMedia(msg, 'document');
-        if (document) {
-          webhookData.document = document;
-          webhookData.filename = document.filename;
-        }
-        break;
-      }
-      case 'sticker': {
-        const sticker = await this.downloadMedia(msg, 'sticker');
-        if (sticker) webhookData.sticker = sticker;
-        break;
-      }
-      case 'location': {
+    type Enricher = (msg: any, data: WebhookData) => Promise<void>;
+    const ENRICHERS: Partial<Record<string, Enricher>> = {
+      text: async (msg, data) => {
+        data.text = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
+      },
+      image: async (msg, data) => {
+        const r = await this.downloadMedia(msg, 'image');
+        if (r) { data.image = r; data.caption = r.caption; }
+      },
+      audio: async (msg, data) => {
+        const r = await this.downloadMedia(msg, 'audio');
+        if (r) { data.audio = r; data.duration = r.duration; }
+      },
+      voice: async (msg, data) => {
+        const r = await this.downloadMedia(msg, 'audio');
+        if (r) { data.voice = r; data.duration = r.duration; }
+      },
+      video: async (msg, data) => {
+        const r = await this.downloadMedia(msg, 'video');
+        if (r) { data.video = r; data.caption = r.caption; data.duration = r.duration; }
+      },
+      document: async (msg, data) => {
+        const r = await this.downloadMedia(msg, 'document');
+        if (r) { data.document = r; data.filename = r.filename; }
+      },
+      sticker: async (msg, data) => {
+        const r = await this.downloadMedia(msg, 'sticker');
+        if (r) data.sticker = r;
+      },
+      location: async (msg, data) => {
         const loc = msg.message?.locationMessage;
-        webhookData.location = {
+        data.location = {
           degreesLatitude: loc?.degreesLatitude,
           degreesLongitude: loc?.degreesLongitude,
           name: loc?.name,
           address: loc?.address,
         };
-        break;
-      }
-      case 'contact': {
+      },
+      contact: async (msg, data) => {
         const contact = msg.message?.contactMessage;
         const vcard: string = contact?.vcard || '';
-        webhookData.contact = {
+        data.contact = {
           displayName: contact?.displayName || '',
           vcard,
           numbers: this.parseVCard(vcard),
         };
-        break;
-      }
-      case 'button_response': {
+      },
+      button_response: async (msg, data) => {
         const btn = msg.message?.buttonsResponseMessage;
-        webhookData.buttonId = btn?.selectedButtonId;
-        webhookData.text = btn?.selectedDisplayText;
-        break;
-      }
-      case 'reaction': {
+        data.buttonId = btn?.selectedButtonId;
+        data.text = btn?.selectedDisplayText;
+      },
+      reaction: async (msg, data) => {
         const react = msg.message?.reactionMessage;
-        webhookData.reaction = react?.text;
-        webhookData.parentMessageId = react?.key?.id;
-        break;
-      }
-    }
+        data.reaction = react?.text;
+        data.parentMessageId = react?.key?.id;
+      },
+    };
+    const enrich = ENRICHERS[messageType];
+    if (enrich) await enrich(msg, webhookData);
   }
 
   private getMessageType(msg: any): string {
     const m = msg.message;
     if (!m) return 'unknown';
-
-    if (m.conversation || m.extendedTextMessage) return 'text';
-    if (m.imageMessage) return 'image';
-    if (m.audioMessage) return m.audioMessage.ptt ? 'voice' : 'audio';
-    if (m.videoMessage) return 'video';
-    if (m.documentMessage) return 'document';
-    if (m.stickerMessage) return 'sticker';
-    if (m.locationMessage) return 'location';
-    if (m.contactMessage) return 'contact';
-    if (m.buttonsResponseMessage) return 'button_response';
-    if (m.listResponseMessage) return 'list_response';
-    if (m.reactionMessage) return 'reaction';
-
-    return 'unknown';
+    const detector = this.MESSAGE_TYPE_DETECTORS.find(({ test }) => test(m));
+    if (!detector) return 'unknown';
+    return typeof detector.resolve === 'function' ? detector.resolve(m) : detector.resolve;
   }
 
   private async downloadMedia(
