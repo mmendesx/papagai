@@ -3,6 +3,7 @@ import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { TuiAlertService } from '@taiga-ui/core';
 import { catchError, throwError } from 'rxjs';
+import { DOCS_TRY_IT } from '../http/docs-try-it.context';
 
 const TOKEN_KEY = 'papagai_access_token';
 
@@ -25,6 +26,10 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
   return next(req).pipe(
     catchError((err: unknown) => {
       if (!(err instanceof HttpErrorResponse)) {
+        return throwError(() => err);
+      }
+
+      if (req.context.get(DOCS_TRY_IT)) {
         return throwError(() => err);
       }
 

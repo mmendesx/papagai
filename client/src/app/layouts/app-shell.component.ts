@@ -19,6 +19,7 @@ import { AuthService } from '../core/auth/auth.service';
             [routerLinkActiveOptions]="{ exact: true }"
             >Dashboard</a
           >
+          <a routerLink="/docs" routerLinkActive="active">API Docs</a>
         </nav>
         <div class="sidebar-footer">
           @if (user(); as u) {

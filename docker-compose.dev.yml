@@ -37,7 +37,7 @@ services:
       context: .
       target: builder
     container_name: papagai-app
-    command: npm run start:dev
+    command: ["sh", "/app/scripts/docker-dev-entrypoint.sh", "npm", "run", "start:dev"]
     restart: unless-stopped
     depends_on:
       db:

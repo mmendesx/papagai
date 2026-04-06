@@ -74,17 +74,35 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
 
   async onModuleInit(): Promise<void> {
     const configs = await this.instanceConfigRepo.find();
+    if (configs.length === 0) return;
+
     this.logger.log(`Restoring ${configs.length} instance(s) from database...`);
-    await Promise.allSettled(
-      configs.map(async (config) => {
-        try {
-          await this.createInstance(config.name, config.webhookUrl ?? undefined, config.webhookHeaders, config.webhookEnabled, config.webhookEvents);
-          this.logger.log(`Restored instance "${config.name}"`);
-        } catch (error) {
-          this.logger.error(`Failed to restore instance "${config.name}": ${error instanceof Error ? error.message : String(error)}`);
-        }
-      }),
-    );
+
+    // Restore instances sequentially with a delay between each to avoid
+    // WhatsApp "conflict: replaced" errors when the server restarts quickly
+    // (the previous WS session needs time to expire on WhatsApp's side).
+    const RESTORE_DELAY_MS = 3_000;
+
+    for (const config of configs) {
+      try {
+        await this.createInstance(
+          config.name,
+          config.webhookUrl ?? undefined,
+          config.webhookHeaders,
+          config.webhookEnabled,
+          config.webhookEvents,
+        );
+        this.logger.log(`Restored instance "${config.name}"`);
+      } catch (error) {
+        this.logger.error(
+          `Failed to restore instance "${config.name}": ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+
+      if (configs.indexOf(config) < configs.length - 1) {
+        await new Promise((r) => setTimeout(r, RESTORE_DELAY_MS));
+      }
+    }
   }
 
   async createInstance(
@@ -254,9 +272,10 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
         ? lastDisconnect.error.output?.statusCode
         : null;
     const isLoggedOut = statusCode === DisconnectReason.loggedOut;
+    const isConflict = statusCode === 440;
 
     const retryCount = instance.retryCount + 1;
-    const willReconnect = !isLoggedOut && retryCount <= WhatsappService.MAX_RETRIES;
+    const willReconnect = !isLoggedOut && !isConflict && retryCount <= WhatsappService.MAX_RETRIES;
 
     this.logger.warn(
       `Instance "${instance.name}" disconnected — statusCode=${statusCode}, attempt=${retryCount}/${WhatsappService.MAX_RETRIES}, willReconnect=${willReconnect}`,
@@ -270,6 +289,16 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
       timestamp: Date.now(),
     };
     this.webhookService.sendWebhook(instance, data).catch(() => undefined);
+
+    if (isConflict) {
+      instance.connected = false;
+      this.instances.delete(instance.name);
+      this.qrCodes.delete(instance.name);
+      this.logger.warn(
+        `Instance "${instance.name}" replaced by another session (conflict) — not reconnecting`,
+      );
+      return;
+    }
 
     if (isLoggedOut) {
       instance.connected = false;
@@ -704,10 +733,18 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
     newInstance.retryCount = retryCount;
   }
 
-  onModuleDestroy(): void {
+  async onModuleDestroy(): Promise<void> {
     for (const [name, instance] of this.instances) {
       this.logger.log(`Shutting down instance "${name}"`);
-      instance.socket.end(undefined);
+      try {
+        instance.socket.ev.removeAllListeners('connection.update');
+        instance.socket.ev.removeAllListeners('creds.update');
+        instance.socket.ev.removeAllListeners('messages.upsert');
+        instance.socket.ev.removeAllListeners('messages.update');
+        instance.socket.end(undefined);
+      } catch (err) {
+        this.logger.warn(`Error closing socket for "${name}": ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
     this.instances.clear();
     this.qrCodes.clear();

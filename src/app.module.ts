@@ -39,7 +39,7 @@ import { User } from './auth/entities/user.entity.js';
     MediaModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'client', 'dist', 'client', 'browser'),
-      exclude: ['/api/*', '/media/*'],
+      exclude: ['/api{/*path}', '/media{/*path}'],
     }),
   ],
 })

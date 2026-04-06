@@ -21,7 +21,7 @@ export class InstanceConfig {
     name: 'webhook_events',
     type: 'text',
     array: true,
-    default: `'{message,message_update,qr,connected,disconnected}'`,
+    default: ['message', 'message_update', 'qr', 'connected', 'disconnected'],
   })
   webhookEvents: string[];
 
