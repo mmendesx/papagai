@@ -20,37 +20,37 @@ const LOGIN_CURL = `curl -sS -X POST "$BASE/api/auth/login" \\
   template: `
     <div class="docs">
       <header class="hero">
-        <h1 class="tui-text_h4">API reference</h1>
+        <h1 class="hero-title">Referência da API</h1>
         <p class="lead">
-          Integrate external services with Papagai over HTTPS using JSON and JWT. All instance routes live under
+          Integre serviços externos com o Papagai via HTTPS usando JSON e JWT. Todas as rotas de instância ficam sob
           <code>/api/instances</code>.
         </p>
       </header>
 
       <section class="panel auth-panel">
-        <h2 class="panel-title">Authentication</h2>
+        <h2 class="panel-title">Autenticação</h2>
         <p>
-          Protected routes expect
+          Rotas protegidas exigem
           <code>Authorization: Bearer &lt;accessToken&gt;</code>
-          . Obtain a token via
+          . Obtenha um token via
           <strong>POST</strong>
           <code>/api/auth/login</code>
-          or
+          ou
           <strong>POST</strong>
           <code>/api/auth/register</code>
-          (when registration is enabled).
+          (quando o registro estiver habilitado).
         </p>
         <p class="expiry">
-          <strong>Token lifetime:</strong>
-          JWTs issued by this server expire after the configured duration (default
-          <strong>24 hours</strong>
+          <strong>Validade do token:</strong>
+          JWTs emitidos por este servidor expiram após a duração configurada (padrão
+          <strong>24 horas</strong>
           ).
         </p>
-        <h3 class="h3">Example — login with curl</h3>
-        <p class="hint">Replace <code>$BASE</code> with your server origin (e.g. <code>https://api.example.com</code>).</p>
+        <h3 class="h3">Exemplo — login com curl</h3>
+        <p class="hint">Substitua <code>$BASE</code> pela origem do seu servidor (ex.: <code>https://api.example.com</code>).</p>
         <div class="code-wrap">
           <button type="button" class="copy" (click)="copyLoginCurl()">
-            {{ copiedAuth() ? 'Copied!' : 'Copy' }}
+            {{ copiedAuth() ? 'Copiado!' : 'Copiar' }}
           </button>
           <pre class="code-block"><code>{{ loginCurlDisplay() }}</code></pre>
         </div>
@@ -58,41 +58,41 @@ const LOGIN_CURL = `curl -sS -X POST "$BASE/api/auth/login" \\
 
       <div class="search-row">
         <tui-textfield class="search-field">
-          <label tuiLabel>Search endpoints</label>
+          <label tuiLabel>Buscar endpoints</label>
           <input
             tuiTextfield
             type="search"
             [ngModel]="searchQuery()"
             (ngModelChange)="searchQuery.set($event)"
             autocomplete="off"
-            placeholder="Path, method, or description…"
+            placeholder="Caminho, método ou descrição…"
           />
         </tui-textfield>
       </div>
 
       @for (group of filteredGroups(); track group.id) {
         <section class="group">
-          <h2 class="group-title">{{ group.title }}</h2>
+          <h2 class="group-title section-title">{{ group.title }}</h2>
           @if (group.description) {
             <p class="group-desc">{{ group.description }}</p>
           }
 
           @if (group.id === 'webhooks') {
             <div class="wh-ref panel">
-              <h3 class="h3">Webhook event types</h3>
+              <h3 class="h3">Tipos de evento de webhook</h3>
               <p class="muted">
-                Outbound webhooks send JSON with an
+                Webhooks de saída enviam JSON com um campo
                 <code>event</code>
-                field. Configure URL, headers, enabled flag, and allowed events via
+                . Configure a URL, cabeçalhos, flag de ativação e eventos permitidos via
                 <strong>PATCH</strong>
                 <code>/api/instances/:name/webhook</code>
-                or the dashboard Webhook tab.
+                ou pela aba Webhook do dashboard.
               </p>
               <table class="tbl">
                 <thead>
                   <tr>
-                    <th>Event</th>
-                    <th>Description</th>
+                    <th>Evento</th>
+                    <th>Descrição</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -104,7 +104,7 @@ const LOGIN_CURL = `curl -sS -X POST "$BASE/api/auth/login" \\
                   }
                 </tbody>
               </table>
-              <h3 class="h3">Payload examples</h3>
+              <h3 class="h3">Exemplos de payload</h3>
               @for (ex of webhookPayloadExamples; track ex.event) {
                 <p class="ex-label"><code>{{ ex.event }}</code></p>
                 <pre class="code-block tight"><code>{{ ex.json }}</code></pre>
@@ -121,7 +121,7 @@ const LOGIN_CURL = `curl -sS -X POST "$BASE/api/auth/login" \\
       }
 
       @if (filteredGroups().length === 0) {
-        <p class="empty">No endpoints match your search.</p>
+        <p class="empty">Nenhum endpoint corresponde à sua busca.</p>
       }
     </div>
   `,
@@ -134,9 +134,21 @@ const LOGIN_CURL = `curl -sS -X POST "$BASE/api/auth/login" \\
       }
       .hero {
         margin-bottom: 1.5rem;
+        background: linear-gradient(135deg, rgba(168,85,247,0.05) 0%, rgba(99,102,241,0.05) 50%, rgba(6,182,212,0.05) 100%);
+        border-bottom: 1px solid rgba(168,85,247,0.1);
+        padding: 3rem 2rem 2rem;
+        margin-left: -2rem;
+        margin-right: -2rem;
+      }
+      .hero-title {
+        font-size: 2rem;
+        font-weight: 300;
+        margin: 0 0 0.75rem;
+        line-height: 1.2;
       }
       .lead {
-        margin: 0.5rem 0 0;
+        margin: 0;
+        font-weight: 200;
         color: var(--tui-text-secondary);
         line-height: 1.55;
         max-width: 42rem;
@@ -196,7 +208,8 @@ const LOGIN_CURL = `curl -sS -X POST "$BASE/api/auth/login" \\
         color: var(--tui-text-primary);
       }
       .copy:hover {
-        background: var(--tui-background-accent-1);
+        color: var(--papagai-purple);
+        background: rgba(168,85,247,0.08);
       }
       .code-block {
         margin: 0;
@@ -204,10 +217,11 @@ const LOGIN_CURL = `curl -sS -X POST "$BASE/api/auth/login" \\
         padding-top: 2rem;
         overflow: auto;
         max-height: 14rem;
-        font-size: 0.75rem;
+        font-size: 0.8125rem;
         line-height: 1.45;
-        background: var(--tui-background-neutral-1);
-        border-radius: var(--tui-radius-s);
+        background: #1e1b2e;
+        color: #e2d9f3;
+        border-radius: 0.5rem;
         border: 1px solid var(--tui-border-normal);
       }
       .code-block.tight {
@@ -228,9 +242,11 @@ const LOGIN_CURL = `curl -sS -X POST "$BASE/api/auth/login" \\
       .group-title {
         margin: 0 0 0.35rem;
         font: var(--tui-font-text-l);
-        font-weight: 600;
-        padding-bottom: 0.35rem;
-        border-bottom: 2px solid var(--tui-border-normal);
+        font-weight: 300;
+        font-size: 1.125rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid transparent;
+        border-image: var(--papagai-gradient-accent) 1;
       }
       .group-desc {
         margin: 0 0 1rem;
@@ -260,12 +276,23 @@ const LOGIN_CURL = `curl -sS -X POST "$BASE/api/auth/login" \\
       .tbl th,
       .tbl td {
         border: 1px solid var(--tui-border-normal);
-        padding: 0.45rem 0.55rem;
+        padding: 0.5rem 0.75rem;
         text-align: left;
         vertical-align: top;
+        font-size: 0.8125rem;
       }
       .tbl th {
-        background: var(--tui-background-neutral-1);
+        background: rgba(168,85,247,0.08);
+        font-weight: 300;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .tbl tbody tr:nth-child(even) {
+        background: rgba(168,85,247,0.03);
+      }
+      .tbl tbody tr:hover {
+        background: rgba(168,85,247,0.06);
       }
       .ex-label {
         margin: 0.5rem 0 0.25rem;

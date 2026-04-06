@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import type { EndpointDef, HttpMethod } from './api-endpoints';
+import { DocsNavigationService } from './docs-navigation.service';
 import { TryItPanelComponent } from './try-it-panel.component';
 
 @Component({
@@ -7,6 +8,7 @@ import { TryItPanelComponent } from './try-it-panel.component';
   standalone: true,
   imports: [TryItPanelComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '[id]': 'endpoint().id' },
   template: `
     <article class="card" [class.open]="expanded()">
       <button type="button" class="card-head" (click)="toggleExpanded()">
@@ -27,16 +29,16 @@ import { TryItPanelComponent } from './try-it-panel.component';
           <p class="desc">{{ endpoint().description }}</p>
           <p class="auth">
             <strong>Auth:</strong>
-            {{ endpoint().auth === 'jwt' ? 'Bearer JWT (Authorization header)' : 'None' }}
+            {{ endpoint().auth === 'jwt' ? 'Requer autenticação JWT (cabeçalho Authorization)' : 'Sem autenticação necessária' }}
           </p>
 
           @if (endpoint().pathParams?.length) {
-            <h4 class="sub">Path parameters</h4>
+            <h4 class="sub">Parâmetros de rota</h4>
             <table class="tbl">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Description</th>
+                  <th>Nome</th>
+                  <th>Descrição</th>
                 </tr>
               </thead>
               <tbody>
@@ -51,14 +53,14 @@ import { TryItPanelComponent } from './try-it-panel.component';
           }
 
           @if (endpoint().queryParams?.length) {
-            <h4 class="sub">Query parameters</h4>
+            <h4 class="sub">Parâmetros de query</h4>
             <table class="tbl">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Type</th>
-                  <th>Required</th>
-                  <th>Description</th>
+                  <th>Nome</th>
+                  <th>Tipo</th>
+                  <th>Obrigatório</th>
+                  <th>Descrição</th>
                 </tr>
               </thead>
               <tbody>
@@ -66,7 +68,7 @@ import { TryItPanelComponent } from './try-it-panel.component';
                   <tr>
                     <td><code>{{ p.name }}</code></td>
                     <td>{{ p.type }}</td>
-                    <td>{{ p.required ? 'Yes' : 'No' }}</td>
+                    <td>{{ p.required ? 'Sim' : 'Não' }}</td>
                     <td>{{ p.description }}</td>
                   </tr>
                 }
@@ -75,14 +77,14 @@ import { TryItPanelComponent } from './try-it-panel.component';
           }
 
           @if (endpoint().bodyParams?.length) {
-            <h4 class="sub">Request body</h4>
+            <h4 class="sub">Corpo da requisição</h4>
             <table class="tbl">
               <thead>
                 <tr>
-                  <th>Field</th>
-                  <th>Type</th>
-                  <th>Required</th>
-                  <th>Description</th>
+                  <th>Campo</th>
+                  <th>Tipo</th>
+                  <th>Obrigatório</th>
+                  <th>Descrição</th>
                 </tr>
               </thead>
               <tbody>
@@ -90,7 +92,7 @@ import { TryItPanelComponent } from './try-it-panel.component';
                   <tr>
                     <td><code>{{ p.name }}</code></td>
                     <td>{{ p.type }}</td>
-                    <td>{{ p.required ? 'Yes' : 'No' }}</td>
+                    <td>{{ p.required ? 'Sim' : 'Não' }}</td>
                     <td>{{ p.description }}</td>
                   </tr>
                 }
@@ -98,21 +100,21 @@ import { TryItPanelComponent } from './try-it-panel.component';
             </table>
           }
 
-          <h4 class="sub">Response example</h4>
+          <h4 class="sub">Exemplo de resposta</h4>
           <div class="code-wrap">
             <button type="button" class="copy" (click)="copy(endpoint().responseExample, 'res'); $event.stopPropagation()">
-              {{ copied() === 'res' ? 'Copied!' : 'Copy' }}
+              {{ copied() === 'res' ? 'Copiado!' : 'Copiar' }}
             </button>
             <pre class="code-block"><code>{{ endpoint().responseExample }}</code></pre>
           </div>
 
           @if (endpoint().errorCodes.length > 0) {
-            <h4 class="sub">Errors</h4>
+            <h4 class="sub">Códigos de erro</h4>
             <table class="tbl">
               <thead>
                 <tr>
                   <th>HTTP</th>
-                  <th>Meaning</th>
+                  <th>Significado</th>
                 </tr>
               </thead>
               <tbody>
@@ -126,10 +128,10 @@ import { TryItPanelComponent } from './try-it-panel.component';
             </table>
           }
 
-          <h4 class="sub">Example (curl)</h4>
+          <h4 class="sub">Exemplo (curl)</h4>
           <div class="code-wrap">
             <button type="button" class="copy" (click)="copy(curlExpanded(), 'curl'); $event.stopPropagation()">
-              {{ copied() === 'curl' ? 'Copied!' : 'Copy' }}
+              {{ copied() === 'curl' ? 'Copiado!' : 'Copiar' }}
             </button>
             <pre class="code-block"><code>{{ curlExpanded() }}</code></pre>
           </div>
@@ -156,7 +158,7 @@ import { TryItPanelComponent } from './try-it-panel.component';
         flex-wrap: wrap;
         align-items: center;
         gap: 0.65rem;
-        padding: 0.75rem 1rem;
+        padding: 1rem 1.25rem;
         margin: 0;
         border: none;
         background: transparent;
@@ -177,19 +179,22 @@ import { TryItPanelComponent } from './try-it-panel.component';
         font-weight: 700;
         letter-spacing: 0.04em;
         text-align: center;
-        color: #fff;
       }
       .method-get {
-        background: #2563eb;
+        background: #dbeafe;
+        color: #1e40af;
       }
       .method-post {
-        background: #16a34a;
+        background: #dcfce7;
+        color: #166534;
       }
       .method-patch {
-        background: #d97706;
+        background: #fef3c7;
+        color: #92400e;
       }
       .method-delete {
-        background: #dc2626;
+        background: #fee2e2;
+        color: #991b1b;
       }
       .path-line {
         flex: 1;
@@ -206,7 +211,7 @@ import { TryItPanelComponent } from './try-it-panel.component';
         font-size: 0.7rem;
       }
       .card-body {
-        padding: 0 1rem 1rem;
+        padding: 0 1.25rem 1.25rem;
         border-top: 1px solid var(--tui-border-normal);
       }
       .desc {
@@ -230,16 +235,22 @@ import { TryItPanelComponent } from './try-it-panel.component';
         width: 100%;
         border-collapse: collapse;
         font: var(--tui-font-text-s);
+        margin-bottom: 0.5rem;
       }
       .tbl th,
       .tbl td {
         border: 1px solid var(--tui-border-normal);
-        padding: 0.4rem 0.5rem;
+        padding: 0.5rem 0.75rem;
         text-align: left;
         vertical-align: top;
+        font-size: 0.8125rem;
       }
-      .tbl th {
-        background: var(--tui-background-neutral-1);
+      .tbl thead th {
+        background: rgba(168,85,247,0.06);
+        font-weight: 300;
+      }
+      .tbl tbody tr:nth-child(even) {
+        background: rgba(0,0,0,0.02);
       }
       .code-wrap {
         position: relative;
@@ -258,7 +269,8 @@ import { TryItPanelComponent } from './try-it-panel.component';
         color: var(--tui-text-primary);
       }
       .copy:hover {
-        background: var(--tui-background-accent-1);
+        color: var(--papagai-purple);
+        background: rgba(168,85,247,0.08);
       }
       .code-block {
         margin: 0;
@@ -266,10 +278,11 @@ import { TryItPanelComponent } from './try-it-panel.component';
         padding-top: 2rem;
         overflow: auto;
         max-height: 20rem;
-        font-size: 0.75rem;
+        font-size: 0.8125rem;
         line-height: 1.45;
-        background: var(--tui-background-neutral-1);
-        border-radius: var(--tui-radius-s);
+        background: #1e1b2e;
+        color: #e2d9f3;
+        border-radius: 0.5rem;
         border: 1px solid var(--tui-border-normal);
       }
     `,
@@ -278,7 +291,19 @@ import { TryItPanelComponent } from './try-it-panel.component';
 export class EndpointCardComponent {
   readonly endpoint = input.required<EndpointDef>();
 
+  private readonly docsNav = inject(DocsNavigationService);
+
   readonly expanded = signal(false);
+
+  constructor() {
+    effect(() => {
+      const targetId = this.docsNav.targetEndpointId();
+      if (targetId && targetId === this.endpoint().id) {
+        this.expanded.set(true);
+        this.docsNav.clear();
+      }
+    });
+  }
   readonly copied = signal<string | null>(null);
 
   toggleExpanded(): void {

@@ -1,11 +1,112 @@
-html,
-body {
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Papagai brand CSS custom properties */
+:root {
+  /* Gradients */
+  --papagai-gradient-page: linear-gradient(135deg, #fae8ff 0%, #e0f2fe 50%, #dcfce7 100%);
+  --papagai-gradient-sidebar: linear-gradient(180deg, #fdf4ff 0%, #f0f9ff 50%, #f0fdf4 100%);
+  --papagai-gradient-accent: linear-gradient(135deg, #d946ef 0%, #6366f1 50%, #06b6d4 100%);
+  --papagai-gradient-button: linear-gradient(135deg, #a855f7 0%, #6366f1 100%);
+
+  /* Brand colors */
+  --papagai-purple: #a855f7;
+  --papagai-indigo: #6366f1;
+  --papagai-cyan: #06b6d4;
+  --papagai-pink: #d946ef;
+
+  /* Blue/neutral palette for redesign */
+  --papagai-blue: #2563eb;
+  --papagai-blue-light: #eff6ff;
+  --papagai-yellow: #fbbf24;
+  --papagai-green: #22c55e;
+  --papagai-gray-text: #6b7280;
+  --papagai-border: #e5e7eb;
+
+  /* Override Taiga UI font to use Lexend */
+  --tui-font-text: 'Lexend', sans-serif;
+  --tui-font-text-s: 200 0.75rem/1rem 'Lexend', sans-serif;
+  --tui-font-text-m: 200 0.875rem/1.25rem 'Lexend', sans-serif;
+  --tui-font-text-l: 200 1rem/1.5rem 'Lexend', sans-serif;
+  --tui-font-heading: 300 1.5rem/2rem 'Lexend', sans-serif;
+  --tui-font-heading-1: 400 2.25rem/2.5rem 'Lexend', sans-serif;
+  --tui-font-heading-2: 400 1.875rem/2.25rem 'Lexend', sans-serif;
+  --tui-font-heading-3: 300 1.5rem/2rem 'Lexend', sans-serif;
+}
+
+html, body {
   height: 100%;
   margin: 0;
+  font-family: 'Lexend', sans-serif;
+  font-weight: 200;
 }
 
 body {
   font: var(--tui-font-text-m);
   color: var(--tui-text-primary);
   background: var(--tui-background-base);
+}
+
+/* Responsive utilities */
+@media (max-width: 767px) {
+  /* Ensure minimum 44px tap targets for interactive elements */
+  button,
+  a[routerLink],
+  [role="button"] {
+    min-height: 44px;
+  }
+
+  /* Ensure tap-friendly sizing for form controls */
+  input,
+  select,
+  textarea {
+    font-size: 16px; /* Prevents iOS zoom on focus */
+  }
+}
+
+/* Global transition defaults */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* Smooth focus indicators that work on gradient backgrounds */
+:focus-visible {
+  outline: 2px solid var(--papagai-purple, #a855f7);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Remove default focus ring in favor of :focus-visible */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Consistent button cursor */
+button:not([disabled]) {
+  cursor: pointer;
+}
+button[disabled] {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Consistent link styling in content areas */
+.content-area a:not([class]) {
+  color: var(--papagai-purple, #a855f7);
+  text-decoration: none;
+}
+.content-area a:not([class]):hover {
+  text-decoration: underline;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Selection color */
+::selection {
+  background: rgba(168, 85, 247, 0.2);
+  color: inherit;
 }

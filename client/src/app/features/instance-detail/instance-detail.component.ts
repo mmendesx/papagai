@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
   Component,
+  effect,
   inject,
   signal,
 } from '@angular/core';
@@ -13,10 +14,12 @@ import { TuiAlertService, TuiButton } from '@taiga-ui/core';
 import { TuiLink } from '@taiga-ui/core/components/link';
 import { TuiTextfield } from '@taiga-ui/core/components/textfield';
 import { TuiConfirmService } from '@taiga-ui/kit/components/confirm';
+import { TuiSwitch } from '@taiga-ui/kit/components/switch';
+import { TuiTabs } from '@taiga-ui/kit/components/tabs';
 import { firstValueFrom, timer } from 'rxjs';
 import { filter, map, switchMap, takeWhile, tap } from 'rxjs/operators';
-import { SendMessageComponent } from './send-message.component';
 import { ChatsComponent } from './chats.component';
+import { SendMessageComponent } from './send-message.component';
 
 type QrResponse = {
   qr?: string;
@@ -33,6 +36,7 @@ type StatusResponse = {
   startTime: string;
   uptime: number;
   phoneNumber?: string;
+  webhook?: WebhookConfig;
 };
 
 type WebhookConfig = {
@@ -50,184 +54,328 @@ type WebhookResponse = {
 @Component({
   selector: 'app-instance-detail',
   standalone: true,
-  imports: [DatePipe, FormsModule, RouterLink, TuiButton, TuiLink, ...TuiTextfield, SendMessageComponent, ChatsComponent],
+  imports: [
+    DatePipe,
+    FormsModule,
+    RouterLink,
+    TuiButton,
+    TuiLink,
+    TuiSwitch,
+    ...TuiTabs,
+    ...TuiTextfield,
+    SendMessageComponent,
+    ChatsComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="toolbar">
-      <a tuiLink routerLink="/dashboard">← Dashboard</a>
-      <h1 class="tui-text_h5">{{ name() ?? '…' }}</h1>
-      <button tuiButton type="button" size="s" appearance="negative" (click)="confirmDelete()">
-        Delete
-      </button>
+    <!-- Page header -->
+    <div style="
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--tui-border-normal);
+      gap: 1rem;
+    ">
+      <div style="display: flex; align-items: center; gap: 1rem; min-width: 0;">
+        <a
+          tuiLink
+          routerLink="/dashboard"
+          style="white-space: nowrap; font-weight: 300;"
+        >← Voltar</a>
+        <h1 style="
+          margin: 0;
+          font-size: 1.125rem;
+          font-weight: 300;
+          color: var(--tui-text-primary);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        ">{{ name() ?? '…' }}</h1>
+      </div>
+      <button
+        tuiButton
+        type="button"
+        size="s"
+        appearance="negative"
+        (click)="confirmDelete()"
+      >Excluir</button>
     </div>
 
-    <nav class="tabs">
-      <button
-        tuiButton
-        type="button"
-        size="s"
-        [appearance]="tab() === 'status' ? 'primary' : 'secondary'"
-        (click)="onTabChange('status')"
+    <!-- TuiTabs navigation -->
+    <div style="padding: 0 1.5rem; border-bottom: 1px solid var(--tui-border-normal);">
+      <tui-tabs
+        [activeItemIndex]="activeTab()"
+        (activeItemIndexChange)="onTabIndexChange($event)"
       >
-        Status &amp; QR
-      </button>
-      <button
-        tuiButton
-        type="button"
-        size="s"
-        [appearance]="tab() === 'message' ? 'primary' : 'secondary'"
-        (click)="onTabChange('message')"
-      >
-        Send message
-      </button>
-      <button
-        tuiButton
-        type="button"
-        size="s"
-        [appearance]="tab() === 'chats' ? 'primary' : 'secondary'"
-        (click)="onTabChange('chats')"
-      >
-        Chats
-      </button>
-      <button
-        tuiButton
-        type="button"
-        size="s"
-        [appearance]="tab() === 'webhook' ? 'primary' : 'secondary'"
-        (click)="onTabChange('webhook')"
-      >
-        Webhook
-      </button>
-    </nav>
+        <button tuiTab type="button">Status &amp; QR</button>
+        <button tuiTab type="button">Enviar Mensagem</button>
+        <button tuiTab type="button">Conversas</button>
+        <button tuiTab type="button">Webhook</button>
+      </tui-tabs>
+    </div>
 
-    @if (tab() === 'status') {
-      <div class="panel">
-        @if (qrData(); as q) {
-          @if (q.status === 'qr' && q.qrImageData) {
-            <p>{{ q.message }}</p>
-            <img [src]="q.qrImageData" alt="QR Code" class="qr" />
-          } @else if (q.status === 'connected') {
-            <p class="ok">{{ q.message }}</p>
-            <p>Phone: {{ q.phoneNumber ?? status()?.phoneNumber ?? '—' }}</p>
-            @if (status(); as s) {
-              <p>Started: {{ s.startTime | date: 'medium' }}</p>
-              <p>Uptime: {{ formatMs(s.uptime) }}</p>
+    <!-- Tab content -->
+    <div style="padding: 1.5rem;">
+      @switch (activeTab()) {
+
+        @case (0) {
+          <!-- Status & QR tab -->
+          @if (qrData(); as q) {
+            @if (q.status === 'connected') {
+              <!-- Connected status card -->
+              <div class="status-card connected" style="max-width: 28rem;">
+                <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem;">
+                  <svg
+                    width="22"
+                    height="22"
+                    viewBox="0 0 22 22"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    aria-hidden="true"
+                  >
+                    <circle cx="11" cy="11" r="11" fill="#dcfce7"/>
+                    <path
+                      d="M6.5 11.5L9.5 14.5L15.5 8"
+                      stroke="#16a34a"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                  <span style="font-size: 1rem; font-weight: 300; color: #15803d;">Conectado</span>
+                </div>
+                <div class="info-grid">
+                  <div class="info-row">
+                    <span class="info-label">Telefone</span>
+                    <span class="info-value">{{ q.phoneNumber ?? status()?.phoneNumber ?? '—' }}</span>
+                  </div>
+                  @if (status(); as s) {
+                    <div class="info-row">
+                      <span class="info-label">Tempo ativo</span>
+                      <span class="info-value" style="display: flex; align-items: center; gap: 0.375rem;">
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                          <circle cx="7" cy="7" r="6" stroke="#6b7280" stroke-width="1.5"/>
+                          <path d="M7 4v3l2 1.5" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                        {{ formatMs(s.uptime) }}
+                      </span>
+                    </div>
+                    <div class="info-row">
+                      <span class="info-label">Desde</span>
+                      <span class="info-value">{{ s.startTime | date: 'medium' }}</span>
+                    </div>
+                  }
+                </div>
+              </div>
+            } @else if (q.status === 'qr' && q.qrImageData) {
+              <!-- QR code display -->
+              <div class="status-card qr" style="max-width: 28rem; margin-bottom: 1.5rem;">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                  <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <circle cx="11" cy="11" r="11" fill="#fef9c3"/>
+                    <path d="M11 7v4l2.5 1.5" stroke="#a16207" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                  <span style="font-size: 1rem; font-weight: 300; color: #a16207;">Waiting for scan</span>
+                </div>
+              </div>
+              <div style="
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 1rem;
+                padding: 2rem 0;
+              ">
+                <p style="
+                  margin: 0;
+                  font-weight: 200;
+                  color: var(--tui-text-secondary);
+                ">Escaneie para conectar seu WhatsApp</p>
+                <img
+                  [src]="q.qrImageData"
+                  alt="WhatsApp QR Code"
+                  style="
+                    max-width: 280px;
+                    border-radius: 1rem;
+                    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+                    padding: 1rem;
+                    background: white;
+                  "
+                />
+              </div>
+            } @else {
+              <!-- Other status (loading, disconnected, etc.) -->
+              <div class="status-card" style="
+                max-width: 28rem;
+                background: var(--tui-background-neutral-1);
+                border-left-color: var(--tui-border-normal);
+              ">
+                <p style="margin: 0; font-weight: 200; color: var(--tui-text-secondary);">
+                  {{ q.message ?? translateStatus(q.status) }}
+                </p>
+              </div>
             }
           } @else {
-            <p>{{ q.message }}</p>
-            <p class="muted">Status: {{ q.status }}</p>
+            <p style="color: var(--tui-text-secondary); font-weight: 200;">Carregando…</p>
           }
-        } @else {
-          <p>Loading…</p>
         }
-      </div>
-    } @else if (tab() === 'message') {
-      @if (name(); as n) {
-        <app-send-message [instanceName]="n" />
-      }
-    } @else if (tab() === 'chats') {
-      @if (name(); as n) {
-        <app-chats [instanceName]="n" />
-      }
-    } @else if (tab() === 'webhook') {
-      <div class="panel webhook-panel">
-        @if (webhookLoading()) {
-          <p>Loading webhook configuration…</p>
-        } @else {
-          <form class="webhook-form" (ngSubmit)="saveWebhook()">
-            <label class="toggle-row">
-              <input type="checkbox" [checked]="whEnabled()" (change)="whEnabled.set(!whEnabled())" />
-              <span>Webhook enabled</span>
-            </label>
 
-            <tui-textfield>
-              <label tuiLabel>Webhook URL</label>
-              <input tuiTextfield type="url" [ngModel]="whUrl()" (ngModelChange)="whUrl.set($event)" [ngModelOptions]="{standalone: true}" autocomplete="off" />
-            </tui-textfield>
+        @case (1) {
+          @if (name(); as n) {
+            <app-send-message [instanceName]="n" />
+          }
+        }
 
-            <tui-textfield>
-              <label tuiLabel>Headers (JSON)</label>
-              <input tuiTextfield type="text" [ngModel]="whHeadersJson()" (ngModelChange)="whHeadersJson.set($event)" [ngModelOptions]="{standalone: true}" autocomplete="off" />
-            </tui-textfield>
+        @case (2) {
+          @if (name(); as n) {
+            <app-chats [instanceName]="n" />
+          }
+        }
 
-            <fieldset class="events-fieldset">
-              <legend>Events</legend>
-              @for (ev of availableEvents; track ev) {
-                <label class="event-check">
-                  <input type="checkbox" [checked]="whEvents().includes(ev)" (change)="toggleEvent(ev)" />
-                  <span>{{ ev }}</span>
+        @case (3) {
+          <!-- Webhook config tab -->
+          <div style="max-width: 30rem;">
+            @if (webhookLoading()) {
+              <p style="color: var(--tui-text-secondary); font-weight: 200;">Carregando configurações de webhook…</p>
+            } @else {
+              <form class="webhook-form" (ngSubmit)="saveWebhook()">
+
+                <!-- Enabled toggle using TuiSwitch -->
+                <label style="
+                  display: flex;
+                  align-items: center;
+                  gap: 0.75rem;
+                  cursor: pointer;
+                  padding: 0.5rem 0;
+                ">
+                  <input
+                    tuiSwitch
+                    type="checkbox"
+                    [checked]="whEnabled()"
+                    (change)="whEnabled.set(!whEnabled())"
+                  />
+                  <span style="font-weight: 300;">Ativar</span>
                 </label>
-              }
-            </fieldset>
 
-            <button tuiButton type="submit" size="m" [disabled]="webhookSaving()">
-              {{ webhookSaving() ? 'Saving…' : 'Save' }}
-            </button>
-          </form>
+                <tui-textfield>
+                  <label tuiLabel>URL do Webhook</label>
+                  <input
+                    tuiTextfield
+                    type="url"
+                    [ngModel]="whUrl()"
+                    (ngModelChange)="whUrl.set($event)"
+                    [ngModelOptions]="{ standalone: true }"
+                    autocomplete="off"
+                    placeholder="https://example.com/webhook"
+                  />
+                </tui-textfield>
+
+                <tui-textfield>
+                  <label tuiLabel>Headers do Webhook (JSON)</label>
+                  <input
+                    tuiTextfield
+                    type="text"
+                    [ngModel]="whHeadersJson()"
+                    (ngModelChange)="whHeadersJson.set($event)"
+                    [ngModelOptions]="{ standalone: true }"
+                    autocomplete="off"
+                    placeholder="{}"
+                  />
+                </tui-textfield>
+
+                <fieldset style="
+                  border: 1px solid var(--tui-border-normal);
+                  border-radius: var(--tui-radius-m);
+                  padding: 0.75rem 1rem;
+                  margin: 0;
+                ">
+                  <legend style="
+                    padding: 0 0.25rem;
+                    font-weight: 300;
+                    font-size: 0.875rem;
+                    color: var(--tui-text-secondary);
+                  ">Eventos</legend>
+                  @for (ev of availableEvents; track ev) {
+                    <label style="
+                      display: flex;
+                      align-items: center;
+                      gap: 0.5rem;
+                      padding: 0.3rem 0;
+                      cursor: pointer;
+                      font-weight: 200;
+                    ">
+                      <input
+                        type="checkbox"
+                        [checked]="whEvents().includes(ev)"
+                        (change)="toggleEvent(ev)"
+                      />
+                      <span>{{ translateEvent(ev) }}</span>
+                    </label>
+                  }
+                </fieldset>
+
+                <div style="padding-top: 0.5rem;">
+                  <button
+                    tuiButton
+                    type="submit"
+                    size="m"
+                    [disabled]="webhookSaving()"
+                    style="background: var(--papagai-gradient-button); border: none;"
+                  >
+                    {{ webhookSaving() ? 'Salvando…' : 'Salvar' }}
+                  </button>
+                </div>
+
+              </form>
+            }
+          </div>
         }
-      </div>
-    }
+
+      }
+    </div>
   `,
   styles: [
     `
-      .toolbar {
+      .status-card {
+        border-radius: 1rem;
+        padding: 1.5rem;
+        border-left: 4px solid transparent;
+      }
+      .status-card.connected {
+        background: #f0fdf4;
+        border-left-color: #22c55e;
+      }
+      .status-card.qr {
+        background: #fefce8;
+        border-left-color: #eab308;
+      }
+      .info-grid {
         display: flex;
-        align-items: center;
+        flex-direction: column;
+        gap: 0.625rem;
+      }
+      .info-row {
+        display: flex;
+        align-items: baseline;
         gap: 1rem;
-        flex-wrap: wrap;
-        margin-bottom: 1rem;
       }
-      .toolbar h1 {
-        flex: 1;
-        margin: 0;
-      }
-      .tabs {
-        display: flex;
-        gap: 0.5rem;
-        margin-bottom: 1.25rem;
-      }
-      .panel {
-        max-width: 24rem;
-      }
-      .qr {
-        max-width: 100%;
-        border-radius: var(--tui-radius-m);
-      }
-      .ok {
-        color: var(--tui-status-positive);
-      }
-      .muted {
+      .info-label {
+        font-size: 0.75rem;
+        font-weight: 300;
         color: var(--tui-text-secondary);
+        min-width: 3.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
       }
-      .webhook-panel {
-        max-width: 30rem;
+      .info-value {
+        font-size: 0.9375rem;
+        font-weight: 200;
+        color: var(--tui-text-primary);
       }
       .webhook-form {
         display: flex;
         flex-direction: column;
         gap: 1rem;
-      }
-      .toggle-row {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        cursor: pointer;
-      }
-      .events-fieldset {
-        border: 1px solid var(--tui-border-normal);
-        border-radius: var(--tui-radius-m);
-        padding: 0.75rem;
-      }
-      .events-fieldset legend {
-        padding: 0 0.25rem;
-        font-weight: 500;
-      }
-      .event-check {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.25rem 0;
-        cursor: pointer;
       }
     `,
   ],
@@ -246,7 +394,7 @@ export class InstanceDetailComponent {
 
   readonly qrData = signal<QrResponse | null>(null);
   readonly status = signal<StatusResponse | null>(null);
-  readonly tab = signal<'status' | 'message' | 'chats' | 'webhook'>('status');
+  readonly activeTab = signal<number>(0);
 
   readonly webhookConfig = signal<WebhookConfig | null>(null);
   readonly webhookLoading = signal(false);
@@ -259,7 +407,34 @@ export class InstanceDetailComponent {
 
   readonly availableEvents = ['message', 'message_update', 'qr', 'connected', 'disconnected'];
 
+  private static readonly STATUS_LABELS: Record<string, string> = {
+    connected:    'Conectado',
+    disconnected: 'Desconectado',
+    qr:           'Aguardando QR Code',
+    connecting:   'Conectando…',
+    timeout:      'Tempo esgotado',
+    close:        'Conexão encerrada',
+    logout:       'Desconectado',
+  };
+
+  private static readonly EVENT_LABELS: Record<string, string> = {
+    message:        'Mensagem',
+    message_update: 'Atualização de mensagem',
+    qr:             'QR Code',
+    connected:      'Conectado',
+    disconnected:   'Desconectado',
+  };
+
+  translateStatus(status: string): string {
+    return InstanceDetailComponent.STATUS_LABELS[status] ?? status;
+  }
+
+  translateEvent(event: string): string {
+    return InstanceDetailComponent.EVENT_LABELS[event] ?? event;
+  }
+
   constructor() {
+    // QR polling: runs on status tab, stops once connected
     this.route.paramMap
       .pipe(
         map((p) => p.get('name')),
@@ -291,6 +466,17 @@ export class InstanceDetailComponent {
         next: (r) => this.qrData.set(r),
         error: () => this.qrData.set(null),
       });
+
+    // Load webhook config when switching to the webhook tab (index 3)
+    effect(() => {
+      if (this.activeTab() === 3 && !this.webhookConfig()) {
+        void this.loadWebhookConfig();
+      }
+    });
+  }
+
+  onTabIndexChange(index: number): void {
+    this.activeTab.set(index);
   }
 
   formatMs(ms: number): string {
@@ -310,20 +496,13 @@ export class InstanceDetailComponent {
     return `${s}s`;
   }
 
-  onTabChange(tab: 'status' | 'message' | 'chats' | 'webhook'): void {
-    this.tab.set(tab);
-    if (tab === 'webhook' && !this.webhookConfig()) {
-      void this.loadWebhookConfig();
-    }
-  }
-
   async loadWebhookConfig(): Promise<void> {
     const n = this.name();
     if (!n) return;
     this.webhookLoading.set(true);
     try {
       const res = await firstValueFrom(
-        this.http.get<StatusResponse & { webhook?: WebhookConfig }>(
+        this.http.get<StatusResponse>(
           `/api/instances/${encodeURIComponent(n)}/status`,
         ),
       );
@@ -343,7 +522,7 @@ export class InstanceDetailComponent {
   toggleEvent(event: string): void {
     const current = this.whEvents();
     if (current.includes(event)) {
-      this.whEvents.set(current.filter(e => e !== event));
+      this.whEvents.set(current.filter((e) => e !== event));
     } else {
       this.whEvents.set([...current, event]);
     }
@@ -358,12 +537,16 @@ export class InstanceDetailComponent {
     try {
       const parsed = JSON.parse(raw === '' ? '{}' : raw) as unknown;
       if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
-        this.alerts.open('Headers must be a JSON object.', { label: 'Error', appearance: 'negative', autoClose: 4000 }).subscribe();
+        this.alerts
+          .open('Headers devem ser um objeto JSON.', { label: 'Erro', appearance: 'negative', autoClose: 4000 })
+          .subscribe();
         return;
       }
       headers = parsed as Record<string, string>;
     } catch {
-      this.alerts.open('Headers must be valid JSON.', { label: 'Error', appearance: 'negative', autoClose: 4000 }).subscribe();
+      this.alerts
+        .open('Headers devem ser um JSON válido.', { label: 'Erro', appearance: 'negative', autoClose: 4000 })
+        .subscribe();
       return;
     }
 
@@ -384,9 +567,13 @@ export class InstanceDetailComponent {
         ),
       );
       this.webhookConfig.set(res.webhook);
-      this.alerts.open('Webhook settings saved.', { label: 'Done', appearance: 'positive', autoClose: 3000 }).subscribe();
+      this.alerts
+        .open('Configurações de webhook salvas.', { label: 'Feito', appearance: 'positive', autoClose: 3000 })
+        .subscribe();
     } catch {
-      this.alerts.open('Failed to save webhook settings.', { label: 'Error', appearance: 'negative', autoClose: 4000 }).subscribe();
+      this.alerts
+        .open('Falha ao salvar webhook.', { label: 'Erro', appearance: 'negative', autoClose: 4000 })
+        .subscribe();
     } finally {
       this.webhookSaving.set(false);
     }
@@ -394,31 +581,27 @@ export class InstanceDetailComponent {
 
   confirmDelete(): void {
     const n = this.name();
-    if (!n) {
-      return;
-    }
+    if (!n) return;
     this.confirm
       .withConfirm({
-        label: 'Delete instance',
+        label: 'Excluir instância',
         size: 's',
         data: {
-          content: `Remove ${n}? This disconnects WhatsApp for this instance.`,
-          yes: 'Delete',
-          no: 'Cancel',
+          content: 'Isso irá excluir permanentemente a instância.',
+          yes: 'Confirmar',
+          no: 'Cancelar',
           appearance: 'negative',
         },
       })
       .subscribe((ok) => {
-        if (!ok) {
-          return;
-        }
+        if (!ok) return;
         void firstValueFrom(
           this.http.delete(`/api/instances/${encodeURIComponent(n)}`),
         )
           .then(() => {
             this.alerts
-              .open('Instance removed.', {
-                label: 'Done',
+              .open('Instância removida.', {
+                label: 'Feito',
                 appearance: 'positive',
                 autoClose: 3000,
               })

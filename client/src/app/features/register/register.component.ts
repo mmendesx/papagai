@@ -7,7 +7,7 @@ import {
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { TuiAlertService, TuiButton } from '@taiga-ui/core';
+import { TuiAlertService } from '@taiga-ui/core';
 import { TuiError } from '@taiga-ui/core/components/error';
 import { TuiLink } from '@taiga-ui/core/components/link';
 import { TuiTextfield } from '@taiga-ui/core/components/textfield';
@@ -18,74 +18,69 @@ type RegisterField = 'name' | 'email' | 'password' | 'appKey';
 @Component({
   selector: 'app-register',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, TuiButton, TuiLink, TuiError, ...TuiTextfield],
+  imports: [ReactiveFormsModule, RouterLink, TuiLink, TuiError, ...TuiTextfield],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="auth-card">
-      <h1 class="tui-text_h4">Register</h1>
-      <p class="muted">You need a valid application key from the server administrator.</p>
-      <form [formGroup]="form" (ngSubmit)="onSubmit()" class="form">
-        <tui-textfield>
-          <label tuiLabel>Name</label>
-          <input tuiTextfield type="text" formControlName="name" autocomplete="name" />
-        </tui-textfield>
-        <tui-error [error]="fieldError('name')" />
-        <tui-textfield>
-          <label tuiLabel>Email</label>
-          <input tuiTextfield type="email" formControlName="email" autocomplete="email" />
-        </tui-textfield>
-        <tui-error [error]="fieldError('email')" />
-        <tui-textfield>
-          <label tuiLabel>Password</label>
-          <input tuiTextfield type="password" formControlName="password" autocomplete="new-password" />
-        </tui-textfield>
-        <tui-error [error]="fieldError('password')" />
-        <tui-textfield>
-          <label tuiLabel>Application key</label>
-          <input tuiTextfield type="password" formControlName="appKey" autocomplete="off" />
-        </tui-textfield>
-        <tui-error [error]="fieldError('appKey')" />
-        <button tuiButton type="submit" size="m" [disabled]="submitting()">
-          Create account
-        </button>
-      </form>
-      <p class="footer">
-        <a tuiLink routerLink="/login">Back to sign in</a>
-      </p>
+    <div class="min-h-screen flex items-center justify-center px-4"
+         style="background: var(--papagai-gradient-page)">
+      <div class="w-full max-w-md mx-4 p-8 rounded-2xl shadow-2xl"
+           style="background: rgba(255,255,255,0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.9)">
+
+        <h1 class="text-3xl text-center mb-8"
+            style="font-weight: 300; background: var(--papagai-gradient-accent); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text">
+          Papagai
+        </h1>
+
+        <form [formGroup]="form" (ngSubmit)="onSubmit()" class="flex flex-col gap-4">
+          <div>
+            <tui-textfield>
+              <label tuiLabel>Nome</label>
+              <input tuiTextfield type="text" formControlName="name" autocomplete="name" />
+            </tui-textfield>
+            <tui-error [error]="fieldError('name')" />
+          </div>
+
+          <div>
+            <tui-textfield>
+              <label tuiLabel>E-mail</label>
+              <input tuiTextfield type="email" formControlName="email" autocomplete="email" />
+            </tui-textfield>
+            <tui-error [error]="fieldError('email')" />
+          </div>
+
+          <div>
+            <tui-textfield>
+              <label tuiLabel>Senha</label>
+              <input tuiTextfield type="password" formControlName="password" autocomplete="new-password" />
+            </tui-textfield>
+            <tui-error [error]="fieldError('password')" />
+          </div>
+
+          <div>
+            <tui-textfield>
+              <label tuiLabel>Chave de aplicação</label>
+              <input tuiTextfield type="password" formControlName="appKey" autocomplete="off" />
+            </tui-textfield>
+            <tui-error [error]="fieldError('appKey')" />
+          </div>
+
+          <button
+            type="submit"
+            [disabled]="submitting()"
+            class="w-full py-3 px-6 rounded-xl text-white transition-all duration-200 hover:opacity-90 active:scale-95 mt-2"
+            style="background: var(--papagai-gradient-button); border: none; cursor: pointer; font-family: 'Lexend', sans-serif; font-size: 0.9rem; font-weight: 300; letter-spacing: 0.025em;">
+            {{ submitting() ? 'Criando conta\u2026' : 'Criar conta' }}
+          </button>
+        </form>
+
+        <p class="text-center mt-6 text-sm" style="font-weight: 200; color: var(--tui-text-secondary)">
+          Já tem conta?
+          <a tuiLink routerLink="/login">Entrar</a>
+        </p>
+      </div>
     </div>
   `,
-  styles: [
-    `
-      :host {
-        display: flex;
-        min-height: 100vh;
-        align-items: center;
-        justify-content: center;
-        padding: 1rem;
-      }
-      .auth-card {
-        width: 100%;
-        max-width: 22rem;
-        padding: 2rem;
-        border-radius: var(--tui-radius-l);
-        background: var(--tui-background-elevation-1);
-        box-shadow: var(--tui-shadow-dropdown);
-      }
-      .muted {
-        color: var(--tui-text-secondary);
-        margin: 0 0 1.5rem;
-      }
-      .form {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-      }
-      .footer {
-        margin-top: 1.25rem;
-        text-align: center;
-      }
-    `,
-  ],
+  styles: [],
 })
 export class RegisterComponent {
   private readonly fb = inject(FormBuilder);
@@ -116,16 +111,16 @@ export class RegisterComponent {
       return null;
     }
     if (control.hasError('required')) {
-      return 'Required';
+      return 'Campo obrigatório';
     }
     if (control.hasError('email')) {
-      return 'Invalid email';
+      return 'E-mail inválido';
     }
     if (control.hasError('minlength')) {
       const min = control.getError('minlength')?.requiredLength ?? 8;
-      return `At least ${min} characters`;
+      return `Mínimo ${min} caracteres`;
     }
-    return 'Invalid value';
+    return 'Valor inválido';
   }
 
   async onSubmit(): Promise<void> {
@@ -140,22 +135,22 @@ export class RegisterComponent {
       await this.auth.register(v.name, v.email, v.password, v.appKey);
       await this.router.navigate(['/dashboard']);
     } catch (e) {
-      let msg = 'Registration failed';
+      let msg = 'Falha no registro';
       if (e instanceof HttpErrorResponse) {
         if (e.status === 403) {
           const code = e.error?.code;
           if (code === 'REGISTRATION_DISABLED') {
-            msg = 'Registration is disabled';
+            msg = 'Registro desabilitado';
           } else if (code === 'INVALID_APP_KEY') {
-            msg = 'Invalid application key';
+            msg = 'Chave de aplicação inválida';
           } else {
             msg =
               (Array.isArray(e.error?.message)
                 ? e.error.message.join(', ')
-                : e.error?.message) || 'Registration failed';
+                : e.error?.message) || 'Falha no registro';
           }
         } else if (e.status === 409) {
-          msg = 'Email already registered';
+          msg = 'E-mail já cadastrado';
         } else {
           msg =
             (Array.isArray(e.error?.message)
@@ -164,7 +159,7 @@ export class RegisterComponent {
         }
       }
       this.alerts
-        .open(msg, { label: 'Registration', appearance: 'negative', autoClose: 6000 })
+        .open(msg, { label: 'Registro', appearance: 'negative', autoClose: 6000 })
         .subscribe();
     } finally {
       this.submitting.set(false);

@@ -22,7 +22,7 @@ import type { EndpointDef } from './api-endpoints';
   template: `
     <div class="try-head">
       <button tuiButton type="button" size="s" appearance="secondary" (click)="toggleExpanded()">
-        {{ expanded() ? 'Hide' : 'Try it' }}
+        {{ expanded() ? 'Ocultar' : 'Testar' }}
       </button>
     </div>
     @if (expanded()) {
@@ -48,7 +48,7 @@ import type { EndpointDef } from './api-endpoints';
           </div>
         }
         @if (showBody()) {
-          <label class="body-label">JSON body</label>
+          <label class="body-label">Corpo JSON</label>
           <textarea
             class="body-input"
             rows="8"
@@ -59,7 +59,7 @@ import type { EndpointDef } from './api-endpoints';
         }
         <div class="try-actions">
           <button tuiButton type="button" size="s" [disabled]="loading()" (click)="send()">
-            {{ loading() ? 'Sending…' : 'Send' }}
+            {{ loading() ? 'Enviando…' : 'Executar' }}
           </button>
         </div>
         @if (result(); as r) {

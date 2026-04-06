@@ -7,87 +7,186 @@ import {
 } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
-import { TuiAlertService, TuiButton } from '@taiga-ui/core';
+import { TuiAlertService } from '@taiga-ui/core';
 import type { TuiDialogContext } from '@taiga-ui/core';
 import { TuiTextfield } from '@taiga-ui/core/components/textfield';
 import { injectContext } from '@taiga-ui/polymorpheus';
+import { TuiSwitch } from '@taiga-ui/kit/components/switch';
+import { TuiCheckbox } from '@taiga-ui/kit/components/checkbox';
 
 @Component({
   selector: 'app-create-instance-dialog',
   standalone: true,
-  imports: [ReactiveFormsModule, TuiButton, ...TuiTextfield],
+  imports: [ReactiveFormsModule, ...TuiTextfield, TuiSwitch, TuiCheckbox],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <form [formGroup]="form" (ngSubmit)="submit()" class="form">
-      <tui-textfield>
-        <label tuiLabel>Instance name</label>
-        <input tuiTextfield type="text" formControlName="name" autocomplete="off" />
-      </tui-textfield>
-      <tui-textfield>
-        <label tuiLabel>Webhook URL (optional)</label>
-        <input tuiTextfield type="url" formControlName="webhook" autocomplete="off" />
-      </tui-textfield>
-      <tui-textfield>
-        <label tuiLabel>Webhook headers JSON (optional)</label>
-        <input tuiTextfield type="text" formControlName="webhookHeadersJson" autocomplete="off" />
-      </tui-textfield>
-      <label class="toggle-row">
-        <input type="checkbox" [checked]="webhookEnabled()" (change)="webhookEnabled.set(!webhookEnabled())" />
-        <span>Enable webhook</span>
-      </label>
-      <fieldset class="events-fieldset">
-        <legend>Webhook events</legend>
-        @for (ev of availableEvents; track ev) {
-          <label class="event-check">
-            <input type="checkbox" [checked]="webhookEvents().includes(ev)" (change)="toggleEvent(ev)" />
-            <span>{{ ev }}</span>
+    <div style="padding: 1.5rem; min-width: 400px; max-width: 500px;">
+
+      <!-- Header -->
+      <h2 style="
+        font-size: 1.25rem;
+        font-weight: 300;
+        margin: 0 0 1.5rem;
+        font-family: 'Lexend', sans-serif;
+        color: var(--tui-text-primary);
+      ">Criar instância</h2>
+
+      <form [formGroup]="form" (ngSubmit)="submit()">
+
+        <!-- Section 1: Basic info -->
+        <div style="margin-bottom: 1.5rem;">
+          <h4 class="section-label">Informações básicas</h4>
+          <tui-textfield>
+            <label tuiLabel>Nome da instância</label>
+            <input tuiTextfield type="text" formControlName="name" autocomplete="off" />
+          </tui-textfield>
+        </div>
+
+        <!-- Section 2: Webhook -->
+        <div style="
+          border-top: 1px solid rgba(168,85,247,0.1);
+          padding-top: 1rem;
+          margin-bottom: 1.5rem;
+        ">
+          <h4 class="section-label">Webhook</h4>
+
+          <!-- Enable toggle -->
+          <label style="
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            cursor: pointer;
+            padding: 0.25rem 0 0.75rem;
+          ">
+            <input
+              tuiSwitch
+              type="checkbox"
+              [checked]="webhookEnabled()"
+              (change)="webhookEnabled.set(!webhookEnabled())"
+            />
+            <span style="font-weight: 300; font-family: 'Lexend', sans-serif;">Ativar webhook</span>
           </label>
-        }
-      </fieldset>
-      <div class="actions">
-        <button tuiButton type="button" appearance="secondary" size="m" (click)="cancel()">
-          Cancel
-        </button>
-        <button tuiButton type="submit" size="m" [disabled]="form.invalid || busy()">Create</button>
-      </div>
-    </form>
+
+          @if (webhookEnabled()) {
+            <!-- Webhook URL -->
+            <div style="margin-bottom: 0.75rem;">
+              <tui-textfield>
+                <label tuiLabel>URL do Webhook</label>
+                <input tuiTextfield type="url" formControlName="webhook" autocomplete="off" />
+              </tui-textfield>
+            </div>
+
+            <!-- Webhook headers -->
+            <div style="margin-bottom: 0.5rem;">
+              <tui-textfield>
+                <label tuiLabel>Headers do Webhook (JSON)</label>
+                <input tuiTextfield type="text" formControlName="webhookHeadersJson" autocomplete="off" />
+              </tui-textfield>
+            </div>
+
+            <!-- Events subsection -->
+            <div style="
+              border-top: 1px solid rgba(168,85,247,0.08);
+              padding-top: 0.75rem;
+              margin-top: 0.75rem;
+            ">
+              <h5 class="section-label" style="font-size: 0.7rem; margin-bottom: 0.5rem;">Eventos</h5>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                @for (ev of availableEvents; track ev) {
+                  <label style="
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    cursor: pointer;
+                    padding: 0.25rem 0;
+                  ">
+                    <input
+                      tuiCheckbox
+                      type="checkbox"
+                      [checked]="webhookEvents().includes(ev)"
+                      (change)="toggleEvent(ev)"
+                    />
+                    <span style="
+                      font-size: 0.8125rem;
+                      font-weight: 300;
+                      font-family: 'Lexend', sans-serif;
+                      color: var(--tui-text-primary);
+                    ">{{ ev }}</span>
+                  </label>
+                }
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Footer -->
+        <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+          <button
+            type="button"
+            (click)="cancel()"
+            class="cancel-btn"
+          >Cancelar</button>
+          <button
+            type="submit"
+            [disabled]="form.invalid || busy()"
+            class="gradient-btn"
+          >
+            @if (busy()) { Criando… } @else { Criar }
+          </button>
+        </div>
+
+      </form>
+    </div>
   `,
   styles: [
     `
-      .form {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-        min-width: 18rem;
+      .section-label {
+        font-size: 0.75rem;
+        font-weight: 300;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--tui-text-secondary);
+        margin: 0 0 0.75rem;
+        font-family: 'Lexend', sans-serif;
       }
-      .actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: 0.5rem;
-        margin-top: 0.5rem;
-      }
-      .toggle-row {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
+
+      .cancel-btn {
+        padding: 0.5rem 1.25rem;
+        border-radius: 0.625rem;
+        border: 1px solid rgba(168, 85, 247, 0.25);
+        background: transparent;
+        font-family: 'Lexend', sans-serif;
+        font-weight: 200;
+        font-size: 0.875rem;
         cursor: pointer;
+        color: var(--tui-text-primary);
+        transition: border-color 0.15s ease;
       }
-      .events-fieldset {
-        border: 1px solid var(--tui-border-normal);
-        border-radius: var(--tui-radius-m);
-        padding: 0.75rem;
-        margin: 0;
+
+      .cancel-btn:hover {
+        border-color: rgba(168, 85, 247, 0.5);
       }
-      .events-fieldset legend {
-        padding: 0 0.25rem;
-        font-weight: 500;
-      }
-      .event-check {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.25rem 0;
+
+      .gradient-btn {
+        padding: 0.5rem 1.25rem;
+        border-radius: 0.625rem;
+        border: none;
+        background: var(--papagai-gradient-button);
+        color: white;
+        font-family: 'Lexend', sans-serif;
+        font-weight: 200;
+        font-size: 0.875rem;
         cursor: pointer;
+        transition: opacity 0.15s ease;
+      }
+
+      .gradient-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .gradient-btn:not(:disabled):hover {
+        opacity: 0.9;
       }
     `,
   ],
