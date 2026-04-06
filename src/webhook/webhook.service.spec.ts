@@ -9,11 +9,15 @@ function buildInstance(overrides: Partial<Instance> = {}): Instance {
     name: 'test-instance',
     webhookUrl: 'https://example.com/webhook',
     webhookHeaders: {},
+    webhookEnabled: true,
+    webhookEvents: ['message', 'message_update', 'qr', 'connected', 'disconnected'],
     connected: true,
     qr: null,
     socket: {} as any,
     saveCreds: jest.fn(),
     startTime: Date.now(),
+    lastConnectedAt: null,
+    retryCount: 0,
     ...overrides,
   };
 }
@@ -66,7 +70,7 @@ describe('WebhookService', () => {
     });
 
     it('includes X-Papagai-Event header set to the event name', async () => {
-      const instance = buildInstance();
+      const instance = buildInstance({ webhookEvents: ['message.received'] });
       const data: WebhookData = { ...minimalWebhookData, event: 'message.received' };
       httpPost.mockReturnValue(of({ data: 'ok', status: 200 }));
 
@@ -106,6 +110,39 @@ describe('WebhookService', () => {
       httpPost.mockImplementation(() => {
         throw new Error('Unexpected sync error');
       });
+
+      await expect(service.sendWebhook(instance, minimalWebhookData)).resolves.toBeUndefined();
+    });
+  });
+
+  describe('Scenario — No webhook if webhookEnabled is false', () => {
+    it('makes no HTTP request when webhookEnabled is false', async () => {
+      const instance = buildInstance({ webhookEnabled: false });
+
+      await service.sendWebhook(instance, minimalWebhookData);
+
+      expect(httpPost).not.toHaveBeenCalled();
+    });
+
+    it('resolves without throwing when webhookEnabled is false', async () => {
+      const instance = buildInstance({ webhookEnabled: false });
+
+      await expect(service.sendWebhook(instance, minimalWebhookData)).resolves.toBeUndefined();
+    });
+  });
+
+  describe('Scenario — No webhook if event is not in webhookEvents', () => {
+    it('makes no HTTP request when event is not in the allowed list', async () => {
+      const instance = buildInstance({ webhookEvents: ['qr', 'connected'] });
+      const data: WebhookData = { event: 'message', instance: 'test' };
+
+      await service.sendWebhook(instance, data);
+
+      expect(httpPost).not.toHaveBeenCalled();
+    });
+
+    it('resolves without throwing when event is filtered out', async () => {
+      const instance = buildInstance({ webhookEvents: [] });
 
       await expect(service.sendWebhook(instance, minimalWebhookData)).resolves.toBeUndefined();
     });

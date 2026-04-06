@@ -4,6 +4,8 @@ export interface Instance {
   socket: WASocket;
   webhookUrl: string | null;
   webhookHeaders: Record<string, string>;
+  webhookEnabled: boolean;
+  webhookEvents: string[];
   name: string;
   connected: boolean;
   qr: string | null;

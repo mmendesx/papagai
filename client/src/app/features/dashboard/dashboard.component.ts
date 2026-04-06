@@ -15,6 +15,7 @@ export interface InstanceRow {
   name: string;
   connected: boolean;
   startTime: number;
+  webhookEnabled: boolean;
 }
 
 interface InstancesListResponse {

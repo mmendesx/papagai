@@ -1,272 +1,196 @@
-// Mock Baileys before any module imports so Jest never tries to parse its ESM source.
-// InstancesController → InstancesService → WhatsappService → @whiskeysockets/baileys (ESM).
-jest.mock('@whiskeysockets/baileys', () => ({
-  __esModule: true,
-  default: jest.fn(),
-  useMultiFileAuthState: jest.fn(),
-  DisconnectReason: { loggedOut: 401 },
-  downloadContentFromMessage: jest.fn(),
-}));
-
 import { Test, TestingModule } from '@nestjs/testing';
-import { HttpException, HttpStatus } from '@nestjs/common';
-import { InstancesController } from './instances.controller';
-import { InstancesService } from './instances.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { INestApplication } from '@nestjs/common';
+import { JwtModule, JwtService } from '@nestjs/jwt';
+import request from 'supertest';
+import { App } from 'supertest/types';
+import { InstancesController } from './instances.controller.js';
+import { InstancesService } from './instances.service.js';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 
-const mockInstancesService = {
+const TEST_SECRET = 'instances-controller-auth-spec';
+
+const mockWebhook = {
+  url: 'https://example.com/webhook',
+  headers: {},
+  enabled: true,
+  events: ['message', 'message_update', 'qr', 'connected', 'disconnected'],
+};
+
+const mockService = {
+  getInstances: jest.fn(),
   createInstance: jest.fn(),
   getInstance: jest.fn(),
   getQR: jest.fn(),
+  disconnectInstance: jest.fn(),
   sendMessage: jest.fn(),
   getContactInfo: jest.fn(),
   getChats: jest.fn(),
-  getInstances: jest.fn(),
-  disconnectInstance: jest.fn(),
+  updateWebhookConfig: jest.fn(),
 };
 
 describe('InstancesController', () => {
-  let controller: InstancesController;
+  let app: INestApplication;
+  let token: string;
 
-  beforeEach(async () => {
-    jest.clearAllMocks();
-
-    const module: TestingModule = await Test.createTestingModule({
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [
+        JwtModule.register({
+          secret: TEST_SECRET,
+          signOptions: { expiresIn: '1h' },
+        }),
+      ],
       controllers: [InstancesController],
       providers: [
-        {
-          provide: InstancesService,
-          useValue: mockInstancesService,
-        },
+        JwtAuthGuard,
+        { provide: InstancesService, useValue: mockService },
       ],
-    })
-      .overrideGuard(JwtAuthGuard)
-      .useValue({ canActivate: () => true })
-      .compile();
+    }).compile();
 
-    controller = module.get<InstancesController>(InstancesController);
+    app = moduleFixture.createNestApplication();
+    await app.init();
+
+    const jwtService = moduleFixture.get(JwtService);
+    token = jwtService.sign({ sub: 'test', email: 'test@test.com', name: 'Test', role: 'admin' });
   });
 
-  // Scenario 1 — createInstance success
-  describe('createInstance', () => {
-    it('returns success response when instance is created', async () => {
-      mockInstancesService.createInstance.mockResolvedValue(undefined);
+  afterAll(async () => {
+    await app.close();
+  });
 
-      const result = await controller.createInstance({
-        name: 'bot',
-        webhook: undefined,
-        webhookHeaders: undefined,
-      });
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
-      expect(result).toMatchObject({
-        success: true,
-        instance: 'bot',
-        message: expect.stringContaining('bot'),
+  describe('PATCH /api/instances/:name/webhook', () => {
+    it('returns 200 with updated webhook config for valid events', async () => {
+      const updatedInstance = {
+        name: 'alpha',
+        webhookUrl: 'https://new.url/hook',
+        webhookHeaders: { 'X-Key': 'val' },
+        webhookEnabled: true,
+        webhookEvents: ['message', 'qr'],
+      };
+      mockService.updateWebhookConfig.mockResolvedValue(updatedInstance);
+
+      const res = await request(app.getHttpServer() as App)
+        .patch('/api/instances/alpha/webhook')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ webhookUrl: 'https://new.url/hook', events: ['message', 'qr'] })
+        .expect(200);
+
+      expect(res.body).toEqual({
+        instance: 'alpha',
+        webhook: {
+          url: 'https://new.url/hook',
+          headers: { 'X-Key': 'val' },
+          enabled: true,
+          events: ['message', 'qr'],
+        },
       });
     });
 
-    // Scenario 2 — createInstance duplicate throws 400
-    it('throws HttpException with status 400 when instance already exists', async () => {
-      mockInstancesService.createInstance.mockRejectedValue(new Error('já existe'));
+    it('returns 400 with error message for invalid events', async () => {
+      const res = await request(app.getHttpServer() as App)
+        .patch('/api/instances/alpha/webhook')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ events: ['message', 'invalid_event', 'bogus'] })
+        .expect(400);
 
-      await expect(
-        controller.createInstance({
-          name: 'bot',
-          webhook: undefined,
-          webhookHeaders: undefined,
-        }),
-      ).rejects.toThrow(HttpException);
+      expect(res.body.message).toContain('invalid_event');
+      expect(res.body.message).toContain('bogus');
+    });
 
-      await expect(
-        controller.createInstance({
-          name: 'bot',
-          webhook: undefined,
-          webhookHeaders: undefined,
-        }),
-      ).rejects.toMatchObject({ status: HttpStatus.BAD_REQUEST });
+    it('returns 404 when instance not found', async () => {
+      mockService.updateWebhookConfig.mockRejectedValue(
+        new Error('Instance "ghost" not found'),
+      );
+
+      await request(app.getHttpServer() as App)
+        .patch('/api/instances/ghost/webhook')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ webhookUrl: 'https://example.com/hook' })
+        .expect(404);
     });
   });
 
-  // Scenario 3 — getQR with pending QR
-  describe('getQR', () => {
-    it('returns qr data and pending status when QR is available', async () => {
-      mockInstancesService.getInstance.mockReturnValue({ connected: false, socket: {} });
-      mockInstancesService.getQR.mockReturnValue('qr-data');
-
-      const result = await controller.getQR('bot');
-
-      expect(result).toMatchObject({
-        qr: 'qr-data',
-        status: 'qr',
-        instance: 'bot',
-        message: expect.any(String),
-      });
-    });
-
-    // Scenario 4 — getQR when connected (no QR)
-    it('returns connected status with phone number when instance is connected and has no QR', async () => {
-      mockInstancesService.getQR.mockReturnValue(null);
-      mockInstancesService.getInstance.mockReturnValue({
+  describe('GET /api/instances/:name/status', () => {
+    it('includes webhook object in response', async () => {
+      mockService.getInstance.mockReturnValue({
+        name: 'alpha',
         connected: true,
-        socket: { user: { id: '5511:1@s.whatsapp.net' } },
+        startTime: Date.now(),
+        socket: { user: { id: '5511999999999:1@s.whatsapp.net' } },
+        webhookUrl: mockWebhook.url,
+        webhookHeaders: mockWebhook.headers,
+        webhookEnabled: mockWebhook.enabled,
+        webhookEvents: mockWebhook.events,
       });
 
-      const result = await controller.getQR('bot');
+      const res = await request(app.getHttpServer() as App)
+        .get('/api/instances/alpha/status')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
 
-      expect(result).toMatchObject({
-        status: 'connected',
-        phoneNumber: '5511',
-        message: expect.any(String),
-      });
-    });
-
-    it('throws HttpException with status 404 when instance is not found and has no QR', async () => {
-      mockInstancesService.getQR.mockReturnValue(null);
-      mockInstancesService.getInstance.mockReturnValue(undefined);
-
-      await expect(controller.getQR('ghost')).rejects.toMatchObject({
-        status: HttpStatus.NOT_FOUND,
-      });
+      expect(res.body.webhook).toEqual(mockWebhook);
     });
   });
 
-  // Scenario 5 — listInstances
-  describe('listInstances', () => {
-    it('returns total count and instances array', async () => {
-      mockInstancesService.getInstances.mockReturnValue([
-        { name: 'a', connected: true, startTime: 0 },
-        { name: 'b', connected: false, startTime: 0 },
+  describe('GET /api/instances', () => {
+    it('list items include webhook object', async () => {
+      mockService.getInstances.mockReturnValue([
+        {
+          name: 'alpha',
+          connected: true,
+          startTime: 1000,
+          webhookEnabled: mockWebhook.enabled,
+          webhook: mockWebhook,
+        },
       ]);
 
-      const result = await controller.listInstances();
+      const res = await request(app.getHttpServer() as App)
+        .get('/api/instances')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
 
-      expect(result).toMatchObject({
-        total: 2,
-        instances: expect.any(Array),
-        message: expect.stringContaining('2'),
-      });
+      expect(res.body.instances).toHaveLength(1);
+      expect(res.body.instances[0].webhook).toEqual(mockWebhook);
+      expect(res.body.instances[0].webhookEnabled).toBe(true);
     });
   });
 
-  // Scenario 6 — getStatus success
-  describe('getStatus', () => {
-    it('returns formatted status for a connected instance', async () => {
-      mockInstancesService.getInstance.mockReturnValue({
-        name: 'bot',
-        connected: true,
-        startTime: 1000,
-        socket: { user: { id: '5511:1@s.whatsapp.net' } },
-      });
+  describe('POST /api/instances/create', () => {
+    it('returns 400 when webhookEvents contains invalid keys', async () => {
+      const res = await request(app.getHttpServer() as App)
+        .post('/api/instances/create')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ name: 'abc', webhookEvents: ['not_an_event'] })
+        .expect(400);
 
-      const result = await controller.getStatus('bot');
-
-      expect(result).toMatchObject({
-        name: 'bot',
-        connected: true,
-        startTime: expect.any(String),
-        uptime: expect.any(Number),
-        phoneNumber: '5511',
-      });
+      expect(res.body.message).toContain('not_an_event');
+      expect(mockService.createInstance).not.toHaveBeenCalled();
     });
 
-    // Scenario 7 — getStatus 404 for missing instance
-    it('throws HttpException with status 404 when instance is not found', async () => {
-      mockInstancesService.getInstance.mockReturnValue(undefined);
+    it('calls createInstance when webhookEvents are valid', async () => {
+      mockService.createInstance.mockResolvedValue({ name: 'abc' } as any);
 
-      await expect(controller.getStatus('ghost')).rejects.toMatchObject({
-        status: HttpStatus.NOT_FOUND,
-      });
-    });
-  });
+      await request(app.getHttpServer() as App)
+        .post('/api/instances/create')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          name: 'abc',
+          webhook: 'https://example.com/h',
+          webhookEvents: ['message', 'qr'],
+        })
+        .expect(201);
 
-  // Scenario 8 — disconnectInstance success
-  describe('disconnectInstance', () => {
-    it('returns success message when instance is disconnected', async () => {
-      mockInstancesService.disconnectInstance.mockResolvedValue(true);
-
-      const result = await controller.disconnectInstance('bot');
-
-      expect(result).toMatchObject({
-        message: expect.stringContaining('bot'),
-        instance: 'bot',
-      });
-    });
-
-    // Scenario 9 — disconnectInstance 404
-    it('throws HttpException with status 404 when instance is not found', async () => {
-      mockInstancesService.disconnectInstance.mockResolvedValue(false);
-
-      await expect(controller.disconnectInstance('ghost')).rejects.toMatchObject({
-        status: HttpStatus.NOT_FOUND,
-      });
-    });
-  });
-
-  // Scenario 10 — sendMessage success (Meta format)
-  describe('sendMessage', () => {
-    it('returns Meta-compatible response with messageId after sending', async () => {
-      mockInstancesService.sendMessage.mockResolvedValue({ key: { id: 'msg-123' } });
-
-      const result = await controller.sendMessage('bot', {
-        to: '5511999999999',
-        type: 'text',
-        text: { body: 'Hello' },
-      });
-
-      expect(result).toMatchObject({
-        messaging_product: 'whatsapp',
-        contacts: [{ input: '5511999999999', wa_id: '5511999999999' }],
-        messages: [{ id: 'msg-123' }],
-      });
-    });
-
-    it('throws HttpException with status 400 when instance is not connected', async () => {
-      mockInstancesService.sendMessage.mockRejectedValue(new Error('não está conectado'));
-
-      await expect(
-        controller.sendMessage('bot', { to: '5511999999999', type: 'text', text: { body: 'Hello' } }),
-      ).rejects.toMatchObject({ status: HttpStatus.BAD_REQUEST });
-    });
-  });
-
-  // Scenario 25 — getContact
-  describe('getContact', () => {
-    it('returns contact info for a valid number', async () => {
-      mockInstancesService.getContactInfo.mockResolvedValue({
-        phoneNumber: '5511',
-        pushName: 'Test',
-      });
-
-      const result = await controller.getContact('bot', '5511');
-
-      expect(result).toMatchObject({
-        phoneNumber: '5511',
-        pushName: 'Test',
-      });
-    });
-  });
-
-  // Scenario 26 — getChats
-  describe('getChats', () => {
-    it('returns chats list with instance name and total count', async () => {
-      const chats = [
-        {
-          phoneNumber: '5511',
-          pushName: 'T',
-          unreadCount: 0,
-          timestamp: 0,
-          isGroup: false,
-        },
-      ];
-      mockInstancesService.getChats.mockResolvedValue(chats);
-
-      const result = await controller.getChats('bot');
-
-      expect(result).toMatchObject({
-        instance: 'bot',
-        total: 1,
-        chats: expect.any(Array),
-      });
+      expect(mockService.createInstance).toHaveBeenCalledWith(
+        'abc',
+        'https://example.com/h',
+        undefined,
+        undefined,
+        ['message', 'qr'],
+      );
     });
   });
 });

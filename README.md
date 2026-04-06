@@ -15,6 +15,24 @@ Ele repete suas mensagens como um bom papagaio.
 
 ## Como usar
 
+### Com Docker (recomendado)
+
+Sobe a stack completa (PostgreSQL, Redis, app com hot-reload). Sem `.env` necessário — segredos de dev já vêm embutidos. Sem conflitos de porta — serviços comunicam pela rede interna do Compose.
+
+```bash
+docker compose -f docker-compose.dev.yml up
+```
+
+**Acesso do host (opcional)** — para conectar via `psql`, `redis-cli` ou navegador, adicione o override de portas (`5432`, `6380`, `3000`):
+
+```bash
+docker compose -f docker-compose.dev.yml -f docker-compose.ports.yml up
+```
+
+### Sem Docker
+
+Precisa de PostgreSQL e Redis rodando localmente.
+
 ```bash
 npm install
 npm run start:dev

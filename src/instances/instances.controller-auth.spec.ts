@@ -32,6 +32,7 @@ describe('InstancesController JWT', () => {
             sendMessage: jest.fn(),
             getContactInfo: jest.fn(),
             getChats: jest.fn(),
+            updateWebhookConfig: jest.fn(),
           },
         },
       ],

@@ -3,6 +3,8 @@ import {
   IsOptional,
   IsUrl,
   IsObject,
+  IsBoolean,
+  IsArray,
   MaxLength,
   MinLength,
 } from 'class-validator';
@@ -20,4 +22,13 @@ export class CreateInstanceDto {
   @IsOptional()
   @IsObject()
   webhookHeaders?: Record<string, string>;
+
+  @IsOptional()
+  @IsBoolean()
+  webhookEnabled?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  webhookEvents?: string[];
 }

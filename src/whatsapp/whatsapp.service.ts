@@ -78,7 +78,7 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
     await Promise.allSettled(
       configs.map(async (config) => {
         try {
-          await this.createInstance(config.name, config.webhookUrl ?? undefined, config.webhookHeaders);
+          await this.createInstance(config.name, config.webhookUrl ?? undefined, config.webhookHeaders, config.webhookEnabled, config.webhookEvents);
           this.logger.log(`Restored instance "${config.name}"`);
         } catch (error) {
           this.logger.error(`Failed to restore instance "${config.name}": ${error instanceof Error ? error.message : String(error)}`);
@@ -91,6 +91,8 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
     instanceName: string,
     webhookUrl?: string,
     webhookHeaders?: Record<string, string>,
+    webhookEnabled?: boolean,
+    webhookEvents?: string[],
   ): Promise<Instance> {
     if (this.instances.has(instanceName)) {
       throw new Error(`Papagai ${instanceName} já existe!`);
@@ -130,10 +132,17 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
       getMessage: async () => ({ conversation: '' }),
     });
 
+    const DEFAULT_WEBHOOK_EVENTS = ['message', 'message_update', 'qr', 'connected', 'disconnected'];
+
+    const resolvedWebhookEnabled = webhookUrl ? (webhookEnabled ?? true) : false;
+    const resolvedWebhookEvents = webhookEvents ?? DEFAULT_WEBHOOK_EVENTS;
+
     const instance: Instance = {
       socket: sock,
       webhookUrl: webhookUrl || null,
       webhookHeaders: webhookHeaders || {},
+      webhookEnabled: resolvedWebhookEnabled,
+      webhookEvents: resolvedWebhookEvents,
       name: instanceName,
       connected: false,
       qr: null,
@@ -147,7 +156,13 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
     this.registerSocketEvents(instance);
 
     await this.instanceConfigRepo.upsert(
-      { name: instanceName, webhookUrl: webhookUrl ?? null, webhookHeaders: webhookHeaders ?? {} },
+      {
+        name: instanceName,
+        webhookUrl: webhookUrl ?? null,
+        webhookHeaders: webhookHeaders ?? {},
+        webhookEnabled: resolvedWebhookEnabled,
+        webhookEvents: resolvedWebhookEvents,
+      },
       ['name'],
     );
 
@@ -580,6 +595,38 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
     }
   }
 
+  async updateWebhookConfig(
+    instanceName: string,
+    config: {
+      webhookUrl?: string;
+      webhookHeaders?: Record<string, string>;
+      webhookEnabled?: boolean;
+      webhookEvents?: string[];
+    },
+  ): Promise<Instance> {
+    const instance = this.instances.get(instanceName);
+    if (!instance) {
+      throw new Error(`Instance "${instanceName}" not found`);
+    }
+
+    if (config.webhookUrl !== undefined) instance.webhookUrl = config.webhookUrl;
+    if (config.webhookHeaders !== undefined) instance.webhookHeaders = config.webhookHeaders;
+    if (config.webhookEnabled !== undefined) instance.webhookEnabled = config.webhookEnabled;
+    if (config.webhookEvents !== undefined) instance.webhookEvents = config.webhookEvents;
+
+    await this.instanceConfigRepo.update(
+      { name: instanceName },
+      {
+        ...(config.webhookUrl !== undefined && { webhookUrl: config.webhookUrl }),
+        ...(config.webhookHeaders !== undefined && { webhookHeaders: config.webhookHeaders }),
+        ...(config.webhookEnabled !== undefined && { webhookEnabled: config.webhookEnabled }),
+        ...(config.webhookEvents !== undefined && { webhookEvents: config.webhookEvents }),
+      },
+    );
+
+    return instance;
+  }
+
   getInstance(name: string): Instance | undefined {
     return this.instances.get(name);
   }
@@ -588,13 +635,31 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
     return this.qrCodes.get(name) || null;
   }
 
-  getInstances(): Array<{ name: string; connected: boolean; startTime: number }> {
+  getInstances(): Array<{
+    name: string;
+    connected: boolean;
+    startTime: number;
+    webhookEnabled: boolean;
+    webhook: {
+      url: string | null;
+      headers: Record<string, string>;
+      enabled: boolean;
+      events: string[];
+    };
+  }> {
     return [...this.instances.keys()].map((name) => {
       const instance = this.instances.get(name)!;
       return {
         name: instance.name,
         connected: instance.connected,
         startTime: instance.startTime,
+        webhookEnabled: instance.webhookEnabled,
+        webhook: {
+          url: instance.webhookUrl,
+          headers: instance.webhookHeaders,
+          enabled: instance.webhookEnabled,
+          events: instance.webhookEvents,
+        },
       };
     });
   }
@@ -624,7 +689,7 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
       return;
     }
 
-    const { webhookUrl, webhookHeaders } = existing;
+    const { webhookUrl, webhookHeaders, webhookEnabled, webhookEvents } = existing;
     this.instances.delete(instanceName);
     this.qrCodes.delete(instanceName);
 
@@ -633,6 +698,8 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
       instanceName,
       webhookUrl ?? undefined,
       webhookHeaders,
+      webhookEnabled,
+      webhookEvents,
     );
     newInstance.retryCount = retryCount;
   }

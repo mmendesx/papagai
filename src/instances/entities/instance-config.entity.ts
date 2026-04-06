@@ -14,6 +14,17 @@ export class InstanceConfig {
   @Column({ name: 'webhook_headers', type: 'jsonb', default: '{}' })
   webhookHeaders: Record<string, string>;
 
+  @Column({ name: 'webhook_enabled', type: 'boolean', default: false })
+  webhookEnabled: boolean;
+
+  @Column({
+    name: 'webhook_events',
+    type: 'text',
+    array: true,
+    default: `'{message,message_update,qr,connected,disconnected}'`,
+  })
+  webhookEvents: string[];
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }

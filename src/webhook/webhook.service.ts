@@ -14,6 +14,20 @@ export class WebhookService {
       return;
     }
 
+    if (!instance.webhookEnabled) {
+      this.logger.debug(
+        `Webhook disabled for instance "${instance.name}" — skipping ${data.event}`,
+      );
+      return;
+    }
+
+    if (!instance.webhookEvents.includes(data.event)) {
+      this.logger.debug(
+        `Event "${data.event}" not in allowed events for instance "${instance.name}" — skipping`,
+      );
+      return;
+    }
+
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'X-Papagai-Instance': instance.name,

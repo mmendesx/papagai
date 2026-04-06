@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Body,
   Param,
@@ -14,7 +15,10 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import * as QRCode from 'qrcode';
 import { InstancesService } from './instances.service.js';
 import { CreateInstanceDto } from './dto/create-instance.dto.js';
+import { UpdateWebhookDto } from './dto/update-webhook.dto.js';
 import { MetaMessageDto } from './dto/send-message.dto.js';
+
+export const ALLOWED_WEBHOOK_EVENTS = ['message', 'message_update', 'qr', 'connected', 'disconnected'] as const;
 
 @Controller('api/instances')
 @UseGuards(JwtAuthGuard)
@@ -23,8 +27,17 @@ export class InstancesController {
 
   @Post('create')
   async createInstance(@Body() dto: CreateInstanceDto) {
+    if (dto.webhookEvents) {
+      const invalid = dto.webhookEvents.filter((e) => !ALLOWED_WEBHOOK_EVENTS.includes(e as (typeof ALLOWED_WEBHOOK_EVENTS)[number]));
+      if (invalid.length > 0) {
+        throw new HttpException(
+          `Invalid webhook event(s): ${invalid.join(', ')}. Allowed: ${ALLOWED_WEBHOOK_EVENTS.join(', ')}`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+    }
     try {
-      await this.instancesService.createInstance(dto.name, dto.webhook, dto.webhookHeaders);
+      await this.instancesService.createInstance(dto.name, dto.webhook, dto.webhookHeaders, dto.webhookEnabled, dto.webhookEvents);
       return {
         success: true,
         instance: dto.name,
@@ -112,6 +125,12 @@ export class InstancesController {
       startTime: new Date(instance.startTime).toISOString(),
       uptime: Date.now() - instance.startTime,
       phoneNumber: instance.socket.user?.id?.split(':')[0],
+      webhook: {
+        url: instance.webhookUrl,
+        headers: instance.webhookHeaders,
+        enabled: instance.webhookEnabled,
+        events: instance.webhookEvents,
+      },
     };
   }
 
@@ -123,6 +142,45 @@ export class InstancesController {
       instances,
       message: `🦜 Você tem ${instances.length} papagai${instances.length === 1 ? '' : 's'}`,
     };
+  }
+
+  @Patch(':name/webhook')
+  async updateWebhook(@Param('name') name: string, @Body() dto: UpdateWebhookDto) {
+    if (dto.events) {
+      const invalid = dto.events.filter(e => !ALLOWED_WEBHOOK_EVENTS.includes(e as any));
+      if (invalid.length > 0) {
+        throw new HttpException(
+          `Invalid webhook event(s): ${invalid.join(', ')}. Allowed: ${ALLOWED_WEBHOOK_EVENTS.join(', ')}`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+    }
+
+    try {
+      const instance = await this.instancesService.updateWebhookConfig(name, {
+        webhookUrl: dto.webhookUrl,
+        webhookHeaders: dto.webhookHeaders,
+        webhookEnabled: dto.enabled,
+        webhookEvents: dto.events,
+      });
+      return {
+        instance: name,
+        webhook: {
+          url: instance.webhookUrl,
+          headers: instance.webhookHeaders,
+          enabled: instance.webhookEnabled,
+          events: instance.webhookEvents,
+        },
+      };
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('not found')) {
+        throw new HttpException(error.message, HttpStatus.NOT_FOUND);
+      }
+      throw new HttpException(
+        error instanceof Error ? error.message : String(error),
+        HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   @Delete(':name')

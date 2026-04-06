@@ -1,15 +1,71 @@
 services:
+  db:
+    image: postgres:16-alpine
+    container_name: papagai-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: papagai
+      POSTGRES_PASSWORD: papagai
+      POSTGRES_DB: papagai
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U papagai"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: papagai-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    expose:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   app:
     build:
       context: .
       target: builder
+    container_name: papagai-app
     command: npm run start:dev
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    expose:
+      - "3000"
     environment:
       NODE_ENV: development
       LOG_LEVEL: info
       APP_KEY: dev-app-key
       JWT_SECRET: dev-jwt-secret
+      PORT: 3000
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: papagai
+      DB_PASS: papagai
+      DB_NAME: papagai
+      REDIS_URL: redis://redis:6379
+      MEDIA_DIR: /app/media
+      INSTANCES_DIR: /app/instances
     volumes:
       - .:/app
       - /app/node_modules
-    restart: unless-stopped
+      - media_data:/app/media
+
+volumes:
+  postgres_data:
+  redis_data:
+  media_data:

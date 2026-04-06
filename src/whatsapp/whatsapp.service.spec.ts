@@ -70,10 +70,14 @@ function buildMockInstance(overrides: Partial<Instance> = {}): Instance {
     socket: { end: jest.fn(), ev: { on: jest.fn() } } as any,
     webhookUrl: 'https://example.com/webhook',
     webhookHeaders: {},
+    webhookEnabled: true,
+    webhookEvents: ['message', 'message_update', 'qr', 'connected', 'disconnected'],
     connected: true,
     qr: null,
     saveCreds: jest.fn(),
     startTime: Date.now(),
+    lastConnectedAt: null,
+    retryCount: 0,
     ...overrides,
   };
 }
@@ -104,6 +108,7 @@ describe('WhatsappService', () => {
             find: jest.fn().mockResolvedValue([]),
             upsert: jest.fn().mockResolvedValue(undefined),
             delete: jest.fn().mockResolvedValue(undefined),
+            update: jest.fn().mockResolvedValue(undefined),
           },
         },
       ],
@@ -206,8 +211,30 @@ describe('WhatsappService', () => {
       const result = service.getInstances();
 
       expect(result).toHaveLength(2);
-      expect(result).toContainEqual({ name: 'alpha', connected: true, startTime: startTimeA });
-      expect(result).toContainEqual({ name: 'beta', connected: false, startTime: startTimeB });
+      expect(result).toContainEqual({
+        name: 'alpha',
+        connected: true,
+        startTime: startTimeA,
+        webhookEnabled: true,
+        webhook: {
+          url: 'https://example.com/webhook',
+          headers: {},
+          enabled: true,
+          events: ['message', 'message_update', 'qr', 'connected', 'disconnected'],
+        },
+      });
+      expect(result).toContainEqual({
+        name: 'beta',
+        connected: false,
+        startTime: startTimeB,
+        webhookEnabled: true,
+        webhook: {
+          url: 'https://example.com/webhook',
+          headers: {},
+          enabled: true,
+          events: ['message', 'message_update', 'qr', 'connected', 'disconnected'],
+        },
+      });
     });
 
     it('returns an empty array when no instances are registered', () => {
@@ -239,6 +266,64 @@ describe('WhatsappService', () => {
       const result = service.getInstance('ghost');
 
       expect(result).toBeUndefined();
+    });
+  });
+
+  describe('updateWebhookConfig', () => {
+    it('throws when instance does not exist', async () => {
+      await expect(
+        service.updateWebhookConfig('ghost', { webhookUrl: 'https://new.url/hook' }),
+      ).rejects.toThrow('Instance "ghost" not found');
+    });
+
+    it('updates in-memory instance properties', async () => {
+      const instance = buildMockInstance({ name: 'testPapagai' });
+      (service as any).instances.set('testPapagai', instance);
+
+      await service.updateWebhookConfig('testPapagai', {
+        webhookUrl: 'https://new.url/hook',
+        webhookHeaders: { 'X-Custom': 'value' },
+        webhookEnabled: false,
+        webhookEvents: ['message'],
+      });
+
+      expect(instance.webhookUrl).toBe('https://new.url/hook');
+      expect(instance.webhookHeaders).toEqual({ 'X-Custom': 'value' });
+      expect(instance.webhookEnabled).toBe(false);
+      expect(instance.webhookEvents).toEqual(['message']);
+    });
+
+    it('calls instanceConfigRepo.update with correct fields', async () => {
+      const instance = buildMockInstance({ name: 'testPapagai' });
+      (service as any).instances.set('testPapagai', instance);
+
+      const mockRepo = (service as any).instanceConfigRepo;
+
+      await service.updateWebhookConfig('testPapagai', {
+        webhookUrl: 'https://updated.url/hook',
+        webhookEnabled: false,
+      });
+
+      expect(mockRepo.update).toHaveBeenCalledWith(
+        { name: 'testPapagai' },
+        { webhookUrl: 'https://updated.url/hook', webhookEnabled: false },
+      );
+    });
+  });
+
+  describe('createInstance webhook enabled when no URL', () => {
+    it('sets webhookEnabled false when no URL even if parameter is true', async () => {
+      await service.createInstance('noUrlForcedEnabled', undefined, {}, true);
+      const inst = service.getInstance('noUrlForcedEnabled');
+      expect(inst?.webhookEnabled).toBe(false);
+      expect(inst?.webhookUrl).toBeNull();
+    });
+
+    it('defaults webhookEnabled true when URL is provided and flag omitted', async () => {
+      await service.createInstance('withUrlDefault', 'https://hook.example/x');
+      const inst = service.getInstance('withUrlDefault');
+      expect(inst?.webhookEnabled).toBe(true);
+      expect(inst?.webhookUrl).toBe('https://hook.example/x');
     });
   });
 

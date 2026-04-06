@@ -13,9 +13,11 @@ export class InstancesService {
     name: string,
     webhookUrl?: string,
     webhookHeaders?: Record<string, string>,
+    webhookEnabled?: boolean,
+    webhookEvents?: string[],
   ): Promise<Instance> {
     this.logger.log(`Criando novo papagai: ${name}`);
-    return this.whatsappService.createInstance(name, webhookUrl, webhookHeaders);
+    return this.whatsappService.createInstance(name, webhookUrl, webhookHeaders, webhookEnabled, webhookEvents);
   }
 
   getInstance(name: string): Instance | undefined {
@@ -42,7 +44,25 @@ export class InstancesService {
     return this.whatsappService.getChats(instanceName, includeMessages ?? false);
   }
 
-  getInstances(): Array<{ name: string; connected: boolean; startTime: number }> {
+  async updateWebhookConfig(
+    name: string,
+    config: {
+      webhookUrl?: string;
+      webhookHeaders?: Record<string, string>;
+      webhookEnabled?: boolean;
+      webhookEvents?: string[];
+    },
+  ) {
+    return this.whatsappService.updateWebhookConfig(name, config);
+  }
+
+  getInstances(): Array<{
+    name: string;
+    connected: boolean;
+    startTime: number;
+    webhookEnabled: boolean;
+    webhook: { url: string | null; headers: Record<string, string>; enabled: boolean; events: string[] };
+  }> {
     return this.whatsappService.getInstances();
   }
 
