@@ -1,50 +1,50 @@
 # 🦜 Papagai
 
-**The parrot that delivers your messages.**
+**O papagaio que entrega suas mensagens.**
 
-Papagai is a self-hosted, multi-device WhatsApp gateway that exposes a REST API for managing WhatsApp sessions, sending all message types, and receiving events via webhooks. It ships with a web dashboard and a built-in API documentation page, all served from a single origin.
-
----
-
-## Features
-
-- **Multi-instance session management** — create, connect via QR scan, disconnect, and delete WhatsApp instances independently
-- **Outbound messaging** — text, images, audio, voice notes, video, documents, stickers, location, reactions, and interactive button messages
-- **Inbound message handling** — all message types captured, media auto-downloaded and served as static files
-- **Per-instance webhooks** — configurable URL, custom headers, event filter (message, qr, connected, disconnected, …), enable/disable toggle
-- **JWT authentication** — registration and login; all instance routes are protected
-- **Web dashboard** — Angular SPA for managing instances, monitoring status, scanning QR codes, and configuring webhooks
-- **Built-in API docs** — interactive reference page at `/docs`, no external tool required
-- **Auto-reconnect** — sessions reconnect automatically on connection drop
+Papagai é um gateway WhatsApp multi-dispositivo self-hosted que expõe uma API REST para gerenciar sessões, enviar todos os tipos de mensagem e receber eventos via webhooks. Inclui um painel web e uma página de documentação de API integrada, tudo servido de uma única origem.
 
 ---
 
-## Tech Stack
+## Funcionalidades
 
-| Layer | Technology |
-|-------|-----------|
-| Backend framework | NestJS 11, TypeScript 5.7, Node 22 |
-| Database | PostgreSQL 16 + TypeORM |
-| Cache / session state | Redis 7 |
-| WhatsApp | `@whiskeysockets/baileys` (whaileys fork) |
+- **Gerenciamento de sessões multi-instância** — crie, conecte via QR Code, desconecte e exclua instâncias WhatsApp de forma independente
+- **Envio de mensagens** — texto, imagens, áudio, notas de voz, vídeo, documentos, stickers, localização, reações e mensagens com botões interativos
+- **Recebimento de mensagens** — todos os tipos capturados, mídia baixada automaticamente e servida como arquivos estáticos
+- **Webhooks por instância** — URL configurável, cabeçalhos personalizados, filtro de eventos (message, qr, connected, disconnected, …), ativar/desativar
+- **Autenticação JWT** — cadastro e login; todas as rotas de instância são protegidas
+- **Painel web** — SPA Angular para gerenciar instâncias, monitorar status, escanear QR Codes e configurar webhooks
+- **Documentação de API integrada** — página de referência interativa em `/docs`, sem ferramentas externas
+- **Reconexão automática** — sessões reconectam automaticamente após queda de conexão
+
+---
+
+## Stack Tecnológica
+
+| Camada | Tecnologia |
+|--------|-----------|
+| Backend | NestJS 11, TypeScript 5.7, Node 22 |
+| Banco de dados | PostgreSQL 16 + TypeORM |
+| Cache / estado de sessão | Redis 7 |
+| WhatsApp | `@whiskeysockets/baileys` (fork whaileys) |
 | Frontend | Angular 19, Taiga UI, Tailwind CSS |
 | Container | Docker, Docker Compose |
 
 ---
 
-## Prerequisites
+## Pré-requisitos
 
-- **Docker + Docker Compose** — for the recommended dev path
-- **Node 22 + npm** — for running the backend or frontend outside Docker
+- **Docker + Docker Compose** — para o caminho recomendado de desenvolvimento
+- **Node 22 + npm** — para executar o backend ou frontend fora do Docker
 - **Git**
 
 ---
 
-## Getting Started
+## Primeiros Passos
 
-### Option A — Docker (recommended)
+### Opção A — Docker (recomendado)
 
-The dev compose stack starts PostgreSQL, Redis, and the NestJS backend with hot-reload. Dev secrets are pre-baked — no `.env` file needed.
+A stack de desenvolvimento sobe PostgreSQL, Redis e o backend NestJS com hot-reload. Os segredos de dev já vêm embutidos — nenhum arquivo `.env` é necessário.
 
 ```bash
 git clone https://github.com/mmendesx/papagai.git
@@ -52,119 +52,119 @@ cd papagai
 make dev
 ```
 
-Or without Make:
+Ou sem o Make:
 
 ```bash
 docker compose -f docker-compose.dev.yml up
 ```
 
-Once running:
+Após iniciar:
 
 - App → `http://localhost:3000`
-- Register your first user → `http://localhost:3000/register`
+- Cadastre o primeiro usuário → `http://localhost:3000/register`
 
-Backend source is mounted into the container; changes to `src/` trigger an automatic NestJS restart via `nest start --watch`.
+O código-fonte é montado no container; alterações em `src/` disparam reinicialização automática do NestJS via `nest start --watch`.
 
-> **Expose ports for local tooling** (psql, redis-cli): add `-f docker-compose.ports.yml` if you have a ports override file, or manually map ports in the dev compose file.
+> **Expor portas para ferramentas locais** (psql, redis-cli): adicione `-f docker-compose.ports.yml` se tiver um arquivo de override de portas, ou mapeie as portas manualmente no compose de dev.
 
 ---
 
-### Option B — Local development (Angular HMR)
+### Opção B — Desenvolvimento local (Angular HMR)
 
-Use this path when iterating on the Angular frontend with hot module replacement.
+Use este caminho ao iterar no frontend Angular com hot module replacement.
 
-**Step 1 — Start infrastructure (db + redis) via Docker:**
+**Passo 1 — Inicie a infraestrutura (db + redis) via Docker:**
 
 ```bash
 make infra
-# equivalent: docker compose up -d db redis
+# equivalente: docker compose up -d db redis
 ```
 
-**Step 2 — Configure environment:**
+**Passo 2 — Configure o ambiente:**
 
 ```bash
 cp .env.example .env
-# Dev defaults are already filled in — edit only if your ports differ
+# Os valores padrão de dev já estão preenchidos — edite apenas se suas portas forem diferentes
 ```
 
-**Step 3 — Install and start the backend:**
+**Passo 3 — Instale e inicie o backend:**
 
 ```bash
 npm install
-npm run start:dev       # NestJS API on http://localhost:3000
+npm run start:dev       # API NestJS em http://localhost:3000
 ```
 
-**Step 4 — Install and start the Angular dev server (separate terminal):**
+**Passo 4 — Instale e inicie o servidor Angular (terminal separado):**
 
 ```bash
 npm install --prefix client
-npm run start --prefix client   # Angular on http://localhost:4200
+npm run start --prefix client   # Angular em http://localhost:4200
 ```
 
-API requests from the Angular dev server are proxied to port 3000 via `client/proxy.conf.json` — no CORS configuration needed.
+As requisições da API feitas pelo servidor Angular são redirecionadas para a porta 3000 via `client/proxy.conf.json` — nenhuma configuração de CORS é necessária.
 
-- App (with HMR) → `http://localhost:4200`
-- API directly → `http://localhost:3000`
-
----
-
-## Environment Variables
-
-Dev defaults are pre-set in `docker-compose.dev.yml` and in `.env.example`. For production, **`APP_KEY` and `JWT_SECRET` must be set** — the production compose will fail-fast without them.
-
-| Variable | Dev default | Description |
-|----------|-------------|-------------|
-| `PORT` | `3000` | HTTP server port |
-| `NODE_ENV` | `development` | Runtime environment |
-| `APP_KEY` | `dev-app-key` | Application secret — **change in production** |
-| `JWT_SECRET` | `dev-jwt-secret` | JWT signing secret — **change in production** |
-| `DB_HOST` | `localhost` | PostgreSQL host |
-| `DB_PORT` | `5432` | PostgreSQL port |
-| `DB_USER` | `papagai` | PostgreSQL user |
-| `DB_PASS` | `papagai` | PostgreSQL password |
-| `DB_NAME` | `papagai` | PostgreSQL database name |
-| `REDIS_URL` | `redis://localhost:6380` | Redis connection string |
-| `MEDIA_DIR` | `./media` | Directory for downloaded inbound media |
-| `INSTANCES_DIR` | `./instances` | Directory for Baileys session data |
-| `MAX_INSTANCES` | `10` | Maximum concurrent WhatsApp instances |
-| `LOG_LEVEL` | `info` | Log verbosity (`debug`, `info`, `warn`, `error`) |
+- App (com HMR) → `http://localhost:4200`
+- API diretamente → `http://localhost:3000`
 
 ---
 
-## API Reference
+## Variáveis de Ambiente
 
-The full interactive reference is available in-app at **`/docs`** once the server is running.
+Os valores padrão de dev estão pré-definidos em `docker-compose.dev.yml` e em `.env.example`. Em produção, **`APP_KEY` e `JWT_SECRET` devem ser definidos** — o compose de produção falha intencionalmente sem eles.
 
-| Group | Endpoints |
+| Variável | Padrão (dev) | Descrição |
+|----------|--------------|-----------|
+| `PORT` | `3000` | Porta do servidor HTTP |
+| `NODE_ENV` | `development` | Ambiente de execução |
+| `APP_KEY` | `dev-app-key` | Segredo da aplicação — **altere em produção** |
+| `JWT_SECRET` | `dev-jwt-secret` | Segredo de assinatura JWT — **altere em produção** |
+| `DB_HOST` | `localhost` | Host do PostgreSQL |
+| `DB_PORT` | `5432` | Porta do PostgreSQL |
+| `DB_USER` | `papagai` | Usuário do PostgreSQL |
+| `DB_PASS` | `papagai` | Senha do PostgreSQL |
+| `DB_NAME` | `papagai` | Nome do banco de dados |
+| `REDIS_URL` | `redis://localhost:6380` | String de conexão do Redis |
+| `MEDIA_DIR` | `./media` | Diretório para mídia recebida |
+| `INSTANCES_DIR` | `./instances` | Diretório para dados de sessão do Baileys |
+| `MAX_INSTANCES` | `10` | Máximo de instâncias WhatsApp simultâneas |
+| `LOG_LEVEL` | `info` | Verbosidade dos logs (`debug`, `info`, `warn`, `error`) |
+
+---
+
+## Referência de API
+
+A referência interativa completa está disponível no app em **`/docs`** após o servidor estar rodando.
+
+| Grupo | Endpoints |
 |-------|-----------|
-| Authentication | `POST /api/auth/login` · `POST /api/auth/register` |
-| Instances | `GET /api/instances` · `POST /api/instances/create` · `DELETE /api/instances/:name` |
+| Autenticação | `POST /api/auth/login` · `POST /api/auth/register` |
+| Instâncias | `GET /api/instances` · `POST /api/instances/create` · `DELETE /api/instances/:name` |
 | Status & QR | `GET /api/instances/:name/status` · `GET /api/instances/:name/qr` |
-| Messaging | `POST /api/instances/:name/send/*` (text, image, audio, video, document, sticker, location, reaction, buttons) |
+| Mensagens | `POST /api/instances/:name/send/*` (text, image, audio, video, document, sticker, location, reaction, buttons) |
 | Webhooks | `PATCH /api/instances/:name/webhook` |
-| Contacts & Chats | `GET /api/instances/:name/contact/:number` · `GET /api/instances/:name/chats` |
+| Contatos & Conversas | `GET /api/instances/:name/contact/:number` · `GET /api/instances/:name/chats` |
 
-All instance routes require an `Authorization: Bearer <token>` header obtained from the login endpoint.
+Todas as rotas de instância exigem o cabeçalho `Authorization: Bearer <token>` obtido no endpoint de login.
 
 ---
 
-## Testing
+## Testes
 
-**Unit tests:**
+**Testes unitários:**
 
 ```bash
 npm test
 ```
 
-**End-to-end tests** (require a running PostgreSQL instance):
+**Testes end-to-end** (requerem uma instância PostgreSQL em execução):
 
 ```bash
 docker compose up -d db
-# wait for the healthcheck, then:
+# aguarde o healthcheck e então:
 npm run test:e2e
 ```
 
-**With coverage:**
+**Com cobertura:**
 
 ```bash
 npm run test:cov
@@ -172,16 +172,16 @@ npm run test:cov
 
 ---
 
-## Production
+## Produção
 
-The production stack requires `APP_KEY` and `JWT_SECRET` set in your environment or a `.env` file at the repo root — the compose file will reject startup without them.
+A stack de produção exige `APP_KEY` e `JWT_SECRET` definidos no ambiente ou em um arquivo `.env` na raiz do projeto — o compose rejeitará a inicialização sem eles.
 
 ```bash
 cp .env.example .env
-# Set APP_KEY and JWT_SECRET to strong random values
+# Defina APP_KEY e JWT_SECRET com valores aleatórios fortes
 
 make prod/build
-# equivalent: docker compose up -d --build
+# equivalente: docker compose up -d --build
 ```
 
-The multi-stage `Dockerfile` builds the NestJS backend and Angular SPA, then serves both from a single Node 22-alpine container on port 3000.
+O `Dockerfile` multi-estágio compila o backend NestJS e o SPA Angular, servindo ambos de um único container Node 22-alpine na porta 3000.
