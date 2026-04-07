@@ -1,12 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { NavigationEnd, NavigationStart, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { DOCUMENT } from '@angular/common';
 import { filter, map, startWith } from 'rxjs/operators';
 import { AuthService } from '../core/auth/auth.service';
 import { API_ENDPOINT_GROUPS, EndpointGroup } from '../features/docs/api-endpoints';
 import { DocsNavigationService } from '../features/docs/docs-navigation.service';
 import { getAvatarColor } from '../shared/avatar-colors';
+import { HeaderActionsService } from '../shared/header-actions.service';
 import {
   LucideAngularModule,
   LayoutGrid,
@@ -226,6 +227,60 @@ import {
     }
     .logout-arrow:hover { color: var(--color-on-surface); background: var(--color-surface-container); }
 
+    /* Header actions */
+    .header-actions {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      flex-shrink: 0;
+    }
+    .action-btn {
+      font-family: var(--font-sans);
+      font-size: 0.875rem;
+      cursor: pointer;
+      border-radius: var(--radius-lg);
+      transition: opacity var(--duration-fast) var(--ease-default), background var(--duration-fast) var(--ease-default);
+    }
+    .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .gradient-btn {
+      background: var(--color-primary);
+      color: var(--color-on-primary);
+      border: none;
+      padding: 0.375rem 0.875rem;
+      font-weight: 500;
+    }
+    .gradient-btn:not(:disabled):hover { opacity: 0.88; }
+    .cancel-btn {
+      background: transparent;
+      color: var(--color-on-surface);
+      border: 1px solid var(--color-outline-variant);
+      padding: 0.375rem 0.875rem;
+      font-weight: 400;
+    }
+    .cancel-btn:not(:disabled):hover { border-color: var(--color-outline); }
+    .negative-btn {
+      background: var(--color-error-bg);
+      color: var(--color-error);
+      border: 1px solid var(--color-error-container);
+      padding: 0.375rem 0.875rem;
+      font-weight: 500;
+    }
+    .negative-btn:not(:disabled):hover { background: var(--color-error-container); }
+    .icon-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2rem;
+      height: 2rem;
+      background: transparent;
+      border: 1px solid var(--color-outline-variant);
+      border-radius: var(--radius-md);
+      color: var(--color-on-surface-variant);
+      padding: 0;
+    }
+    .icon-btn:not(:disabled):hover { background: var(--color-surface-container-low); color: var(--color-primary); }
+
     /* Main content */
     .main { flex: 1; overflow-y: auto; background: var(--tui-background-base); display: flex; flex-direction: column; }
 
@@ -355,7 +410,6 @@ import {
     <aside class="sidebar" [class.open]="sidebarOpen()" [class.collapsed]="sidebarCollapsed()">
       <div class="sidebar-brand">
         <img src="/parrot.svg" alt="" aria-hidden="true" />
-        <span>PAPAGAI</span>
       </div>
 
       <nav class="nav-section">
@@ -424,6 +478,18 @@ import {
             }
             {{ pageTitle() }}
           </h1>
+          @if (headerActions.actions().length) {
+            <div class="header-actions">
+              @for (action of headerActions.actions(); track action.id) {
+                <button
+                  type="button"
+                  [class]="actionClass(action.variant)"
+                  [disabled]="action.disabled?.() ?? false"
+                  (click)="action.onClick()"
+                >{{ action.label }}</button>
+              }
+            </div>
+          }
         </div>
       </div>
       <router-outlet />
@@ -435,6 +501,7 @@ export class AppShellComponent {
   private readonly router = inject(Router);
   private readonly document = inject(DOCUMENT);
   private readonly docsNav = inject(DocsNavigationService);
+  readonly headerActions = inject(HeaderActionsService);
 
   readonly icons = { LayoutGrid, FileText, ChevronDown, ChevronLeft, LogOut, Menu, PanelLeftOpen, PanelLeftClose };
 
@@ -474,6 +541,23 @@ export class AppShellComponent {
   });
 
   readonly isInstancePage = computed(() => this.currentUrl().startsWith('/instances/'));
+
+  constructor() {
+    this.router.events.pipe(
+      filter(e => e instanceof NavigationStart),
+      takeUntilDestroyed(),
+    ).subscribe(() => this.headerActions.clearActions());
+  }
+
+  actionClass(variant: string): string {
+    const map: Record<string, string> = {
+      primary:   'action-btn gradient-btn',
+      secondary: 'action-btn cancel-btn',
+      negative:  'action-btn negative-btn',
+      'icon-only': 'action-btn icon-btn',
+    };
+    return map[variant] ?? 'action-btn';
+  }
 
   toggleSidebar(): void { this.sidebarOpen.update(v => !v); }
   closeSidebar(): void { this.sidebarOpen.set(false); }

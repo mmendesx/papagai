@@ -2,6 +2,7 @@ import { httpResource } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   inject,
   Injector,
 } from '@angular/core';
@@ -11,6 +12,7 @@ import { ResourceStatus } from '@angular/core';
 import { TuiDialogService } from '@taiga-ui/core';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { CreateInstanceDialogComponent } from './create-instance-dialog.component';
+import { HeaderActionsService } from '../../shared/header-actions.service';
 
 export interface InstanceRow {
   name: string;
@@ -31,16 +33,6 @@ interface InstancesListResponse {
   imports: [RouterLink, NgClass],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <!-- Actions bar -->
-    <div class="actions-bar">
-      <button (click)="reload()" class="icon-btn" title="Atualizar" type="button" aria-label="Atualizar instâncias">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-          <path d="M13.65 2.35A7.958 7.958 0 0 0 8 0C3.58 0 0 3.58 0 8s3.58 8 8 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 8 14c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L9 7h7V0l-2.35 2.35z" fill="currentColor"/>
-        </svg>
-      </button>
-      <button (click)="openCreate()" class="gradient-btn" type="button">+ Nova instância</button>
-    </div>
-
     @let data = instancesRes.value();
 
     <!-- Loading state: skeleton cards -->
@@ -160,59 +152,20 @@ interface InstancesListResponse {
         display: block;
       }
 
-      .actions-bar {
-        display: flex;
-        gap: 0.5rem;
-        align-items: center;
-        justify-content: flex-end;
-        padding: 1rem 1.5rem 0;
-      }
-
-      /* ── Buttons ─────────────────────────────────────────── */
+      /* ── Inline content buttons ──────────────────────────── */
       .gradient-btn {
         background: var(--color-primary);
         color: var(--color-on-primary);
         border: none;
         padding: 0.5rem 1rem;
         border-radius: var(--radius-lg);
-        font-family: 'Figtree', sans-serif;
-        font-weight: 200;
+        font-family: var(--font-sans);
+        font-weight: 500;
         font-size: 0.875rem;
         cursor: pointer;
         transition: opacity var(--duration-fast) var(--ease-default);
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.25rem;
       }
-
-      .gradient-btn:hover {
-        opacity: 0.88;
-      }
-
-      .gradient-btn:active {
-        opacity: 0.75;
-      }
-
-      .icon-btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 2.25rem;
-        height: 2.25rem;
-        background: transparent;
-        border: 1px solid var(--color-outline-variant);
-        border-radius: var(--radius-md);
-        cursor: pointer;
-        color: var(--color-on-surface-variant);
-        transition: background var(--duration-fast) var(--ease-default), color var(--duration-fast) var(--ease-default);
-        flex-shrink: 0;
-      }
-
-      .icon-btn:hover {
-        background: var(--color-surface-container-low);
-        color: var(--color-primary);
-      }
+      .gradient-btn:hover { opacity: 0.88; }
 
       /* ── Grid ────────────────────────────────────────────── */
       .instance-grid {
@@ -466,12 +419,31 @@ export class DashboardComponent {
   private readonly dialogs = inject(TuiDialogService);
   private readonly injector = inject(Injector);
   private readonly router = inject(Router);
+  private readonly headerActions = inject(HeaderActionsService);
 
   readonly ResourceStatus = ResourceStatus;
 
   readonly instancesRes = httpResource<InstancesListResponse>(() => '/api/instances', {
     defaultValue: { total: 0, instances: [], message: '' },
   });
+
+  constructor() {
+    this.headerActions.setActions([
+      {
+        id: 'reload',
+        label: '↺',
+        variant: 'icon-only',
+        onClick: () => this.reload(),
+      },
+      {
+        id: 'add-instance',
+        label: '+ Nova instância',
+        variant: 'primary',
+        onClick: () => this.openCreate(),
+      },
+    ]);
+    inject(DestroyRef).onDestroy(() => this.headerActions.clearActions());
+  }
 
   reload(): void {
     this.instancesRes.reload();

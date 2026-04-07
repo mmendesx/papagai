@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   effect,
   inject,
   signal,
@@ -19,6 +20,7 @@ import { firstValueFrom, timer } from 'rxjs';
 import { filter, map, switchMap, takeWhile, tap } from 'rxjs/operators';
 import { ChatsComponent } from './chats.component';
 import { SendMessageComponent } from './send-message.component';
+import { HeaderActionsService } from '../../shared/header-actions.service';
 
 type QrResponse = {
   qr?: string;
@@ -65,11 +67,6 @@ type WebhookResponse = {
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <!-- Actions bar -->
-    <div style="display: flex; justify-content: flex-end; padding: 0.75rem 1.5rem; border-bottom: 1px solid var(--color-outline-variant);">
-      <button tuiButton type="button" size="s" appearance="negative" (click)="confirmDelete()">Excluir</button>
-    </div>
-
     <!-- TuiTabs navigation -->
     <div style="padding: 0 1.5rem; border-bottom: 1px solid var(--tui-border-normal);">
       <tui-tabs
@@ -402,6 +399,17 @@ export class InstanceDetailComponent {
   }
 
   constructor() {
+    const headerActions = inject(HeaderActionsService);
+    headerActions.setActions([
+      {
+        id: 'delete-instance',
+        label: 'Excluir',
+        variant: 'negative',
+        onClick: () => this.confirmDelete(),
+      },
+    ]);
+    inject(DestroyRef).onDestroy(() => headerActions.clearActions());
+
     // QR polling: runs on status tab, stops once connected
     this.route.paramMap
       .pipe(

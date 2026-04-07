@@ -5,7 +5,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { TuiAlertService } from '@taiga-ui/core';
 import type { TuiDialogContext } from '@taiga-ui/core';
@@ -17,7 +17,7 @@ import { TuiCheckbox } from '@taiga-ui/kit/components/checkbox';
 @Component({
   selector: 'app-create-instance-dialog',
   standalone: true,
-  imports: [ReactiveFormsModule, ...TuiTextfield, TuiSwitch, TuiCheckbox],
+  imports: [ReactiveFormsModule, FormsModule, ...TuiTextfield, TuiSwitch, TuiCheckbox],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div style="padding: 1.5rem; min-width: 400px; max-width: 500px;">
@@ -61,8 +61,9 @@ import { TuiCheckbox } from '@taiga-ui/kit/components/checkbox';
             <input
               tuiSwitch
               type="checkbox"
-              [checked]="webhookEnabled()"
-              (change)="webhookEnabled.set(!webhookEnabled())"
+              [ngModel]="webhookEnabled()"
+              (ngModelChange)="webhookEnabled.set($event)"
+              [ngModelOptions]="{ standalone: true }"
             />
             <span style="font-weight: 300; font-family: 'Figtree', sans-serif;">Ativar webhook</span>
           </label>
@@ -103,8 +104,9 @@ import { TuiCheckbox } from '@taiga-ui/kit/components/checkbox';
                     <input
                       tuiCheckbox
                       type="checkbox"
-                      [checked]="webhookEvents().includes(ev)"
-                      (change)="toggleEvent(ev)"
+                      [ngModel]="webhookEvents().includes(ev)"
+                      (ngModelChange)="toggleEvent(ev)"
+                      [ngModelOptions]="{ standalone: true }"
                     />
                     <span style="
                       font-size: 0.8125rem;
