@@ -8,7 +8,7 @@ dev:
 	$(COMPOSE_DEV) up
 
 dev/build:
-	$(COMPOSE_DEV) up --build
+	$(COMPOSE_DEV) up --build --force-recreate
 
 # Production
 prod:

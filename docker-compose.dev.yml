@@ -65,6 +65,23 @@ services:
       - /app/node_modules
       - media_data:/app/media
 
+  client:
+    build:
+      context: .
+      target: builder
+    container_name: papagai-client
+    working_dir: /app/client
+    command: ["sh", "-c", "npm ci && npx ng serve --host 0.0.0.0 --proxy-config proxy.conf.docker.json"]
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "4200:4200"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/client/node_modules
+
 volumes:
   postgres_data:
   redis_data:

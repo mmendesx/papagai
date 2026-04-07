@@ -11,6 +11,7 @@ FROM node:22-alpine
 WORKDIR /app
 RUN addgroup -S papagai && adduser -S papagai -G papagai
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/client/dist ./client/dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./
 USER papagai

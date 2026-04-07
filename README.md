@@ -42,9 +42,9 @@ Papagai é um gateway WhatsApp multi-dispositivo self-hosted que expõe uma API 
 
 ## Primeiros Passos
 
-### Opção A — Docker (recomendado)
+### Docker com hot reload (recomendado)
 
-A stack de desenvolvimento sobe PostgreSQL, Redis e o backend NestJS com hot-reload. Os segredos de dev já vêm embutidos — nenhum arquivo `.env` é necessário.
+A stack de desenvolvimento sobe PostgreSQL, Redis, o backend NestJS **e** o servidor Angular, todos com hot reload. Os segredos de dev já vêm embutidos — nenhum arquivo `.env` é necessário.
 
 ```bash
 git clone https://github.com/mmendesx/papagai.git
@@ -55,56 +55,23 @@ make dev
 Ou sem o Make:
 
 ```bash
-docker compose -f docker-compose.dev.yml up
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 ```
 
 Após iniciar:
 
-- App → `http://localhost:3000`
-- Cadastre o primeiro usuário → `http://localhost:3000/register`
+- **App (Angular com HMR)** → `http://localhost:4200`
+- **API diretamente** → `http://localhost:3000`
+- Cadastre o primeiro usuário → `http://localhost:4200/register`
 
-O código-fonte é montado no container; alterações em `src/` disparam reinicialização automática do NestJS via `nest start --watch`.
+Como funciona:
 
-> **Expor portas para ferramentas locais** (psql, redis-cli): adicione `-f docker-compose.ports.yml` se tiver um arquivo de override de portas, ou mapeie as portas manualmente no compose de dev.
+- O código-fonte é montado nos containers via bind mount.
+- Alterações em `src/` disparam reinicialização do NestJS (`nest start --watch`) no container `papagai-app`.
+- Alterações em `client/src/` disparam HMR do Angular (`ng serve`) no container `papagai-client`.
+- O dev server do Angular faz proxy de `/api` para o container `app` via `client/proxy.conf.docker.json` — sem CORS.
 
----
-
-### Opção B — Desenvolvimento local (Angular HMR)
-
-Use este caminho ao iterar no frontend Angular com hot module replacement.
-
-**Passo 1 — Inicie a infraestrutura (db + redis) via Docker:**
-
-```bash
-make infra
-# equivalente: docker compose up -d db redis
-```
-
-**Passo 2 — Configure o ambiente:**
-
-```bash
-cp .env.example .env
-# Os valores padrão de dev já estão preenchidos — edite apenas se suas portas forem diferentes
-```
-
-**Passo 3 — Instale e inicie o backend:**
-
-```bash
-npm install
-npm run start:dev       # API NestJS em http://localhost:3000
-```
-
-**Passo 4 — Instale e inicie o servidor Angular (terminal separado):**
-
-```bash
-npm install --prefix client
-npm run start --prefix client   # Angular em http://localhost:4200
-```
-
-As requisições da API feitas pelo servidor Angular são redirecionadas para a porta 3000 via `client/proxy.conf.json` — nenhuma configuração de CORS é necessária.
-
-- App (com HMR) → `http://localhost:4200`
-- API diretamente → `http://localhost:3000`
+> **Desenvolvimento local sem Docker**: se preferir rodar o backend ou o frontend diretamente no host, suba apenas a infra com `make infra` (PostgreSQL + Redis) e execute `npm run start:dev` e/ou `npm run start --prefix client` localmente. O arquivo `client/proxy.conf.json` aponta para `http://localhost:3000` para esse cenário.
 
 ---
 
@@ -123,7 +90,7 @@ Os valores padrão de dev estão pré-definidos em `docker-compose.dev.yml` e em
 | `DB_USER` | `papagai` | Usuário do PostgreSQL |
 | `DB_PASS` | `papagai` | Senha do PostgreSQL |
 | `DB_NAME` | `papagai` | Nome do banco de dados |
-| `REDIS_URL` | `redis://localhost:6380` | String de conexão do Redis |
+| `REDIS_URL` | `redis://localhost:6380` (local) / `redis://redis:6379` (Docker) | String de conexão do Redis |
 | `MEDIA_DIR` | `./media` | Diretório para mídia recebida |
 | `INSTANCES_DIR` | `./instances` | Diretório para dados de sessão do Baileys |
 | `MAX_INSTANCES` | `10` | Máximo de instâncias WhatsApp simultâneas |
