@@ -22,12 +22,12 @@ type LoginField = 'email' | 'password';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="min-h-screen flex items-center justify-center px-4"
-         style="background: var(--papagai-gradient-page)">
-      <div class="w-full max-w-md p-8 rounded-2xl shadow-2xl"
-           style="background: rgba(255,255,255,0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.9)">
+         style="background: var(--color-surface)">
+      <div class="w-full max-w-md p-8"
+           style="background: var(--color-surface-container-lowest); border: 1px solid var(--color-outline-variant); box-shadow: var(--shadow-lg); border-radius: var(--radius-2xl)">
 
         <h1 class="text-3xl text-center mb-8"
-            style="font-weight: 300; background: var(--papagai-gradient-accent); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text">
+            style="font-weight: 300; color: var(--color-on-surface)">
           Papagai
         </h1>
 
@@ -52,7 +52,7 @@ type LoginField = 'email' | 'password';
             type="submit"
             [disabled]="submitting()"
             class="w-full py-3 px-6 rounded-xl text-white transition-all duration-200 hover:opacity-90 active:scale-95 mt-2"
-            style="background: var(--papagai-gradient-button); border: none; cursor: pointer; font-family: 'Lexend', sans-serif; font-size: 0.9rem; font-weight: 300; letter-spacing: 0.025em; disabled:opacity-50">
+            style="background: var(--color-primary); color: var(--color-on-primary); border: none; cursor: pointer; font-family: 'Figtree', sans-serif; font-size: 0.9rem; font-weight: 300; letter-spacing: 0.025em; border-radius: var(--radius-lg)">
             {{ submitting() ? 'Entrando\u2026' : 'Entrar' }}
           </button>
         </form>

@@ -1,6 +1,7 @@
 import { httpResource } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { getAvatarColor } from '../../shared/avatar-colors';
 
 interface ChatsResponse {
   instance: string;
@@ -21,21 +22,19 @@ interface ChatsResponse {
       align-items: center;
       gap: 0.75rem;
       padding: 0.75rem 1rem;
-      border-radius: 0.75rem;
-      transition: background 0.15s ease;
+      border-radius: var(--radius-lg);
+      transition: background var(--duration-fast) var(--ease-default);
       cursor: pointer;
     }
-    .chat-row:hover { background: rgba(168, 85, 247, 0.05); }
+    .chat-row:hover { background: var(--color-surface-container-low); }
 
     .chat-avatar {
       width: 2.5rem;
       height: 2.5rem;
       border-radius: 50%;
-      background: var(--papagai-gradient-accent);
       display: flex;
       align-items: center;
       justify-content: center;
-      color: white;
       font-size: 0.875rem;
       font-weight: 300;
       flex-shrink: 0;
@@ -46,7 +45,7 @@ interface ChatsResponse {
     .chat-preview { font-size: 0.75rem; font-weight: 200; color: var(--tui-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 0.125rem; }
     .chat-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 0.25rem; flex-shrink: 0; }
     .chat-time { font-size: 0.6875rem; font-weight: 200; color: var(--tui-text-secondary); }
-    .unread-badge { background: var(--papagai-purple); color: white; border-radius: 999px; padding: 0.1rem 0.4rem; font-size: 0.6875rem; font-weight: 300; }
+    .unread-badge { background: var(--color-primary); color: var(--color-on-primary); border-radius: var(--radius-full); padding: 0.1rem 0.4rem; font-size: 0.6875rem; font-weight: 300; }
 
     .empty-state {
       display: flex;
@@ -82,7 +81,9 @@ interface ChatsResponse {
       <div class="chat-list">
         @for (chat of chatsRes.value()!.chats; track chat.id ?? $index) {
           <div class="chat-row">
-            <div class="chat-avatar">{{ chatInitials(chat) }}</div>
+            <div class="chat-avatar"
+                 [style.background]="avatarStyle(chatInitials(chat)).bg"
+                 [style.color]="avatarStyle(chatInitials(chat)).text">{{ chatInitials(chat) }}</div>
             <div class="chat-content">
               <div class="chat-name">{{ chat.name || formatChatId(chat.id) }}</div>
               @if (chat.lastMessage) {
@@ -119,5 +120,9 @@ export class ChatsComponent {
   formatChatId(id: string): string {
     // "5511999998888@s.whatsapp.net" → "5511999998888"
     return id?.split('@')[0] ?? id;
+  }
+
+  avatarStyle(initials: string): { bg: string; text: string } {
+    return getAvatarColor(initials);
   }
 }

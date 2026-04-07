@@ -27,7 +27,7 @@ import { TuiCheckbox } from '@taiga-ui/kit/components/checkbox';
         font-size: 1.25rem;
         font-weight: 300;
         margin: 0 0 1.5rem;
-        font-family: 'Lexend', sans-serif;
+        font-family: 'Figtree', sans-serif;
         color: var(--tui-text-primary);
       ">Criar instância</h2>
 
@@ -44,7 +44,7 @@ import { TuiCheckbox } from '@taiga-ui/kit/components/checkbox';
 
         <!-- Section 2: Webhook -->
         <div style="
-          border-top: 1px solid rgba(168,85,247,0.1);
+          border-top: 1px solid var(--color-outline-variant);
           padding-top: 1rem;
           margin-bottom: 1.5rem;
         ">
@@ -64,7 +64,7 @@ import { TuiCheckbox } from '@taiga-ui/kit/components/checkbox';
               [checked]="webhookEnabled()"
               (change)="webhookEnabled.set(!webhookEnabled())"
             />
-            <span style="font-weight: 300; font-family: 'Lexend', sans-serif;">Ativar webhook</span>
+            <span style="font-weight: 300; font-family: 'Figtree', sans-serif;">Ativar webhook</span>
           </label>
 
           @if (webhookEnabled()) {
@@ -86,7 +86,7 @@ import { TuiCheckbox } from '@taiga-ui/kit/components/checkbox';
 
             <!-- Events subsection -->
             <div style="
-              border-top: 1px solid rgba(168,85,247,0.08);
+              border-top: 1px solid var(--color-outline-variant);
               padding-top: 0.75rem;
               margin-top: 0.75rem;
             ">
@@ -109,7 +109,7 @@ import { TuiCheckbox } from '@taiga-ui/kit/components/checkbox';
                     <span style="
                       font-size: 0.8125rem;
                       font-weight: 300;
-                      font-family: 'Lexend', sans-serif;
+                      font-family: 'Figtree', sans-serif;
                       color: var(--tui-text-primary);
                     ">{{ ev }}</span>
                   </label>
@@ -147,37 +147,37 @@ import { TuiCheckbox } from '@taiga-ui/kit/components/checkbox';
         letter-spacing: 0.05em;
         color: var(--tui-text-secondary);
         margin: 0 0 0.75rem;
-        font-family: 'Lexend', sans-serif;
+        font-family: 'Figtree', sans-serif;
       }
 
       .cancel-btn {
         padding: 0.5rem 1.25rem;
-        border-radius: 0.625rem;
-        border: 1px solid rgba(168, 85, 247, 0.25);
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--color-outline-variant);
         background: transparent;
-        font-family: 'Lexend', sans-serif;
+        font-family: 'Figtree', sans-serif;
         font-weight: 200;
         font-size: 0.875rem;
         cursor: pointer;
-        color: var(--tui-text-primary);
-        transition: border-color 0.15s ease;
+        color: var(--color-on-surface);
+        transition: border-color var(--duration-fast) var(--ease-default);
       }
 
       .cancel-btn:hover {
-        border-color: rgba(168, 85, 247, 0.5);
+        border-color: var(--color-outline);
       }
 
       .gradient-btn {
         padding: 0.5rem 1.25rem;
-        border-radius: 0.625rem;
+        border-radius: var(--radius-lg);
         border: none;
-        background: var(--papagai-gradient-button);
-        color: white;
-        font-family: 'Lexend', sans-serif;
+        background: var(--color-primary);
+        color: var(--color-on-primary);
+        font-family: 'Figtree', sans-serif;
         font-weight: 200;
         font-size: 0.875rem;
         cursor: pointer;
-        transition: opacity 0.15s ease;
+        transition: opacity var(--duration-fast) var(--ease-default);
       }
 
       .gradient-btn:disabled {

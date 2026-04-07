@@ -9,9 +9,8 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { TuiAlertService, TuiButton } from '@taiga-ui/core';
-import { TuiLink } from '@taiga-ui/core/components/link';
 import { TuiTextfield } from '@taiga-ui/core/components/textfield';
 import { TuiConfirmService } from '@taiga-ui/kit/components/confirm';
 import { TuiSwitch } from '@taiga-ui/kit/components/switch';
@@ -57,9 +56,7 @@ type WebhookResponse = {
   imports: [
     DatePipe,
     FormsModule,
-    RouterLink,
     TuiButton,
-    TuiLink,
     TuiSwitch,
     ...TuiTabs,
     ...TuiTextfield,
@@ -68,38 +65,9 @@ type WebhookResponse = {
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <!-- Page header -->
-    <div style="
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 1.25rem 1.5rem;
-      border-bottom: 1px solid var(--tui-border-normal);
-      gap: 1rem;
-    ">
-      <div style="display: flex; align-items: center; gap: 1rem; min-width: 0;">
-        <a
-          tuiLink
-          routerLink="/dashboard"
-          style="white-space: nowrap; font-weight: 300;"
-        >← Voltar</a>
-        <h1 style="
-          margin: 0;
-          font-size: 1.125rem;
-          font-weight: 300;
-          color: var(--tui-text-primary);
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        ">{{ name() ?? '…' }}</h1>
-      </div>
-      <button
-        tuiButton
-        type="button"
-        size="s"
-        appearance="negative"
-        (click)="confirmDelete()"
-      >Excluir</button>
+    <!-- Actions bar -->
+    <div style="display: flex; justify-content: flex-end; padding: 0.75rem 1.5rem; border-bottom: 1px solid var(--color-outline-variant);">
+      <button tuiButton type="button" size="s" appearance="negative" (click)="confirmDelete()">Excluir</button>
     </div>
 
     <!-- TuiTabs navigation -->
@@ -134,16 +102,16 @@ type WebhookResponse = {
                     xmlns="http://www.w3.org/2000/svg"
                     aria-hidden="true"
                   >
-                    <circle cx="11" cy="11" r="11" fill="#dcfce7"/>
+                    <circle cx="11" cy="11" r="11" fill="var(--color-primary-container)"/>
                     <path
                       d="M6.5 11.5L9.5 14.5L15.5 8"
-                      stroke="#16a34a"
+                      stroke="var(--color-primary)"
                       stroke-width="2"
                       stroke-linecap="round"
                       stroke-linejoin="round"
                     />
                   </svg>
-                  <span style="font-size: 1rem; font-weight: 300; color: #15803d;">Conectado</span>
+                  <span style="font-size: 1rem; font-weight: 300; color: var(--color-on-primary-container);">Conectado</span>
                 </div>
                 <div class="info-grid">
                   <div class="info-row">
@@ -155,8 +123,8 @@ type WebhookResponse = {
                       <span class="info-label">Tempo ativo</span>
                       <span class="info-value" style="display: flex; align-items: center; gap: 0.375rem;">
                         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                          <circle cx="7" cy="7" r="6" stroke="#6b7280" stroke-width="1.5"/>
-                          <path d="M7 4v3l2 1.5" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round"/>
+                          <circle cx="7" cy="7" r="6" stroke="var(--color-on-surface-variant)" stroke-width="1.5"/>
+                          <path d="M7 4v3l2 1.5" stroke="var(--color-on-surface-variant)" stroke-width="1.5" stroke-linecap="round"/>
                         </svg>
                         {{ formatMs(s.uptime) }}
                       </span>
@@ -173,10 +141,10 @@ type WebhookResponse = {
               <div class="status-card qr" style="max-width: 28rem; margin-bottom: 1.5rem;">
                 <div style="display: flex; align-items: center; gap: 0.75rem;">
                   <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                    <circle cx="11" cy="11" r="11" fill="#fef9c3"/>
-                    <path d="M11 7v4l2.5 1.5" stroke="#a16207" stroke-width="2" stroke-linecap="round"/>
+                    <circle cx="11" cy="11" r="11" fill="var(--color-warning-bg)"/>
+                    <path d="M11 7v4l2.5 1.5" style="stroke: var(--color-method-patch);" stroke-width="2" stroke-linecap="round"/>
                   </svg>
-                  <span style="font-size: 1rem; font-weight: 300; color: #a16207;">Waiting for scan</span>
+                  <span style="font-size: 1rem; font-weight: 300; color: var(--color-method-patch);">Waiting for scan</span>
                 </div>
               </div>
               <div style="
@@ -197,7 +165,7 @@ type WebhookResponse = {
                   style="
                     max-width: 280px;
                     border-radius: 1rem;
-                    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+                    box-shadow: var(--shadow-lg);
                     padding: 1rem;
                     background: white;
                   "
@@ -285,7 +253,7 @@ type WebhookResponse = {
 
                 <fieldset style="
                   border: 1px solid var(--tui-border-normal);
-                  border-radius: var(--tui-radius-m);
+                  border-radius: var(--radius-lg);
                   padding: 0.75rem 1rem;
                   margin: 0;
                 ">
@@ -319,8 +287,8 @@ type WebhookResponse = {
                     tuiButton
                     type="submit"
                     size="m"
+                    appearance="primary"
                     [disabled]="webhookSaving()"
-                    style="background: var(--papagai-gradient-button); border: none;"
                   >
                     {{ webhookSaving() ? 'Salvando…' : 'Salvar' }}
                   </button>
@@ -337,17 +305,17 @@ type WebhookResponse = {
   styles: [
     `
       .status-card {
-        border-radius: 1rem;
+        border-radius: var(--radius-xl);
         padding: 1.5rem;
         border-left: 4px solid transparent;
       }
       .status-card.connected {
-        background: #f0fdf4;
-        border-left-color: #22c55e;
+        background: var(--color-primary-container);
+        border-left-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
       }
       .status-card.qr {
-        background: #fefce8;
-        border-left-color: #eab308;
+        background: var(--color-warning-bg);
+        border-left-color: color-mix(in srgb, var(--color-method-patch) 30%, transparent);
       }
       .info-grid {
         display: flex;

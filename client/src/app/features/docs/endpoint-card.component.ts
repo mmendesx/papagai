@@ -145,7 +145,7 @@ import { TryItPanelComponent } from './try-it-panel.component';
     `
       .card {
         border: 1px solid var(--tui-border-normal);
-        border-radius: var(--tui-radius-m);
+        border-radius: var(--radius-lg);
         background: var(--tui-background-elevation-1);
         overflow: hidden;
       }
@@ -174,27 +174,27 @@ import { TryItPanelComponent } from './try-it-panel.component';
         flex-shrink: 0;
         min-width: 3.25rem;
         padding: 0.2rem 0.45rem;
-        border-radius: var(--tui-radius-xs);
+        border-radius: var(--radius-sm);
         font-size: 0.7rem;
         font-weight: 700;
         letter-spacing: 0.04em;
         text-align: center;
       }
       .method-get {
-        background: #dbeafe;
-        color: #1e40af;
+        background: var(--color-secondary-container);
+        color: var(--color-on-secondary-container);
       }
       .method-post {
-        background: #dcfce7;
-        color: #166534;
+        background: var(--color-primary-container);
+        color: var(--color-on-primary-container);
       }
       .method-patch {
-        background: #fef3c7;
-        color: #92400e;
+        background: var(--color-warning-bg);
+        color: var(--color-method-patch);
       }
       .method-delete {
-        background: #fee2e2;
-        color: #991b1b;
+        background: var(--color-error-container);
+        color: var(--color-on-error-container);
       }
       .path-line {
         flex: 1;
@@ -246,11 +246,11 @@ import { TryItPanelComponent } from './try-it-panel.component';
         font-size: 0.8125rem;
       }
       .tbl thead th {
-        background: rgba(168,85,247,0.06);
+        background: var(--color-surface-container-low);
         font-weight: 300;
       }
       .tbl tbody tr:nth-child(even) {
-        background: rgba(0,0,0,0.02);
+        background: var(--color-table-stripe);
       }
       .code-wrap {
         position: relative;
@@ -262,15 +262,15 @@ import { TryItPanelComponent } from './try-it-panel.component';
         z-index: 1;
         padding: 0.2rem 0.5rem;
         font-size: 0.7rem;
-        border-radius: var(--tui-radius-xs);
+        border-radius: var(--radius-sm);
         border: 1px solid var(--tui-border-normal);
         background: var(--tui-background-elevation-1);
         cursor: pointer;
         color: var(--tui-text-primary);
       }
       .copy:hover {
-        color: var(--papagai-purple);
-        background: rgba(168,85,247,0.08);
+        color: var(--color-primary);
+        background: var(--color-surface-container-low);
       }
       .code-block {
         margin: 0;
@@ -280,9 +280,9 @@ import { TryItPanelComponent } from './try-it-panel.component';
         max-height: 20rem;
         font-size: 0.8125rem;
         line-height: 1.45;
-        background: #1e1b2e;
-        color: #e2d9f3;
-        border-radius: 0.5rem;
+        background: var(--color-code-bg);
+        color: var(--color-code-text);
+        border-radius: var(--radius-md);
         border: 1px solid var(--tui-border-normal);
       }
     `,

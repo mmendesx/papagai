@@ -33,7 +33,7 @@ type SendField = 'to' | 'body';
       </tui-textfield>
       <tui-error [error]="fieldError('body')" />
       <button type="submit" [disabled]="sending()"
-              style="display: flex; align-items: center; gap: 0.5rem; padding: 0.625rem 1.25rem; background: var(--papagai-gradient-button); color: white; border: none; border-radius: 0.625rem; font-family: 'Lexend', sans-serif; font-weight: 200; cursor: pointer; transition: opacity 0.2s; margin-top: 0.5rem;">
+              style="display: flex; align-items: center; gap: 0.5rem; padding: 0.625rem 1.25rem; background: var(--color-primary); color: var(--color-on-primary); border: none; border-radius: var(--radius-lg); font-family: 'Figtree', sans-serif; font-weight: 200; cursor: pointer; transition: opacity var(--duration-fast) var(--ease-default); margin-top: 0.5rem;">
         <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"/>
         </svg>

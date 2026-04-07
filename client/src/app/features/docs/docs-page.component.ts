@@ -134,8 +134,8 @@ const LOGIN_CURL = `curl -sS -X POST "$BASE/api/auth/login" \\
       }
       .hero {
         margin-bottom: 1.5rem;
-        background: linear-gradient(135deg, rgba(168,85,247,0.05) 0%, rgba(99,102,241,0.05) 50%, rgba(6,182,212,0.05) 100%);
-        border-bottom: 1px solid rgba(168,85,247,0.1);
+        background: var(--color-surface-container-low);
+        border-bottom: 1px solid var(--color-outline-variant);
         padding: 3rem 2rem 2rem;
         margin-left: -2rem;
         margin-right: -2rem;
@@ -158,7 +158,7 @@ const LOGIN_CURL = `curl -sS -X POST "$BASE/api/auth/login" \\
       }
       .panel {
         padding: 1.25rem;
-        border-radius: var(--tui-radius-l);
+        border-radius: var(--radius-lg);
         border: 1px solid var(--tui-border-normal);
         background: var(--tui-background-elevation-1);
       }
@@ -201,15 +201,15 @@ const LOGIN_CURL = `curl -sS -X POST "$BASE/api/auth/login" \\
         z-index: 1;
         padding: 0.2rem 0.5rem;
         font-size: 0.7rem;
-        border-radius: var(--tui-radius-xs);
+        border-radius: var(--radius-sm);
         border: 1px solid var(--tui-border-normal);
         background: var(--tui-background-elevation-1);
         cursor: pointer;
         color: var(--tui-text-primary);
       }
       .copy:hover {
-        color: var(--papagai-purple);
-        background: rgba(168,85,247,0.08);
+        color: var(--color-primary);
+        background: var(--color-surface-container-low);
       }
       .code-block {
         margin: 0;
@@ -219,9 +219,9 @@ const LOGIN_CURL = `curl -sS -X POST "$BASE/api/auth/login" \\
         max-height: 14rem;
         font-size: 0.8125rem;
         line-height: 1.45;
-        background: #1e1b2e;
-        color: #e2d9f3;
-        border-radius: 0.5rem;
+        background: var(--color-code-bg);
+        color: var(--color-code-text);
+        border-radius: var(--radius-md);
         border: 1px solid var(--tui-border-normal);
       }
       .code-block.tight {
@@ -245,8 +245,7 @@ const LOGIN_CURL = `curl -sS -X POST "$BASE/api/auth/login" \\
         font-weight: 300;
         font-size: 1.125rem;
         padding-bottom: 0.5rem;
-        border-bottom: 2px solid transparent;
-        border-image: var(--papagai-gradient-accent) 1;
+        border-bottom: 2px solid var(--color-primary);
       }
       .group-desc {
         margin: 0 0 1rem;
@@ -282,17 +281,17 @@ const LOGIN_CURL = `curl -sS -X POST "$BASE/api/auth/login" \\
         font-size: 0.8125rem;
       }
       .tbl th {
-        background: rgba(168,85,247,0.08);
+        background: var(--color-surface-container-low);
         font-weight: 300;
         font-size: 0.75rem;
         text-transform: uppercase;
         letter-spacing: 0.05em;
       }
       .tbl tbody tr:nth-child(even) {
-        background: rgba(168,85,247,0.03);
+        background: var(--color-table-stripe);
       }
       .tbl tbody tr:hover {
-        background: rgba(168,85,247,0.06);
+        background: var(--color-surface-container);
       }
       .ex-label {
         margin: 0.5rem 0 0.25rem;

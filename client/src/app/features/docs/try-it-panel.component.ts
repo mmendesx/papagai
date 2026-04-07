@@ -82,7 +82,7 @@ import type { EndpointDef } from './api-endpoints';
       .try-panel {
         margin-top: 0.75rem;
         padding: 1rem;
-        border-radius: var(--tui-radius-m);
+        border-radius: var(--radius-lg);
         background: var(--tui-background-neutral-1);
         display: flex;
         flex-direction: column;
@@ -119,7 +119,7 @@ import type { EndpointDef } from './api-endpoints';
         font-family: ui-monospace, monospace;
         font-size: 0.8125rem;
         padding: 0.5rem 0.75rem;
-        border-radius: var(--tui-radius-s);
+        border-radius: var(--radius-md);
         border: 1px solid var(--tui-border-normal);
         background: var(--tui-background-elevation-1);
         color: var(--tui-text-primary);
@@ -131,7 +131,7 @@ import type { EndpointDef } from './api-endpoints';
         gap: 0.5rem;
       }
       .result {
-        border-radius: var(--tui-radius-s);
+        border-radius: var(--radius-md);
         border: 1px solid var(--tui-status-positive);
         overflow: hidden;
       }

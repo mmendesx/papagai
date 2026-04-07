@@ -24,6 +24,7 @@
     "@taiga-ui/icons": "^4.48.0",
     "@taiga-ui/kit": "^4.48.0",
     "@taiga-ui/layout": "^4.48.0",
+    "lucide-angular": "^1.0.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.15.0"

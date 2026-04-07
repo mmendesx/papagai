@@ -1,45 +1,165 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;700;900&family=Figtree:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Papagai brand CSS custom properties */
 :root {
-  /* Gradients */
-  --papagai-gradient-page: linear-gradient(135deg, #fae8ff 0%, #e0f2fe 50%, #dcfce7 100%);
-  --papagai-gradient-sidebar: linear-gradient(180deg, #fdf4ff 0%, #f0f9ff 50%, #f0fdf4 100%);
-  --papagai-gradient-accent: linear-gradient(135deg, #d946ef 0%, #6366f1 50%, #06b6d4 100%);
-  --papagai-gradient-button: linear-gradient(135deg, #a855f7 0%, #6366f1 100%);
+  /* ── Layout ─────────────────────────────────────────── */
+  --header-height: 64px;
+  --content-max-width: 1280px;
+  --page-padding: 2rem;
+  --chat-sidebar-width: 320px;
+  --chat-panel-width: 288px;
+  --leads-sidebar-width: 256px;
+  --form-max-width: 360px;
 
-  /* Brand colors */
-  --papagai-purple: #a855f7;
-  --papagai-indigo: #6366f1;
-  --papagai-cyan: #06b6d4;
-  --papagai-pink: #d946ef;
+  /* ── Spacing scale ───────────────────────────────────── */
+  --space-1:  0.25rem;
+  --space-2:  0.5rem;
+  --space-3:  0.75rem;
+  --space-4:  1rem;
+  --space-5:  1.25rem;
+  --space-6:  1.5rem;
+  --space-8:  2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
 
-  /* Blue/neutral palette for redesign */
-  --papagai-blue: #2563eb;
-  --papagai-blue-light: #eff6ff;
-  --papagai-yellow: #fbbf24;
-  --papagai-green: #22c55e;
-  --papagai-gray-text: #6b7280;
-  --papagai-border: #e5e7eb;
+  /* ── Border radius ───────────────────────────────────── */
+  --radius-sm:   0.25rem;
+  --radius-md:   0.5rem;
+  --radius-lg:   0.75rem;
+  --radius-xl:   1rem;
+  --radius-2xl:  1.5rem;
+  --radius-full: 9999px;
+  --tui-radius:  var(--radius-lg);
 
-  /* Override Taiga UI font to use Lexend */
-  --tui-font-text: 'Lexend', sans-serif;
-  --tui-font-text-s: 200 0.75rem/1rem 'Lexend', sans-serif;
-  --tui-font-text-m: 200 0.875rem/1.25rem 'Lexend', sans-serif;
-  --tui-font-text-l: 200 1rem/1.5rem 'Lexend', sans-serif;
-  --tui-font-heading: 300 1.5rem/2rem 'Lexend', sans-serif;
-  --tui-font-heading-1: 400 2.25rem/2.5rem 'Lexend', sans-serif;
-  --tui-font-heading-2: 400 1.875rem/2.25rem 'Lexend', sans-serif;
-  --tui-font-heading-3: 300 1.5rem/2rem 'Lexend', sans-serif;
+  /* ── Shadow scale ────────────────────────────────────── */
+  --shadow-sm: 0 1px 2px rgba(20,20,19,.05);
+  --shadow-md: 0 4px 6px -1px rgba(20,20,19,.08), 0 2px 4px -2px rgba(20,20,19,.06);
+  --shadow-lg: 0 10px 15px -3px rgba(20,20,19,.08), 0 4px 6px -4px rgba(20,20,19,.06);
+  --shadow-xl: 0 20px 25px -5px rgba(20,20,19,.10), 0 8px 10px -6px rgba(20,20,19,.08);
+
+  /* ── Motion tokens ───────────────────────────────────── */
+  --duration-instant: 100ms;
+  --duration-fast:    150ms;
+  --duration-normal:  250ms;
+  --duration-slow:    400ms;
+  --duration-slower:  600ms;
+
+  --ease-default: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --ease-out:     cubic-bezier(0, 0, 0.2, 1);
+  --ease-spring:  cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-bounce:  cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+  /* ── Z-index scale ───────────────────────────────────── */
+  --z-dropdown: 1000;
+  --z-sticky:   1100;
+  --z-modal:    1200;
+  --z-tooltip:  1300;
+  --z-toast:    1400;
+
+  /* ── MD3 Color palette ───────────────────────────────── */
+
+  /* Primary (green) */
+  --color-primary:              #006a2d;
+  --color-primary-container:    #6bff8f;
+  --color-on-primary:           #ceffd0;
+  --color-on-primary-container: #005f28;
+
+  /* Secondary (blue) */
+  --color-secondary:              #006286;
+  --color-secondary-container:    #9bdaff;
+  --color-on-secondary:           #e7f5ff;
+  --color-on-secondary-container: #004d6a;
+
+  /* Tertiary (purple) */
+  --color-tertiary:              #8126cf;
+  --color-tertiary-container:    #ce9bff;
+  --color-on-tertiary:           #fbefff;
+  --color-on-tertiary-container: #4a0080;
+
+  /* Error (red) */
+  --color-error:              #b31b25;
+  --color-error-container:    #fb5151;
+  --color-on-error:           #ffefee;
+  --color-on-error-container: #570008;
+
+  /* Surface scale */
+  --color-surface:                   #f5f7f9;
+  --color-surface-container-lowest:  #ffffff;
+  --color-surface-container-low:     #eef1f3;
+  --color-surface-container:         #e5e9eb;
+  --color-surface-container-high:    #dfe3e6;
+  --color-surface-container-highest: #d9dde0;
+
+  /* Text */
+  --color-on-surface:         #2c2f31;
+  --color-on-surface-variant: #595c5e;
+
+  /* Borders */
+  --color-outline:         #747779;
+  --color-outline-variant: #abadaf;
+
+  /* Semantic aliases */
+  --color-success-bg: #f4f6ef;
+  --color-warning-bg: #fdf3ee;
+  --color-error-bg:   #fef2f2;
+  --color-info-bg:    #f0f6fb;
+  --color-success:    #065f46;
+  --color-warning:    #92400e;
+
+  /* Method badge colors */
+  --color-method-patch: #d97757;
+
+  /* Code block theme */
+  --color-code-bg:   #1e1b2e;
+  --color-code-text: #e2d9f3;
+
+  /* Overlay / scrim */
+  --color-overlay: rgba(0, 0, 0, 0.3);
+
+  /* Table row stripe */
+  --color-table-stripe: rgba(20, 20, 19, 0.02);
+
+  /* ── Taiga UI overrides ──────────────────────────────── */
+  --tui-background-accent-1:       var(--color-primary);
+  --tui-background-accent-1-hover: var(--color-primary-container);
+  --tui-background-accent-2:       var(--color-secondary);
+  --tui-background-accent-2-hover: var(--color-secondary-container);
+  --tui-status-negative:           var(--color-error);
+  --tui-status-negative-pale:      var(--color-error-container);
+  --tui-background-base:           var(--color-surface);
+  --tui-background-base-alt:       var(--color-surface-container-lowest);
+  --tui-background-neutral-1:      var(--color-surface-container-low);
+  --tui-background-neutral-2:      var(--color-surface-container);
+  --tui-background-elevation-1:    var(--color-surface-container-lowest);
+  --tui-text-primary:              var(--color-on-surface);
+  --tui-text-secondary:            var(--color-on-surface-variant);
+  --tui-border-normal:             var(--color-outline-variant);
+  --tui-border-focus:              var(--color-secondary);
+
+  /* ── Fonts ───────────────────────────────────────────── */
+  --font-sans: 'Figtree', sans-serif;
+  --font-display: 'Geist', sans-serif;
+
+  /* ── Taiga UI font overrides ─────────────────────────── */
+  --tui-font-text: 'Figtree', sans-serif;
+  --tui-font-text-s: 400 0.75rem/1rem 'Figtree', sans-serif;
+  --tui-font-text-m: 400 0.875rem/1.25rem 'Figtree', sans-serif;
+  --tui-font-text-l: 400 1rem/1.5rem 'Figtree', sans-serif;
+  --tui-font-heading: 700 1.5rem/2rem 'Geist', sans-serif;
+  --tui-font-heading-1: 700 2.25rem/2.5rem 'Geist', sans-serif;
+  --tui-font-heading-2: 700 1.875rem/2.25rem 'Geist', sans-serif;
+  --tui-font-heading-3: 700 1.5rem/2rem 'Geist', sans-serif;
 }
 
 html, body {
   height: 100%;
   margin: 0;
-  font-family: 'Lexend', sans-serif;
-  font-weight: 200;
+  font-family: 'Figtree', sans-serif;
+  font-weight: 400;
 }
 
 body {
@@ -70,11 +190,11 @@ body {
   box-sizing: border-box;
 }
 
-/* Smooth focus indicators that work on gradient backgrounds */
+/* Smooth focus indicators */
 :focus-visible {
-  outline: 2px solid var(--papagai-purple, #a855f7);
+  outline: 2px solid var(--color-secondary);
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 /* Remove default focus ring in favor of :focus-visible */
@@ -93,7 +213,7 @@ button[disabled] {
 
 /* Consistent link styling in content areas */
 .content-area a:not([class]) {
-  color: var(--papagai-purple, #a855f7);
+  color: var(--color-primary);
   text-decoration: none;
 }
 .content-area a:not([class]):hover {
@@ -107,6 +227,6 @@ html {
 
 /* Selection color */
 ::selection {
-  background: rgba(168, 85, 247, 0.2);
+  background: rgba(0, 106, 45, 0.15);
   color: inherit;
 }

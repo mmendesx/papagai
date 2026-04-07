@@ -6,11 +6,23 @@ import { filter, map, startWith } from 'rxjs/operators';
 import { AuthService } from '../core/auth/auth.service';
 import { API_ENDPOINT_GROUPS, EndpointGroup } from '../features/docs/api-endpoints';
 import { DocsNavigationService } from '../features/docs/docs-navigation.service';
+import { getAvatarColor } from '../shared/avatar-colors';
+import {
+  LucideAngularModule,
+  LayoutGrid,
+  FileText,
+  ChevronDown,
+  ChevronLeft,
+  LogOut,
+  Menu,
+  PanelLeftOpen,
+  PanelLeftClose,
+} from 'lucide-angular';
 
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, RouterOutlet],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, LucideAngularModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: [`
     :host { display: flex; height: 100vh; overflow: hidden; }
@@ -21,9 +33,14 @@ import { DocsNavigationService } from '../features/docs/docs-navigation.service'
       height: 100vh;
       display: flex;
       flex-direction: column;
-      background: #ffffff;
-      border-right: 1px solid #e5e7eb;
+      background: var(--color-surface-container-lowest);
+      border-right: 1px solid var(--color-outline-variant);
       overflow-y: auto;
+      transition: width var(--duration-normal) var(--ease-out), min-width var(--duration-normal) var(--ease-out);
+    }
+    .sidebar.collapsed {
+      width: 4rem;
+      min-width: 4rem;
     }
 
     .sidebar-brand {
@@ -31,86 +48,50 @@ import { DocsNavigationService } from '../features/docs/docs-navigation.service'
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      font-weight: 700;
+      font-weight: 900;
       font-size: 0.9rem;
       letter-spacing: 0.12em;
-      color: #111827;
+      color: var(--color-on-surface);
+      font-family: 'Geist', sans-serif;
+      flex-shrink: 0;
     }
     .sidebar-brand img { width: 28px; height: 28px; flex-shrink: 0; }
-
-    .parrot-mascot {
-      display: flex;
-      justify-content: center;
-      padding: 0.75rem 0 0.25rem;
-      opacity: 0.9;
-    }
-    .parrot-mascot img { width: 60px; height: 60px; }
+    .sidebar.collapsed .sidebar-brand { justify-content: center; padding: 1.25rem 0 0.75rem; }
+    .sidebar.collapsed .sidebar-brand span { display: none; }
 
     .nav-section { padding: 0.5rem 0.75rem; flex: 1; }
 
-    .nav-item {
+    .nav-item, .nav-item-toggle {
       display: flex;
       align-items: center;
       gap: 0.75rem;
       padding: 0.625rem 0.75rem;
-      border-radius: 0.625rem;
+      border-radius: var(--radius-lg);
       margin-bottom: 0.25rem;
       text-decoration: none;
-      color: #6b7280;
+      color: var(--color-on-surface-variant);
       font-weight: 200;
       font-size: 0.875rem;
-      transition: all 0.2s ease;
+      transition: background var(--duration-fast) var(--ease-default), color var(--duration-fast) var(--ease-default);
       position: relative;
       cursor: pointer;
     }
-    .nav-item:hover {
-      background: #f9fafb;
-      color: #374151;
-    }
-    .nav-item.active {
-      background: #eff6ff;
-      border-left: 3px solid #2563eb;
-      color: #1d4ed8;
-      font-weight: 400;
+    .nav-item-toggle { background: transparent; border: none; width: 100%; text-align: left; font-family: 'Figtree', sans-serif; }
+    .nav-item:hover, .nav-item-toggle:hover { background: var(--color-surface-container); color: var(--color-on-surface); }
+    .nav-item.active, .nav-item-toggle.active {
+      background: var(--color-surface-container);
+      border: 1px solid var(--color-outline-variant);
+      color: var(--color-on-surface);
+      font-weight: 700;
+      box-shadow: var(--shadow-sm);
     }
 
     .nav-icon { width: 1.25rem; height: 1.25rem; opacity: 0.8; flex-shrink: 0; }
-
-    .nav-item-toggle {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.625rem 0.75rem;
-      border-radius: 0.625rem;
-      margin-bottom: 0.25rem;
-      text-decoration: none;
-      color: #6b7280;
-      font-weight: 200;
-      font-size: 0.875rem;
-      transition: all 0.2s ease;
-      position: relative;
-      cursor: pointer;
-      background: transparent;
-      border: none;
-      width: 100%;
-      text-align: left;
-      font-family: 'Lexend', sans-serif;
-    }
-    .nav-item-toggle:hover {
-      background: #f9fafb;
-      color: #374151;
-    }
-    .nav-item-toggle.active {
-      background: #eff6ff;
-      border-left: 3px solid #2563eb;
-      color: #1d4ed8;
-      font-weight: 400;
-    }
     .toggle-chevron {
       margin-left: auto;
       flex-shrink: 0;
-      transition: transform 0.2s ease;
-      color: #9ca3af;
+      transition: transform var(--duration-fast) var(--ease-default);
+      color: var(--color-outline-variant);
     }
     .toggle-chevron.open { transform: rotate(180deg); }
 
@@ -118,10 +99,10 @@ import { DocsNavigationService } from '../features/docs/docs-navigation.service'
       padding: 0.25rem 0 0.25rem 1rem;
       overflow: hidden;
       max-height: 0;
-      transition: max-height 0.25s ease;
+      transition: max-height var(--duration-normal) var(--ease-out);
     }
     .submenu.open {
-      max-height: 40vh;
+      max-height: 60vh;
       overflow-y: auto;
     }
     .submenu-group-title {
@@ -129,7 +110,7 @@ import { DocsNavigationService } from '../features/docs/docs-navigation.service'
       font-weight: 500;
       text-transform: uppercase;
       letter-spacing: 0.06em;
-      color: #9ca3af;
+      color: var(--color-on-surface-variant);
       padding: 0.5rem 0.5rem 0.25rem;
       margin-top: 0.25rem;
     }
@@ -138,28 +119,28 @@ import { DocsNavigationService } from '../features/docs/docs-navigation.service'
       align-items: center;
       gap: 0.5rem;
       padding: 0.3125rem 0.5rem;
-      border-radius: 0.375rem;
+      border-radius: var(--radius-md);
       cursor: pointer;
       font-size: 0.75rem;
       font-weight: 200;
-      color: #6b7280;
+      color: var(--color-on-surface-variant);
       text-decoration: none;
-      transition: background 0.15s ease, color 0.15s ease;
+      transition: background var(--duration-fast) var(--ease-default), color var(--duration-fast) var(--ease-default);
       background: transparent;
       border: none;
       width: 100%;
       text-align: left;
-      font-family: 'Lexend', sans-serif;
+      font-family: 'Figtree', sans-serif;
     }
     .submenu-item:hover {
-      background: #f0f9ff;
-      color: #1d4ed8;
+      background: var(--color-surface-container-low);
+      color: var(--color-on-surface);
     }
     .method-badge {
       display: inline-flex;
       align-items: center;
       padding: 0.0625rem 0.3125rem;
-      border-radius: 0.25rem;
+      border-radius: var(--radius-sm);
       font-size: 0.625rem;
       font-weight: 500;
       letter-spacing: 0.03em;
@@ -167,15 +148,26 @@ import { DocsNavigationService } from '../features/docs/docs-navigation.service'
       min-width: 2.5rem;
       justify-content: center;
     }
-    .badge-get    { background: #dbeafe; color: #1e40af; }
-    .badge-post   { background: #dcfce7; color: #166534; }
-    .badge-patch  { background: #fef3c7; color: #92400e; }
-    .badge-delete { background: #fee2e2; color: #991b1b; }
+    .badge-get    { background: var(--color-secondary-container); color: var(--color-on-secondary-container); }
+    .badge-post   { background: var(--color-primary-container);   color: var(--color-on-primary-container); }
+    .badge-patch  { background: var(--color-warning-bg);          color: var(--color-method-patch); }
+    .badge-delete { background: var(--color-error-container);     color: var(--color-on-error-container); }
     .submenu-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* Collapsed: hide labels, chevrons, submenu */
+    .sidebar.collapsed .nav-item span,
+    .sidebar.collapsed .nav-item-toggle span,
+    .sidebar.collapsed .toggle-chevron,
+    .sidebar.collapsed .submenu,
+    .sidebar.collapsed .user-details,
+    .sidebar.collapsed .logout-arrow { display: none; }
+    .sidebar.collapsed .nav-item,
+    .sidebar.collapsed .nav-item-toggle { justify-content: center; padding: 0.625rem; }
+    .sidebar.collapsed .user-footer-row { justify-content: center; padding: 0.625rem 0; }
 
     .sidebar-footer {
       padding: 1rem 0.75rem;
-      border-top: 1px solid #e5e7eb;
+      border-top: 1px solid var(--color-outline-variant);
     }
 
     .user-footer-row {
@@ -183,23 +175,19 @@ import { DocsNavigationService } from '../features/docs/docs-navigation.service'
       align-items: center;
       gap: 0.625rem;
       padding: 0.625rem 0.5rem;
-      border-radius: 0.5rem;
+      border-radius: var(--radius-md);
       cursor: default;
-      transition: background 0.15s ease;
+      transition: background var(--duration-fast) var(--ease-default);
     }
-    .user-footer-row:hover {
-      background: #f9fafb;
-    }
+    .user-footer-row:hover { background: var(--color-surface-container); }
 
     .avatar {
       width: 2.25rem;
       height: 2.25rem;
       border-radius: 50%;
-      background: var(--papagai-gradient-accent);
       display: flex;
       align-items: center;
       justify-content: center;
-      color: white;
       font-size: 0.875rem;
       font-weight: 400;
       flex-shrink: 0;
@@ -209,7 +197,7 @@ import { DocsNavigationService } from '../features/docs/docs-navigation.service'
     .user-name {
       font-size: 0.8125rem;
       font-weight: 500;
-      color: #111827;
+      color: var(--color-on-surface);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -217,7 +205,7 @@ import { DocsNavigationService } from '../features/docs/docs-navigation.service'
     .user-email {
       font-size: 0.6875rem;
       font-weight: 400;
-      color: #6b7280;
+      color: var(--color-on-surface-variant);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -230,33 +218,101 @@ import { DocsNavigationService } from '../features/docs/docs-navigation.service'
       border: none;
       padding: 0.25rem;
       cursor: pointer;
-      color: #9ca3af;
+      color: var(--color-outline-variant);
       display: flex;
       align-items: center;
-      border-radius: 0.25rem;
-      transition: color 0.15s ease, background 0.15s ease;
+      border-radius: var(--radius-sm);
+      transition: color var(--duration-fast) var(--ease-default), background var(--duration-fast) var(--ease-default);
     }
-    .logout-arrow:hover { color: #374151; background: #f3f4f6; }
+    .logout-arrow:hover { color: var(--color-on-surface); background: var(--color-surface-container); }
 
-    .main { flex: 1; overflow-y: auto; background: var(--tui-background-base); }
+    /* Main content */
+    .main { flex: 1; overflow-y: auto; background: var(--tui-background-base); display: flex; flex-direction: column; }
 
+    /* Header */
+    .page-header-bar {
+      height: var(--header-height);
+      min-height: var(--header-height);
+      display: flex;
+      align-items: stretch;
+      background: var(--color-surface-container-lowest);
+      border-bottom: 1px solid var(--color-outline-variant);
+      position: sticky;
+      top: 0;
+      z-index: var(--z-sticky);
+      flex-shrink: 0;
+    }
+
+    /* Content section */
+    .header-content-section {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      padding: 0 1.25rem;
+      gap: 0.625rem;
+    }
+
+    .header-sidebar-toggle {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      color: var(--color-on-surface-variant);
+      padding: 0.375rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-md);
+      flex-shrink: 0;
+      transition: background var(--duration-fast) var(--ease-default), color var(--duration-fast) var(--ease-default);
+    }
+    .header-sidebar-toggle:hover {
+      background: var(--color-surface-container);
+      color: var(--color-on-surface);
+    }
+
+    .page-header-title {
+      font-size: 1.125rem;
+      font-weight: 700;
+      margin: 0;
+      color: var(--color-on-surface);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-family: 'Geist', sans-serif;
+    }
+    .page-header-sep {
+      color: var(--color-outline-variant);
+      font-weight: 200;
+    }
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      font-size: 0.8125rem;
+      font-weight: 300;
+      color: var(--color-on-surface-variant);
+      text-decoration: none;
+      transition: color var(--duration-fast) var(--ease-default);
+    }
+    .back-link:hover { color: var(--color-on-surface); }
+
+    /* Mobile */
     .mobile-header {
       display: none;
       align-items: center;
       gap: 1rem;
       padding: 0.75rem 1rem;
-      background: rgba(255,255,255,0.95);
-      backdrop-filter: blur(10px);
-      border-bottom: 1px solid #e5e7eb;
+      background: var(--color-surface-container-lowest);
+      border-bottom: 1px solid var(--color-outline-variant);
       position: sticky;
       top: 0;
       z-index: 50;
     }
     .hamburger {
       border: none; background: transparent; cursor: pointer; padding: 0.25rem;
-      color: var(--tui-text-primary);
+      color: var(--color-on-surface); display: flex; align-items: center;
     }
-    .mobile-brand { font-size: 1.25rem; font-weight: 700; color: #111827; }
+    .mobile-brand { font-size: 1.25rem; font-weight: 700; color: var(--color-on-surface); }
 
     @media (max-width: 767px) {
       :host { flex-direction: column; }
@@ -270,16 +326,14 @@ import { DocsNavigationService } from '../features/docs/docs-navigation.service'
         z-index: 100;
         width: 15rem;
         transform: translateX(-100%);
-        transition: transform 0.25s ease;
+        transition: transform var(--duration-normal) var(--ease-out);
       }
-      .sidebar.open {
-        transform: translateX(0);
-      }
+      .sidebar.open { transform: translateX(0); }
       .sidebar-overlay {
         display: block;
         position: fixed;
         inset: 0;
-        background: rgba(0,0,0,0.3);
+        background: var(--color-overlay);
         z-index: 99;
       }
       .main { width: 100%; }
@@ -289,9 +343,7 @@ import { DocsNavigationService } from '../features/docs/docs-navigation.service'
     <!-- Mobile top bar -->
     <div class="mobile-header">
       <button class="hamburger" (click)="toggleSidebar()" aria-label="Abrir menu" type="button">
-        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/>
-        </svg>
+        <lucide-icon [img]="icons.Menu" [size]="20" aria-hidden="true" />
       </button>
       <span class="mobile-brand">PAPAGAI</span>
     </div>
@@ -300,38 +352,29 @@ import { DocsNavigationService } from '../features/docs/docs-navigation.service'
       <div class="sidebar-overlay" (click)="closeSidebar()"></div>
     }
 
-    <aside class="sidebar" [class.open]="sidebarOpen()">
+    <aside class="sidebar" [class.open]="sidebarOpen()" [class.collapsed]="sidebarCollapsed()">
       <div class="sidebar-brand">
         <img src="/parrot.svg" alt="" aria-hidden="true" />
-        PAPAGAI
+        <span>PAPAGAI</span>
       </div>
 
       <nav class="nav-section">
-        <a routerLink="/dashboard" routerLinkActive="active" class="nav-item" (click)="closeSidebar()">
-          <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"/>
-          </svg>
-          Instâncias
+        <a routerLink="/dashboard" routerLinkActive="active" class="nav-item" title="Instâncias" (click)="closeSidebar()">
+          <lucide-icon [img]="icons.LayoutGrid" [size]="20" class="nav-icon" aria-hidden="true" />
+          <span>Instâncias</span>
         </a>
 
-        <button type="button" class="nav-item-toggle" [class.active]="isDocsActive()" (click)="toggleDocsSubmenu()">
-          <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/>
-          </svg>
-          API Docs
-          <svg class="toggle-chevron" [class.open]="docsSubmenuOpen()" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
-          </svg>
+        <button type="button" class="nav-item-toggle" title="API Docs" [class.active]="isDocsActive()" (click)="toggleDocsSubmenu()">
+          <lucide-icon [img]="icons.FileText" [size]="20" class="nav-icon" aria-hidden="true" />
+          <span>API Docs</span>
+          <lucide-icon [img]="icons.ChevronDown" [size]="14" class="toggle-chevron" [class.open]="docsSubmenuOpen()" aria-hidden="true" />
         </button>
 
         <div class="submenu" [class.open]="docsSubmenuOpen()">
           @for (group of endpointGroups; track group.id) {
             <div class="submenu-group-title">{{ group.title }}</div>
             @for (endpoint of group.endpoints; track endpoint.id) {
-              <button
-                type="button"
-                class="submenu-item"
-                (click)="navigateToEndpoint(endpoint.id)">
+              <button type="button" class="submenu-item" (click)="navigateToEndpoint(endpoint.id)">
                 <span class="method-badge badge-{{ endpoint.method.toLowerCase() }}" [attr.aria-label]="endpoint.method">
                   {{ endpoint.method }}
                 </span>
@@ -342,27 +385,47 @@ import { DocsNavigationService } from '../features/docs/docs-navigation.service'
         </div>
       </nav>
 
-      <div class="parrot-mascot">
-        <img src="/parrot.svg" alt="Papagai" width="60" height="60" />
-      </div>
-
       <div class="sidebar-footer">
         <div class="user-footer-row">
-          <div class="avatar" aria-hidden="true">{{ initials() }}</div>
+          <div class="avatar" aria-hidden="true"
+               [style.background]="getAvatarStyle(user()?.name ?? '').bg"
+               [style.color]="getAvatarStyle(user()?.name ?? '').text">{{ initials() }}</div>
           <div class="user-details">
             <div class="user-name">{{ user()?.name }}</div>
             <div class="user-email">{{ user()?.email }}</div>
           </div>
           <button type="button" class="logout-arrow" (click)="logout()" aria-label="Sair">
-            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75"/>
-            </svg>
+            <lucide-icon [img]="icons.LogOut" [size]="16" aria-hidden="true" />
           </button>
         </div>
       </div>
     </aside>
 
     <main class="main">
+      <div class="page-header-bar">
+        <!-- Content section: collapse/expand button + page title -->
+        <div class="header-content-section">
+          <button type="button" class="header-sidebar-toggle" (click)="toggleCollapse()"
+                  [title]="sidebarCollapsed() ? 'Expandir menu' : 'Recolher menu'"
+                  [attr.aria-label]="sidebarCollapsed() ? 'Expandir menu lateral' : 'Recolher menu lateral'">
+            @if (sidebarCollapsed()) {
+              <lucide-icon [img]="icons.PanelLeftOpen" [size]="18" aria-hidden="true" />
+            } @else {
+              <lucide-icon [img]="icons.PanelLeftClose" [size]="18" aria-hidden="true" />
+            }
+          </button>
+          <h1 class="page-header-title">
+            @if (isInstancePage()) {
+              <a routerLink="/dashboard" class="back-link">
+                <lucide-icon [img]="icons.ChevronLeft" [size]="16" aria-hidden="true" />
+                Voltar
+              </a>
+              <span class="page-header-sep">|</span>
+            }
+            {{ pageTitle() }}
+          </h1>
+        </div>
+      </div>
       <router-outlet />
     </main>
   `
@@ -373,8 +436,11 @@ export class AppShellComponent {
   private readonly document = inject(DOCUMENT);
   private readonly docsNav = inject(DocsNavigationService);
 
+  readonly icons = { LayoutGrid, FileText, ChevronDown, ChevronLeft, LogOut, Menu, PanelLeftOpen, PanelLeftClose };
+
   readonly user = this.auth.currentUser;
   readonly sidebarOpen = signal(false);
+  readonly sidebarCollapsed = signal(false);
   readonly docsSubmenuOpen = signal(this.router.url.startsWith('/docs'));
 
   readonly endpointGroups: EndpointGroup[] = API_ENDPOINT_GROUPS;
@@ -387,8 +453,31 @@ export class AppShellComponent {
     { initialValue: this.router.url.startsWith('/docs') }
   );
 
+  readonly currentUrl = toSignal(
+    this.router.events.pipe(
+      filter(e => e instanceof NavigationEnd),
+      startWith(null),
+      map(() => this.router.url)
+    ),
+    { initialValue: this.router.url }
+  );
+
+  readonly pageTitle = computed(() => {
+    const url = this.currentUrl();
+    if (url.startsWith('/instances/')) {
+      const name = url.split('/')[2];
+      return name ? `Instância: ${decodeURIComponent(name)}` : 'Instância';
+    }
+    if (url.startsWith('/docs')) return 'API Docs';
+    if (url.startsWith('/dashboard')) return 'Instâncias';
+    return 'Papagai';
+  });
+
+  readonly isInstancePage = computed(() => this.currentUrl().startsWith('/instances/'));
+
   toggleSidebar(): void { this.sidebarOpen.update(v => !v); }
   closeSidebar(): void { this.sidebarOpen.set(false); }
+  toggleCollapse(): void { this.sidebarCollapsed.update(v => !v); }
   toggleDocsSubmenu(): void {
     const willOpen = !this.docsSubmenuOpen();
     this.docsSubmenuOpen.set(willOpen);
@@ -400,13 +489,16 @@ export class AppShellComponent {
     return name.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase() || '?';
   });
 
+  getAvatarStyle(name: string): { bg: string; text: string } {
+    return getAvatarColor(name);
+  }
+
   logout(): void {
     this.auth.logout();
   }
 
   navigateToEndpoint(id: string): void {
     this.docsNav.navigate(id);
-    // Scroll after a tick to let the card expand
     setTimeout(() => {
       this.document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 50);
