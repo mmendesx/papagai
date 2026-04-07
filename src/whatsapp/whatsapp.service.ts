@@ -675,6 +675,7 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
       enabled: boolean;
       events: string[];
     };
+    phoneNumber: string | null;
   }> {
     return [...this.instances.keys()].map((name) => {
       const instance = this.instances.get(name)!;
@@ -689,6 +690,9 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
           enabled: instance.webhookEnabled,
           events: instance.webhookEvents,
         },
+        phoneNumber: instance.socket?.user?.id
+          ? instance.socket.user.id.split(':')[0]
+          : null,
       };
     });
   }

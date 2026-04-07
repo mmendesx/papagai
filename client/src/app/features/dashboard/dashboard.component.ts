@@ -6,7 +6,6 @@ import {
   inject,
   Injector,
 } from '@angular/core';
-import { NgClass } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { ResourceStatus } from '@angular/core';
 import { TuiDialogService } from '@taiga-ui/core';
@@ -19,6 +18,7 @@ export interface InstanceRow {
   connected: boolean;
   startTime: number;
   webhookEnabled: boolean;
+  phoneNumber: string | null;
 }
 
 interface InstancesListResponse {
@@ -30,7 +30,7 @@ interface InstancesListResponse {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [RouterLink, NgClass],
+  imports: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let data = instancesRes.value();
@@ -60,16 +60,7 @@ interface InstancesListResponse {
     @else if (!instancesRes.isLoading() && data.instances.length === 0) {
       <div class="empty-state">
         <div class="empty-icon" aria-hidden="true">
-          <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
-            <circle cx="32" cy="32" r="32" fill="url(#emptyGrad)"/>
-            <path d="M20 24h24M20 32h16M20 40h20" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-            <defs>
-              <linearGradient id="emptyGrad" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stop-color="#006a2d"/>
-                <stop offset="100%" stop-color="#006286"/>
-              </linearGradient>
-            </defs>
-          </svg>
+          <img src="/parrot.png" alt="" width="72" height="72" />
         </div>
         <h3 class="empty-heading">Nenhuma instância ainda</h3>
         <p class="empty-body">Crie sua primeira instância para começar</p>
@@ -81,65 +72,29 @@ interface InstancesListResponse {
     @else {
       <div class="instance-grid">
         @for (inst of data.instances; track inst.name) {
-          <div
-            class="instance-card"
-            [attr.aria-label]="inst.name + ', ' + (inst.connected ? 'conectado' : 'desconectado')">
-
-            <!-- Card header -->
-            <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 0.75rem;">
-              <div>
-                <div style="font-size: 0.9375rem; font-weight: 500; color: var(--color-on-surface); font-family: 'Figtree', sans-serif;">{{ inst.name }}</div>
+          <div class="instance-card">
+            <div class="card-header">
+              <span class="instance-name">{{ inst.name }}</span>
+              <div class="badge-row">
+                <span class="status-badge" [class.live]="inst.connected">
+                  {{ inst.connected ? '● Conectado' : 'Desconectado' }}
+                </span>
+                <span class="webhook-badge" [class.active]="inst.webhookEnabled">
+                  {{ inst.webhookEnabled ? '⚡ Webhook' : 'Webhook off' }}
+                </span>
               </div>
-              @if (inst.connected) {
-                <span class="badge-live">&#9679; CONECTADO</span>
-              } @else {
-                <span class="badge-offline">Desconectado</span>
+            </div>
+            <div class="card-body">
+              @if (inst.phoneNumber) {
+                <span class="phone-number">{{ formatPhone(inst.phoneNumber) }}</span>
               }
+              <span class="last-active">{{ formatLastActive(inst.startTime) }}</span>
             </div>
-
-            <!-- Metrics row -->
-            <div class="metrics-row">
-              <div class="metric-col">
-                <div class="metric-label">&#128172; Chat de Entrada</div>
-                <div class="metric-value">—</div>
-              </div>
-              <div class="metric-col">
-                <div class="metric-label">&#8599; Chat de Saída</div>
-                <div class="metric-value">—</div>
-              </div>
-              <div class="metric-col">
-                <div class="metric-label">&lt;/&gt; API Calls</div>
-                <div class="metric-value">—</div>
-              </div>
+            <div class="card-footer">
+              <a [routerLink]="['/instances', inst.name]" class="detail-link" (click)="$event.stopPropagation()">
+                Ver detalhes →
+              </a>
             </div>
-
-            <!-- Steps row -->
-            <div class="steps-row">
-              <div class="step" [ngClass]="{ 'step-done': inst.connected }">
-                <span class="step-icon">{{ inst.connected ? '✓' : '○' }}</span>
-                <span class="step-label">Login</span>
-              </div>
-              <div class="step" [ngClass]="{ 'step-done': inst.connected }">
-                <span class="step-icon">{{ inst.connected ? '✓' : '○' }}</span>
-                <span class="step-label">QR Escaneado</span>
-              </div>
-              <div class="step" [ngClass]="{ 'step-done': inst.connected }">
-                <span class="step-icon">{{ inst.connected ? '✓' : '○' }}</span>
-                <span class="step-label">Última Sync</span>
-              </div>
-            </div>
-
-            <!-- Footer -->
-            <div style="margin-top: 0.75rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
-              <button type="button" class="reconectar-btn" (click)="$event.preventDefault(); $event.stopPropagation()">
-                RECONECTAR
-              </button>
-              <div style="text-align: right;">
-                <div style="font-size: 0.6875rem; color: var(--color-on-surface-variant); font-weight: 200; font-family: 'Figtree', sans-serif;">Última atividade: {{ formatLastActive(inst.startTime) }}</div>
-                <a [routerLink]="['/instances', inst.name]" style="font-size: 0.6875rem; color: var(--color-secondary); font-weight: 200; text-decoration: none; font-family: 'Figtree', sans-serif;" (click)="$event.stopPropagation()">Ver Detalhes</a>
-              </div>
-            </div>
-
           </div>
         }
       </div>
@@ -199,126 +154,95 @@ interface InstancesListResponse {
         border: 1px solid var(--color-outline-variant);
         border-radius: var(--radius-xl);
         padding: 1.25rem;
-        min-width: 0;
-        display: block;
-        transition: transform var(--duration-fast) var(--ease-default), box-shadow var(--duration-fast) var(--ease-default);
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        transition: box-shadow var(--duration-fast) var(--ease-default), transform var(--duration-fast) var(--ease-default);
       }
-
       .instance-card:hover {
+        box-shadow: var(--shadow-md);
         transform: translateY(-2px);
-        box-shadow: var(--shadow-lg);
       }
-
-      /* ── Live / offline badges ───────────────────────────── */
-      .badge-live {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.25rem;
-        background: var(--color-primary-container);
-        color: var(--color-on-primary-container);
+      .card-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.5rem;
+      }
+      .instance-name {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--color-on-surface);
+        font-family: var(--font-sans);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .status-badge {
         font-size: 0.6875rem;
         font-weight: 500;
-        padding: 0.125rem 0.5rem;
+        padding: 0.2rem 0.6rem;
         border-radius: var(--radius-full);
-        font-family: 'Figtree', sans-serif;
         white-space: nowrap;
         flex-shrink: 0;
-      }
-
-      .badge-offline {
         background: var(--color-error-container);
         color: var(--color-on-error-container);
-        font-size: 0.6875rem;
-        font-weight: 400;
-        padding: 0.125rem 0.5rem;
-        border-radius: var(--radius-full);
-        font-family: 'Figtree', sans-serif;
-        white-space: nowrap;
-        flex-shrink: 0;
+        font-family: var(--font-sans);
       }
-
-      /* ── Metrics row ─────────────────────────────────────── */
-      .metrics-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        gap: 0.5rem;
-        margin-bottom: 0.75rem;
-        background: var(--color-surface-container-low);
-        border-radius: var(--radius-md);
-        padding: 0.5rem;
+      .status-badge.live {
+        background: var(--color-primary-container);
+        color: var(--color-on-primary-container);
       }
-
-      .metric-col {
-        text-align: center;
-      }
-
-      .metric-label {
-        font-size: 0.625rem;
-        color: var(--color-on-surface-variant);
-        font-weight: 300;
-        margin-bottom: 0.25rem;
-        font-family: 'Figtree', sans-serif;
-      }
-
-      .metric-value {
-        font-size: 1rem;
-        font-weight: 500;
-        color: var(--color-on-surface);
-        font-family: 'Figtree', sans-serif;
-      }
-
-      /* ── Steps row ───────────────────────────────────────── */
-      .steps-row {
-        display: flex;
-        gap: 0.5rem;
-        margin-bottom: 0.75rem;
-      }
-
-      .step {
+      .badge-row {
         display: flex;
         align-items: center;
-        gap: 0.25rem;
-        flex: 1;
-        font-size: 0.6875rem;
+        gap: 0.375rem;
+        flex-shrink: 0;
       }
-
-      .step-icon {
-        font-size: 0.75rem;
-        color: var(--color-outline-variant);
-      }
-
-      .step-done .step-icon {
-        color: var(--color-primary);
-      }
-
-      .step-label {
-        color: var(--color-on-surface-variant);
-        font-weight: 200;
-        font-family: 'Figtree', sans-serif;
-      }
-
-      .step-done .step-label {
-        color: var(--color-on-surface);
-      }
-
-      /* ── Reconectar button ───────────────────────────────── */
-      .reconectar-btn {
-        background: var(--color-warning-bg);
-        color: #d97757;
-        font-weight: 600;
-        font-family: 'Figtree', sans-serif;
-        font-size: 0.75rem;
-        letter-spacing: 0.05em;
-        border: none;
-        border-radius: var(--radius-md);
-        padding: 0.4375rem 1rem;
-        cursor: pointer;
-        transition: background var(--duration-fast) var(--ease-default);
-      }
-
-      .reconectar-btn:hover {
+      .webhook-badge {
+        font-size: 0.625rem;
+        font-weight: 500;
+        padding: 0.15rem 0.5rem;
+        border-radius: var(--radius-full);
+        white-space: nowrap;
+        font-family: var(--font-sans);
         background: var(--color-surface-container);
+        color: var(--color-on-surface-variant);
       }
+      .webhook-badge.active {
+        background: var(--color-secondary-container);
+        color: var(--color-on-secondary-container);
+      }
+      .card-body {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+      }
+      .phone-number {
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: var(--color-on-surface);
+        font-family: var(--font-sans);
+      }
+      .last-active {
+        font-size: 0.75rem;
+        font-weight: 400;
+        color: var(--color-on-surface-variant);
+        font-family: var(--font-sans);
+      }
+      .card-footer {
+        padding-top: 0.5rem;
+        border-top: 1px solid var(--color-outline-variant);
+      }
+      .detail-link {
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: var(--color-secondary);
+        text-decoration: none;
+        font-family: var(--font-sans);
+        transition: color var(--duration-fast) var(--ease-default);
+      }
+      .detail-link:hover { color: var(--color-primary); }
 
       /* ── Skeleton loading ────────────────────────────────── */
       .skeleton-card {
@@ -376,7 +300,11 @@ interface InstancesListResponse {
       }
 
       .empty-icon {
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.75rem;
+        opacity: 0.85;
+      }
+      .empty-icon img {
+        display: block;
       }
 
       .empty-heading {
@@ -464,6 +392,20 @@ export class DashboardComponent {
       return `${m}m ${s % 60}s`;
     }
     return `${s}s`;
+  }
+
+  formatPhone(raw: string): string {
+    if (!raw || raw.length < 10) return raw;
+    const digits = raw.replace(/\D/g, '');
+    if (digits.length === 13) {
+      // +55 XX 9XXXX-XXXX (Brazilian mobile)
+      return `+${digits.slice(0,2)} ${digits.slice(2,4)} ${digits.slice(4,9)}-${digits.slice(9)}`;
+    }
+    if (digits.length === 12) {
+      // +55 XX XXXX-XXXX (Brazilian landline)
+      return `+${digits.slice(0,2)} ${digits.slice(2,4)} ${digits.slice(4,8)}-${digits.slice(8)}`;
+    }
+    return `+${digits}`;
   }
 
   formatLastActive(startTime: number): string {

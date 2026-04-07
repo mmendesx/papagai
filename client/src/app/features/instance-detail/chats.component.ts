@@ -41,10 +41,10 @@ interface ChatsResponse {
     }
 
     .chat-content { flex: 1; overflow: hidden; }
-    .chat-name { font-size: 0.875rem; font-weight: 300; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .chat-preview { font-size: 0.75rem; font-weight: 200; color: var(--tui-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 0.125rem; }
+    .chat-name { font-size: 0.875rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .chat-preview { font-size: 0.75rem; font-weight: 400; color: var(--tui-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 0.125rem; }
     .chat-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 0.25rem; flex-shrink: 0; }
-    .chat-time { font-size: 0.6875rem; font-weight: 200; color: var(--tui-text-secondary); }
+    .chat-time { font-size: 0.6875rem; font-weight: 400; color: var(--tui-text-secondary); }
     .unread-badge { background: var(--color-primary); color: var(--color-on-primary); border-radius: var(--radius-full); padding: 0.1rem 0.4rem; font-size: 0.6875rem; font-weight: 300; }
 
     .empty-state {
@@ -85,7 +85,7 @@ interface ChatsResponse {
                  [style.background]="avatarStyle(chatInitials(chat)).bg"
                  [style.color]="avatarStyle(chatInitials(chat)).text">{{ chatInitials(chat) }}</div>
             <div class="chat-content">
-              <div class="chat-name">{{ chat.name || formatChatId(chat.id) }}</div>
+              <span class="chat-name">{{ formatChatName(chat) }}</span>
               @if (chat.lastMessage) {
                 <div class="chat-preview">{{ chat.lastMessage }}</div>
               }
@@ -115,6 +115,11 @@ export class ChatsComponent {
   chatInitials(chat: any): string {
     const name = chat.name || chat.id || '';
     return name.split(/[@\s]/).map((p: string) => p[0]).slice(0, 2).join('').toUpperCase() || '?';
+  }
+
+  formatChatName(chat: any): string {
+    const name: string = chat.name ?? chat.id ?? '';
+    return name.replace(/@s\.whatsapp\.net$/, '').replace(/@g\.us$/, ' (grupo)');
   }
 
   formatChatId(id: string): string {

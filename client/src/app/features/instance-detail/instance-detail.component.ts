@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
@@ -14,8 +13,8 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { TuiAlertService, TuiButton } from '@taiga-ui/core';
 import { TuiTextfield } from '@taiga-ui/core/components/textfield';
 import { TuiConfirmService } from '@taiga-ui/kit/components/confirm';
+import { TuiCheckbox } from '@taiga-ui/kit/components/checkbox';
 import { TuiSwitch } from '@taiga-ui/kit/components/switch';
-import { TuiTabs } from '@taiga-ui/kit/components/tabs';
 import { firstValueFrom, timer } from 'rxjs';
 import { filter, map, switchMap, takeWhile, tap } from 'rxjs/operators';
 import { ChatsComponent } from './chats.component';
@@ -56,292 +55,363 @@ type WebhookResponse = {
   selector: 'app-instance-detail',
   standalone: true,
   imports: [
-    DatePipe,
     FormsModule,
     TuiButton,
+    TuiCheckbox,
     TuiSwitch,
-    ...TuiTabs,
     ...TuiTextfield,
     SendMessageComponent,
     ChatsComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <!-- TuiTabs navigation -->
-    <div style="padding: 0 1.5rem; border-bottom: 1px solid var(--tui-border-normal);">
-      <tui-tabs
-        [activeItemIndex]="activeTab()"
-        (activeItemIndexChange)="onTabIndexChange($event)"
-      >
-        <button tuiTab type="button">Status &amp; QR</button>
-        <button tuiTab type="button">Enviar Mensagem</button>
-        <button tuiTab type="button">Conversas</button>
-        <button tuiTab type="button">Webhook</button>
-      </tui-tabs>
-    </div>
+    @if (qrData(); as q) {
+      @if (q.status === 'connected') {
 
-    <!-- Tab content -->
-    <div style="padding: 1.5rem;">
-      @switch (activeTab()) {
-
-        @case (0) {
-          <!-- Status & QR tab -->
-          @if (qrData(); as q) {
-            @if (q.status === 'connected') {
-              <!-- Connected status card -->
-              <div class="status-card connected" style="max-width: 28rem;">
-                <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem;">
-                  <svg
-                    width="22"
-                    height="22"
-                    viewBox="0 0 22 22"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                    aria-hidden="true"
-                  >
-                    <circle cx="11" cy="11" r="11" fill="var(--color-primary-container)"/>
-                    <path
-                      d="M6.5 11.5L9.5 14.5L15.5 8"
-                      stroke="var(--color-primary)"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    />
-                  </svg>
-                  <span style="font-size: 1rem; font-weight: 300; color: var(--color-on-primary-container);">Conectado</span>
-                </div>
-                <div class="info-grid">
-                  <div class="info-row">
-                    <span class="info-label">Telefone</span>
-                    <span class="info-value">{{ q.phoneNumber ?? status()?.phoneNumber ?? '—' }}</span>
-                  </div>
-                  @if (status(); as s) {
-                    <div class="info-row">
-                      <span class="info-label">Tempo ativo</span>
-                      <span class="info-value" style="display: flex; align-items: center; gap: 0.375rem;">
-                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                          <circle cx="7" cy="7" r="6" stroke="var(--color-on-surface-variant)" stroke-width="1.5"/>
-                          <path d="M7 4v3l2 1.5" stroke="var(--color-on-surface-variant)" stroke-width="1.5" stroke-linecap="round"/>
-                        </svg>
-                        {{ formatMs(s.uptime) }}
-                      </span>
-                    </div>
-                    <div class="info-row">
-                      <span class="info-label">Desde</span>
-                      <span class="info-value">{{ s.startTime | date: 'medium' }}</span>
-                    </div>
-                  }
-                </div>
-              </div>
-            } @else if (q.status === 'qr' && q.qrImageData) {
-              <!-- QR code display -->
-              <div class="status-card qr" style="max-width: 28rem; margin-bottom: 1.5rem;">
-                <div style="display: flex; align-items: center; gap: 0.75rem;">
-                  <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                    <circle cx="11" cy="11" r="11" fill="var(--color-warning-bg)"/>
-                    <path d="M11 7v4l2.5 1.5" style="stroke: var(--color-method-patch);" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
-                  <span style="font-size: 1rem; font-weight: 300; color: var(--color-method-patch);">Waiting for scan</span>
-                </div>
-              </div>
-              <div style="
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                gap: 1rem;
-                padding: 2rem 0;
-              ">
-                <p style="
-                  margin: 0;
-                  font-weight: 200;
-                  color: var(--tui-text-secondary);
-                ">Escaneie para conectar seu WhatsApp</p>
-                <img
-                  [src]="q.qrImageData"
-                  alt="WhatsApp QR Code"
-                  style="
-                    max-width: 280px;
-                    border-radius: 1rem;
-                    box-shadow: var(--shadow-lg);
-                    padding: 1rem;
-                    background: white;
-                  "
-                />
-              </div>
-            } @else {
-              <!-- Other status (loading, disconnected, etc.) -->
-              <div class="status-card" style="
-                max-width: 28rem;
-                background: var(--tui-background-neutral-1);
-                border-left-color: var(--tui-border-normal);
-              ">
-                <p style="margin: 0; font-weight: 200; color: var(--tui-text-secondary);">
-                  {{ q.message ?? translateStatus(q.status) }}
-                </p>
-              </div>
-            }
-          } @else {
-            <p style="color: var(--tui-text-secondary); font-weight: 200;">Carregando…</p>
+        <!-- Status strip -->
+        <div class="status-strip">
+          <span class="conn-dot"></span>
+          <span class="strip-label">Conectado</span>
+          @if ((q.phoneNumber ?? status()?.phoneNumber); as phone) {
+            <span class="strip-sep">·</span>
+            <span class="strip-phone">{{ phone }}</span>
           }
-        }
-
-        @case (1) {
-          @if (name(); as n) {
-            <app-send-message [instanceName]="n" />
+          @if (status(); as s) {
+            <span class="strip-sep">·</span>
+            <span class="strip-uptime">{{ formatMs(s.uptime) }}</span>
           }
-        }
+        </div>
 
-        @case (2) {
-          @if (name(); as n) {
-            <app-chats [instanceName]="n" />
-          }
-        }
+        <!-- Two-panel layout -->
+        <div class="detail-layout">
 
-        @case (3) {
-          <!-- Webhook config tab -->
-          <div style="max-width: 30rem;">
-            @if (webhookLoading()) {
-              <p style="color: var(--tui-text-secondary); font-weight: 200;">Carregando configurações de webhook…</p>
-            } @else {
-              <form class="webhook-form" (ngSubmit)="saveWebhook()">
+          <!-- Left: Send + Webhook -->
+          <div class="detail-left">
 
-                <!-- Enabled toggle using TuiSwitch -->
-                <label style="
-                  display: flex;
-                  align-items: center;
-                  gap: 0.75rem;
-                  cursor: pointer;
-                  padding: 0.5rem 0;
-                ">
-                  <input
-                    tuiSwitch
-                    type="checkbox"
-                    [checked]="whEnabled()"
-                    (change)="whEnabled.set(!whEnabled())"
-                  />
-                  <span style="font-weight: 300;">Ativar</span>
-                </label>
+            <!-- Send Message section -->
+            <div class="left-section">
+              <div class="left-section-header">
+                <span class="section-title">Enviar Mensagem</span>
+              </div>
+              @if (name(); as n) {
+                <app-send-message [instanceName]="n" />
+              }
+            </div>
 
-                <tui-textfield>
-                  <label tuiLabel>URL do Webhook</label>
-                  <input
-                    tuiTextfield
-                    type="url"
-                    [ngModel]="whUrl()"
-                    (ngModelChange)="whUrl.set($event)"
-                    [ngModelOptions]="{ standalone: true }"
-                    autocomplete="off"
-                    placeholder="https://example.com/webhook"
-                  />
-                </tui-textfield>
-
-                <tui-textfield>
-                  <label tuiLabel>Headers do Webhook (JSON)</label>
-                  <input
-                    tuiTextfield
-                    type="text"
-                    [ngModel]="whHeadersJson()"
-                    (ngModelChange)="whHeadersJson.set($event)"
-                    [ngModelOptions]="{ standalone: true }"
-                    autocomplete="off"
-                    placeholder="{}"
-                  />
-                </tui-textfield>
-
-                <fieldset style="
-                  border: 1px solid var(--tui-border-normal);
-                  border-radius: var(--radius-lg);
-                  padding: 0.75rem 1rem;
-                  margin: 0;
-                ">
-                  <legend style="
-                    padding: 0 0.25rem;
-                    font-weight: 300;
-                    font-size: 0.875rem;
-                    color: var(--tui-text-secondary);
-                  ">Eventos</legend>
-                  @for (ev of availableEvents; track ev) {
-                    <label style="
-                      display: flex;
-                      align-items: center;
-                      gap: 0.5rem;
-                      padding: 0.3rem 0;
-                      cursor: pointer;
-                      font-weight: 200;
-                    ">
-                      <input
-                        type="checkbox"
-                        [checked]="whEvents().includes(ev)"
-                        (change)="toggleEvent(ev)"
-                      />
-                      <span>{{ translateEvent(ev) }}</span>
+            <!-- Webhook section (collapsible) -->
+            <div class="left-section">
+              <button type="button" class="left-section-header webhook-toggle-header"
+                      (click)="toggleWebhookOpen()">
+                <span class="section-title">Webhook</span>
+                <span class="webhook-badge" [class.active]="whEnabled()">
+                  {{ whEnabled() ? 'ativo' : 'inativo' }}
+                </span>
+                <svg class="chevron-icon" [class.rotated]="webhookOpen()"
+                     width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              @if (webhookOpen()) {
+                @if (webhookLoading()) {
+                  <p class="loading-text wh-pad">Carregando…</p>
+                } @else {
+                  <form class="webhook-form" (ngSubmit)="saveWebhook()">
+                    <label class="toggle-row">
+                      <input tuiSwitch type="checkbox"
+                        [ngModel]="whEnabled()"
+                        (ngModelChange)="whEnabled.set($event)"
+                        [ngModelOptions]="{ standalone: true }" />
+                      <span class="toggle-label">Ativar</span>
                     </label>
-                  }
-                </fieldset>
+                    <tui-textfield>
+                      <label tuiLabel>URL</label>
+                      <input tuiTextfield type="url"
+                        [ngModel]="whUrl()"
+                        (ngModelChange)="whUrl.set($event)"
+                        [ngModelOptions]="{ standalone: true }"
+                        autocomplete="off"
+                        placeholder="https://example.com/webhook" />
+                    </tui-textfield>
+                    <tui-textfield>
+                      <label tuiLabel>Cabeçalhos (JSON)</label>
+                      <input tuiTextfield type="text"
+                        [ngModel]="whHeadersJson()"
+                        (ngModelChange)="whHeadersJson.set($event)"
+                        [ngModelOptions]="{ standalone: true }"
+                        autocomplete="off"
+                        placeholder="{}" />
+                    </tui-textfield>
+                    <div class="form-section">
+                      <p class="section-label-small">Eventos</p>
+                      <div class="events-grid">
+                        @for (ev of availableEvents; track ev) {
+                          <label class="event-row">
+                            <input tuiCheckbox type="checkbox"
+                              [ngModel]="whEvents().includes(ev)"
+                              (ngModelChange)="toggleEvent(ev)"
+                              [ngModelOptions]="{ standalone: true }" />
+                            <span class="event-label">{{ translateEvent(ev) }}</span>
+                          </label>
+                        }
+                      </div>
+                    </div>
+                    <div class="form-footer">
+                      <button tuiButton type="submit" size="s" appearance="primary"
+                              [disabled]="webhookSaving()">
+                        {{ webhookSaving() ? 'Salvando…' : 'Salvar' }}
+                      </button>
+                    </div>
+                  </form>
+                }
+              }
+            </div>
 
-                <div style="padding-top: 0.5rem;">
-                  <button
-                    tuiButton
-                    type="submit"
-                    size="m"
-                    appearance="primary"
-                    [disabled]="webhookSaving()"
-                  >
-                    {{ webhookSaving() ? 'Salvando…' : 'Salvar' }}
-                  </button>
-                </div>
+          </div>
 
-              </form>
+          <!-- Right: Conversations -->
+          <div class="detail-right">
+            <div class="right-header">
+              <span class="section-title">Conversas</span>
+            </div>
+            @if (name(); as n) {
+              <app-chats [instanceName]="n" />
             }
           </div>
-        }
+
+        </div>
+
+      } @else if (q.status === 'qr' && q.qrImageData) {
+
+        <!-- QR scan state: centered -->
+        <div class="qr-layout">
+          <div class="qr-card">
+            <div class="status-header">
+              <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+                <circle cx="11" cy="11" r="11" fill="var(--color-warning-bg)"/>
+                <path d="M11 7v4l2.5 1.5" style="stroke: var(--color-method-patch);"
+                      stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <span class="status-label qr-label">Aguardando leitura do QR Code</span>
+            </div>
+            <p class="qr-hint">Escaneie com o WhatsApp para conectar</p>
+            <img [src]="q.qrImageData" alt="WhatsApp QR Code" class="qr-image" />
+          </div>
+        </div>
+
+      } @else {
+
+        <!-- Other status (disconnected, connecting, etc.) -->
+        <div class="centered-state">
+          <div class="status-card neutral">
+            <p class="status-text">{{ q.message ?? translateStatus(q.status) }}</p>
+          </div>
+        </div>
 
       }
-    </div>
+    } @else {
+      <div class="centered-state">
+        <p class="loading-text">Carregando…</p>
+      </div>
+    }
   `,
   styles: [
     `
+      :host {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      /* ── Status strip ──────────────────────────────────────── */
+      .status-strip {
+        display: flex;
+        align-items: center;
+        gap: 0.625rem;
+        padding: 0.5rem 1.5rem;
+        background: color-mix(in srgb, var(--color-primary-container) 35%, var(--color-surface-container-lowest));
+        border-bottom: 1px solid var(--color-outline-variant);
+        flex-shrink: 0;
+        font-family: var(--font-sans);
+        font-size: 0.8125rem;
+      }
+      .conn-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--color-primary);
+        flex-shrink: 0;
+      }
+      .strip-label { font-weight: 600; color: var(--color-on-surface); }
+      .strip-sep { color: var(--color-outline-variant); }
+      .strip-phone, .strip-uptime { font-weight: 400; color: var(--color-on-surface-variant); }
+
+      /* ── Two-panel layout ──────────────────────────────────── */
+      .detail-layout {
+        display: flex;
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+      }
+
+      .detail-left {
+        width: 340px;
+        flex-shrink: 0;
+        border-right: 1px solid var(--color-outline-variant);
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .detail-right {
+        flex: 1;
+        min-width: 0;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* ── Section headers ───────────────────────────────────── */
+      .left-section {
+        border-bottom: 1px solid var(--color-outline-variant);
+        flex-shrink: 0;
+      }
+      .left-section:last-child { border-bottom: none; }
+
+      .left-section-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.25rem 0.625rem;
+        width: 100%;
+      }
+
+      .webhook-toggle-header {
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        text-align: left;
+        transition: background var(--duration-fast) var(--ease-default);
+      }
+      .webhook-toggle-header:hover { background: var(--color-surface-container-low); }
+
+      .section-title {
+        font-size: 0.6875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: var(--color-on-surface-variant);
+        flex: 1;
+        font-family: var(--font-sans);
+      }
+
+      .webhook-badge {
+        font-size: 0.625rem;
+        font-weight: 500;
+        padding: 0.1rem 0.4rem;
+        border-radius: var(--radius-full);
+        background: var(--color-error-container);
+        color: var(--color-on-error-container);
+        font-family: var(--font-sans);
+      }
+      .webhook-badge.active {
+        background: var(--color-primary-container);
+        color: var(--color-on-primary-container);
+      }
+
+      .chevron-icon {
+        color: var(--color-outline-variant);
+        transition: transform var(--duration-fast) var(--ease-default);
+        flex-shrink: 0;
+      }
+      .chevron-icon.rotated { transform: rotate(180deg); }
+
+      .right-header {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem 1.25rem 0.625rem;
+        border-bottom: 1px solid var(--color-outline-variant);
+        flex-shrink: 0;
+      }
+
+      /* ── Webhook form (compact, inside left panel) ─────────── */
+      .webhook-form {
+        display: flex;
+        flex-direction: column;
+        gap: 0.875rem;
+        padding: 0 1.25rem 1.25rem;
+      }
+      .wh-pad { padding: 0 1.25rem 1rem; }
+      .form-section { display: flex; flex-direction: column; gap: 0.4rem; }
+      .toggle-row { display: flex; align-items: center; gap: 0.75rem; cursor: pointer; padding: 0.125rem 0; }
+      .toggle-label { font-size: 0.875rem; font-weight: 400; color: var(--color-on-surface); font-family: var(--font-sans); }
+      .section-label-small {
+        font-size: 0.625rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: var(--color-on-surface-variant);
+        margin: 0;
+        font-family: var(--font-sans);
+      }
+      .events-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.125rem; }
+      .event-row { display: flex; align-items: center; gap: 0.4rem; cursor: pointer; padding: 0.2rem 0; }
+      .event-label { font-size: 0.8125rem; font-weight: 400; color: var(--color-on-surface); font-family: var(--font-sans); }
+      .form-footer { display: flex; justify-content: flex-end; padding-top: 0.125rem; }
+
+      /* ── QR state: centered ────────────────────────────────── */
+      .qr-layout {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+      }
+      .qr-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+        background: var(--color-surface-container-lowest);
+        border: 1px solid var(--color-outline-variant);
+        border-radius: var(--radius-2xl);
+        padding: 2rem 2.5rem;
+      }
+
+      /* ── Neutral / loading states ──────────────────────────── */
+      .centered-state {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+      }
       .status-card {
         border-radius: var(--radius-xl);
         padding: 1.5rem;
         border-left: 4px solid transparent;
       }
-      .status-card.connected {
-        background: var(--color-primary-container);
-        border-left-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
+      .status-card.neutral {
+        max-width: 28rem;
+        background: var(--tui-background-neutral-1);
+        border-left-color: var(--tui-border-normal);
       }
-      .status-card.qr {
-        background: var(--color-warning-bg);
-        border-left-color: color-mix(in srgb, var(--color-method-patch) 30%, transparent);
+
+      /* ── Shared elements ───────────────────────────────────── */
+      .status-header { display: flex; align-items: center; gap: 0.75rem; }
+      .status-label { font-size: 1rem; font-weight: 400; font-family: var(--font-sans); }
+      .qr-label { color: var(--color-method-patch); }
+      .qr-hint { margin: 0; font-weight: 400; color: var(--tui-text-secondary); font-family: var(--font-sans); }
+      .qr-image {
+        max-width: 260px;
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow-lg);
+        padding: 1rem;
+        background: white;
       }
-      .info-grid {
-        display: flex;
-        flex-direction: column;
-        gap: 0.625rem;
-      }
-      .info-row {
-        display: flex;
-        align-items: baseline;
-        gap: 1rem;
-      }
-      .info-label {
-        font-size: 0.75rem;
-        font-weight: 300;
-        color: var(--tui-text-secondary);
-        min-width: 3.5rem;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-      }
-      .info-value {
-        font-size: 0.9375rem;
-        font-weight: 200;
-        color: var(--tui-text-primary);
-      }
-      .webhook-form {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-      }
+      .loading-text { color: var(--tui-text-secondary); font-weight: 400; font-family: var(--font-sans); }
+      .status-text { margin: 0; font-weight: 400; color: var(--tui-text-secondary); font-family: var(--font-sans); }
     `,
   ],
 })
@@ -359,7 +429,11 @@ export class InstanceDetailComponent {
 
   readonly qrData = signal<QrResponse | null>(null);
   readonly status = signal<StatusResponse | null>(null);
-  readonly activeTab = signal<number>(0);
+  readonly webhookOpen = signal(true);
+
+  toggleWebhookOpen(): void {
+    this.webhookOpen.update(v => !v);
+  }
 
   readonly webhookConfig = signal<WebhookConfig | null>(null);
   readonly webhookLoading = signal(false);
@@ -443,16 +517,12 @@ export class InstanceDetailComponent {
         error: () => this.qrData.set(null),
       });
 
-    // Load webhook config when switching to the webhook tab (index 3)
+    // Load webhook config as soon as the instance name is available
     effect(() => {
-      if (this.activeTab() === 3 && !this.webhookConfig()) {
+      if (this.name() && !this.webhookConfig()) {
         void this.loadWebhookConfig();
       }
     });
-  }
-
-  onTabIndexChange(index: number): void {
-    this.activeTab.set(index);
   }
 
   formatMs(ms: number): string {

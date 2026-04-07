@@ -1,16 +1,39 @@
 <!doctype html>
 <html lang="pt-BR">
+
 <head>
+  <script>
+    (function () {
+      var stored = localStorage.getItem('papagai-theme');
+      var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (stored === 'dark' || (!stored && prefersDark)) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
   <meta charset="utf-8">
-  <title>Papagai</title>
+  <title>Papagai — WhatsApp Gateway</title>
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" type="image/svg+xml" href="parrot.svg">
+  <link rel="icon" type="image/png" href="parrot.png">
+  <link rel="apple-touch-icon" href="parrot.png">
+  <meta name="description"
+    content="Papagai — Gateway WhatsApp production-grade. Gerencie múltiplas instâncias, configure webhooks e integre via API REST.">
+  <meta name="theme-color" content="#006a2d">
+  <meta property="og:title" content="Papagai">
+  <meta property="og:description"
+    content="Gateway WhatsApp production-grade com múltiplas instâncias, webhooks e API REST.">
+  <meta property="og:image" content="/parrot.png">
+  <meta property="og:type" content="website">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;700;900&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Geist:wght@400;700;900&family=Figtree:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
 </head>
+
 <body>
   <app-root></app-root>
 </body>
+
 </html>

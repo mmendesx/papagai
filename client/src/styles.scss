@@ -230,3 +230,85 @@ html {
   background: rgba(0, 106, 45, 0.15);
   color: inherit;
 }
+
+[data-theme="dark"] {
+  /* ── Surface scale ───────────────────────────────── */
+  --color-surface:                   #0f1412;
+  --color-surface-container-lowest:  #141a17;
+  --color-surface-container-low:     #1c2420;
+  --color-surface-container:         #232c28;
+  --color-surface-container-high:    #2b3530;
+  --color-surface-container-highest: #343f3a;
+
+  /* ── Text ────────────────────────────────────────── */
+  --color-on-surface:         #e1e4e6;
+  --color-on-surface-variant: #9ca3a8;
+
+  /* ── Borders ─────────────────────────────────────── */
+  --color-outline:         #5a6065;
+  --color-outline-variant: #2e3538;
+
+  /* ── Primary (green) ─────────────────────────────── */
+  --color-primary:              #4cdb80;
+  --color-primary-container:    #004d20;
+  --color-on-primary:           #001a0c;
+  --color-on-primary-container: #5bef74;
+
+  /* ── Secondary (blue) ───────────────────────────── */
+  --color-secondary:              #5bc8f5;
+  --color-secondary-container:    #004d6a;
+  --color-on-secondary:           #001e2b;
+  --color-on-secondary-container: #4dbde8;
+
+  /* ── Tertiary (purple) ───────────────────────────── */
+  --color-tertiary:              #cc9bff;
+  --color-tertiary-container:    #5a0099;
+  --color-on-tertiary:           #1a0033;
+  --color-on-tertiary-container: #c08aff;
+
+  /* ── Error ───────────────────────────────────────── */
+  --color-error:              #ff6b6b;
+  --color-error-container:    #7a0012;
+  --color-on-error:           #290003;
+  --color-on-error-container: #ff8a80;
+
+  /* ── Semantic backgrounds ────────────────────────── */
+  --color-success-bg: #0d1f0d;
+  --color-warning-bg: #1f1208;
+  --color-error-bg:   #1f0808;
+  --color-info-bg:    #081520;
+  --color-success:    #52c77d;
+  --color-warning:    #f6a53c;
+
+  /* ── Method badge ────────────────────────────────── */
+  --color-method-patch: #f09070;
+
+  /* ── Overlay / scrim ─────────────────────────────── */
+  --color-overlay: rgba(0, 0, 0, 0.6);
+
+  /* ── Table stripe ────────────────────────────────── */
+  --color-table-stripe: rgba(255, 255, 255, 0.03);
+
+  /* ── Shadows ─────────────────────────────────────── */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.20);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.28), 0 2px 4px -2px rgba(0, 0, 0, 0.22);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.30), 0 4px 6px -4px rgba(0, 0, 0, 0.24);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.35), 0 8px 10px -6px rgba(0, 0, 0, 0.28);
+
+  /* ── Taiga UI aliases ────────────────────────────── */
+  --tui-background-base:           var(--color-surface);
+  --tui-background-base-alt:       var(--color-surface-container-lowest);
+  --tui-background-neutral-1:      var(--color-surface-container-low);
+  --tui-background-neutral-2:      var(--color-surface-container);
+  --tui-background-elevation-1:    var(--color-surface-container-lowest);
+  --tui-background-accent-1:       var(--color-primary);
+  --tui-background-accent-1-hover: var(--color-primary-container);
+  --tui-background-accent-2:       var(--color-secondary);
+  --tui-background-accent-2-hover: var(--color-secondary-container);
+  --tui-status-negative:           var(--color-error);
+  --tui-status-negative-pale:      var(--color-error-container);
+  --tui-text-primary:              var(--color-on-surface);
+  --tui-text-secondary:            var(--color-on-surface-variant);
+  --tui-border-normal:             var(--color-outline-variant);
+  --tui-border-focus:              var(--color-secondary);
+}

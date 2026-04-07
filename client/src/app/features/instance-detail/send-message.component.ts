@@ -26,14 +26,14 @@ type SendField = 'to' | 'body';
         <label tuiLabel>Para (número WhatsApp)</label>
         <input tuiTextfield type="text" formControlName="to" placeholder="5511999999999" />
       </tui-textfield>
+      <p class="field-hint">Formato: código do país + DDD + número (ex: 5511999999999)</p>
       <tui-error [error]="fieldError('to')" />
       <tui-textfield>
         <label tuiLabel>Mensagem</label>
         <textarea tuiTextarea rows="4" formControlName="body"></textarea>
       </tui-textfield>
       <tui-error [error]="fieldError('body')" />
-      <button type="submit" [disabled]="sending()"
-              style="display: flex; align-items: center; gap: 0.5rem; padding: 0.625rem 1.25rem; background: var(--color-primary); color: var(--color-on-primary); border: none; border-radius: var(--radius-lg); font-family: 'Figtree', sans-serif; font-weight: 200; cursor: pointer; transition: opacity var(--duration-fast) var(--ease-default); margin-top: 0.5rem;">
+      <button type="submit" [disabled]="sending()" class="send-btn">
         <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"/>
         </svg>
@@ -50,6 +50,31 @@ type SendField = 'to' | 'body';
         max-width: 28rem;
         padding: 1.5rem;
       }
+      .field-hint {
+        font-size: 0.75rem;
+        font-weight: 400;
+        color: var(--color-on-surface-variant);
+        margin: -0.5rem 0 0;
+        font-family: var(--font-sans);
+      }
+      .send-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.625rem 1.25rem;
+        background: var(--color-primary);
+        color: var(--color-on-primary);
+        border: none;
+        border-radius: var(--radius-lg);
+        font-family: var(--font-sans);
+        font-weight: 500;
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: opacity var(--duration-fast) var(--ease-default);
+        margin-top: 0.5rem;
+      }
+      .send-btn:hover:not(:disabled) { opacity: 0.88; }
+      .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
     `,
   ],
 })

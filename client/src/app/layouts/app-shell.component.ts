@@ -18,7 +18,10 @@ import {
   Menu,
   PanelLeftOpen,
   PanelLeftClose,
+  Sun,
+  Moon,
 } from 'lucide-angular';
+import { ThemeService } from '../core/theme/theme.service';
 
 @Component({
   selector: 'app-shell',
@@ -56,7 +59,28 @@ import {
       font-family: 'Geist', sans-serif;
       flex-shrink: 0;
     }
-    .sidebar-brand img { width: 28px; height: 28px; flex-shrink: 0; }
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      flex-shrink: 0;
+      background: var(--color-secondary-container);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      padding: 3px;
+    }
+    .brand-icon img { width: 100%; height: 100%; display: block; }
+    .brand-name {
+      font-size: 0.875rem;
+      font-weight: 900;
+      letter-spacing: 0.14em;
+      color: var(--color-on-surface);
+      font-family: var(--font-display);
+      white-space: nowrap;
+      overflow: hidden;
+    }
     .sidebar.collapsed .sidebar-brand { justify-content: center; padding: 1.25rem 0 0.75rem; }
     .sidebar.collapsed .sidebar-brand span { display: none; }
 
@@ -229,7 +253,6 @@ import {
 
     /* Header actions */
     .header-actions {
-      margin-left: auto;
       display: flex;
       align-items: center;
       gap: var(--space-2);
@@ -325,6 +348,25 @@ import {
       color: var(--color-on-surface);
     }
 
+    .theme-toggle-btn {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      color: var(--color-on-surface-variant);
+      padding: 0.375rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-md);
+      flex-shrink: 0;
+      margin-left: auto;
+      transition: background var(--duration-fast) var(--ease-default), color var(--duration-fast) var(--ease-default);
+    }
+    .theme-toggle-btn:hover {
+      background: var(--color-surface-container);
+      color: var(--color-on-surface);
+    }
+
     .page-header-title {
       font-size: 1.125rem;
       font-weight: 700;
@@ -409,7 +451,10 @@ import {
 
     <aside class="sidebar" [class.open]="sidebarOpen()" [class.collapsed]="sidebarCollapsed()">
       <div class="sidebar-brand">
-        <img src="/parrot.svg" alt="" aria-hidden="true" />
+        <div class="brand-icon">
+          <img src="/parrot.png" alt="" aria-hidden="true" />
+        </div>
+        <span class="brand-name">PAPAGAI</span>
       </div>
 
       <nav class="nav-section">
@@ -478,6 +523,16 @@ import {
             }
             {{ pageTitle() }}
           </h1>
+          <button type="button" class="theme-toggle-btn"
+                  (click)="theme.toggle()"
+                  [attr.aria-label]="theme.isDark() ? 'Mudar para tema claro' : 'Mudar para tema escuro'"
+                  [title]="theme.isDark() ? 'Tema claro' : 'Tema escuro'">
+            @if (theme.isDark()) {
+              <lucide-icon [img]="icons.Sun" [size]="18" aria-hidden="true" />
+            } @else {
+              <lucide-icon [img]="icons.Moon" [size]="18" aria-hidden="true" />
+            }
+          </button>
           @if (headerActions.actions().length) {
             <div class="header-actions">
               @for (action of headerActions.actions(); track action.id) {
@@ -502,8 +557,9 @@ export class AppShellComponent {
   private readonly document = inject(DOCUMENT);
   private readonly docsNav = inject(DocsNavigationService);
   readonly headerActions = inject(HeaderActionsService);
+  readonly theme = inject(ThemeService);
 
-  readonly icons = { LayoutGrid, FileText, ChevronDown, ChevronLeft, LogOut, Menu, PanelLeftOpen, PanelLeftClose };
+  readonly icons = { LayoutGrid, FileText, ChevronDown, ChevronLeft, LogOut, Menu, PanelLeftOpen, PanelLeftClose, Sun, Moon };
 
   readonly user = this.auth.currentUser;
   readonly sidebarOpen = signal(false);

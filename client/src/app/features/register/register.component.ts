@@ -21,66 +21,273 @@ type RegisterField = 'name' | 'email' | 'password' | 'appKey';
   imports: [ReactiveFormsModule, RouterLink, TuiLink, TuiError, ...TuiTextfield],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="min-h-screen flex items-center justify-center px-4"
-         style="background: var(--color-surface)">
-      <div class="w-full max-w-md mx-4 p-8"
-           style="background: var(--color-surface-container-lowest); border: 1px solid var(--color-outline-variant); box-shadow: var(--shadow-lg); border-radius: var(--radius-2xl)">
+    <div class="auth-layout">
+      <!-- Brand panel (left) -->
+      <div class="brand-panel" aria-hidden="true">
+        <div class="brand-inner">
+          <div class="brand-logo">
+            <img src="/parrot.png" alt="" />
+          </div>
+          <div class="brand-wordmark">PAPAGAI</div>
+          <p class="brand-tagline">Crie sua conta e comece agora</p>
+          <ul class="brand-features">
+            <li>Conecte múltiplos números WhatsApp</li>
+            <li>Configure webhooks por instância</li>
+            <li>Envie e receba mensagens via API</li>
+          </ul>
+        </div>
+      </div>
 
-        <h1 class="text-3xl text-center mb-8"
-            style="font-weight: 300; color: var(--color-on-surface)">
-          Papagai
-        </h1>
-
-        <form [formGroup]="form" (ngSubmit)="onSubmit()" class="flex flex-col gap-4">
-          <div>
-            <tui-textfield>
-              <label tuiLabel>Nome</label>
-              <input tuiTextfield type="text" formControlName="name" autocomplete="name" />
-            </tui-textfield>
-            <tui-error [error]="fieldError('name')" />
+      <!-- Form panel (right) -->
+      <div class="form-panel">
+        <div class="form-inner">
+          <!-- Mobile-only logo -->
+          <div class="mobile-logo" aria-hidden="true">
+            <img src="/parrot.png" alt="" />
           </div>
 
-          <div>
-            <tui-textfield>
-              <label tuiLabel>E-mail</label>
-              <input tuiTextfield type="email" formControlName="email" autocomplete="email" />
-            </tui-textfield>
-            <tui-error [error]="fieldError('email')" />
-          </div>
+          <h1 class="form-title">Criar conta</h1>
+          <p class="form-subtitle">Preencha os dados para se registrar</p>
 
-          <div>
-            <tui-textfield>
-              <label tuiLabel>Senha</label>
-              <input tuiTextfield type="password" formControlName="password" autocomplete="new-password" />
-            </tui-textfield>
-            <tui-error [error]="fieldError('password')" />
-          </div>
+          <form [formGroup]="form" (ngSubmit)="onSubmit()" class="auth-form">
+            <div class="field-group">
+              <tui-textfield>
+                <label tuiLabel>Nome</label>
+                <input tuiTextfield type="text" formControlName="name" autocomplete="name" />
+              </tui-textfield>
+              <tui-error [error]="fieldError('name')" />
+            </div>
 
-          <div>
-            <tui-textfield>
-              <label tuiLabel>Chave de aplicação</label>
-              <input tuiTextfield type="password" formControlName="appKey" autocomplete="off" />
-            </tui-textfield>
-            <tui-error [error]="fieldError('appKey')" />
-          </div>
+            <div class="field-group">
+              <tui-textfield>
+                <label tuiLabel>E-mail</label>
+                <input tuiTextfield type="email" formControlName="email" autocomplete="email" />
+              </tui-textfield>
+              <tui-error [error]="fieldError('email')" />
+            </div>
 
-          <button
-            type="submit"
-            [disabled]="submitting()"
-            class="w-full py-3 px-6 rounded-xl text-white transition-all duration-200 hover:opacity-90 active:scale-95 mt-2"
-            style="background: var(--color-primary); color: var(--color-on-primary); border: none; cursor: pointer; font-family: 'Figtree', sans-serif; font-size: 0.9rem; font-weight: 300; letter-spacing: 0.025em; border-radius: var(--radius-lg);">
-            {{ submitting() ? 'Criando conta\u2026' : 'Criar conta' }}
-          </button>
-        </form>
+            <div class="field-group">
+              <tui-textfield>
+                <label tuiLabel>Senha</label>
+                <input tuiTextfield type="password" formControlName="password" autocomplete="new-password" />
+              </tui-textfield>
+              <tui-error [error]="fieldError('password')" />
+            </div>
 
-        <p class="text-center mt-6 text-sm" style="font-weight: 200; color: var(--tui-text-secondary)">
-          Já tem conta?
-          <a tuiLink routerLink="/login">Entrar</a>
-        </p>
+            <div class="field-group">
+              <tui-textfield>
+                <label tuiLabel>Chave de aplicação</label>
+                <input tuiTextfield type="password" formControlName="appKey" autocomplete="off" />
+              </tui-textfield>
+              <tui-error [error]="fieldError('appKey')" />
+            </div>
+
+            <button type="submit" class="submit-btn" [disabled]="submitting()">
+              {{ submitting() ? 'Criando conta…' : 'Criar conta' }}
+            </button>
+          </form>
+
+          <p class="form-footer">
+            Já tem conta?
+            <a tuiLink routerLink="/login">Entrar</a>
+          </p>
+        </div>
       </div>
     </div>
   `,
-  styles: [],
+  styles: [`
+    :host { display: block; height: 100vh; }
+
+    .auth-layout {
+      display: flex;
+      height: 100%;
+    }
+
+    /* ── Brand panel ───────────────────────────────── */
+    .brand-panel {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(145deg, #006a2d 0%, #004d20 60%, #003015 100%);
+      padding: 3rem 2.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .brand-panel::before {
+      content: '';
+      position: absolute;
+      width: 500px;
+      height: 500px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(107,255,143,0.12) 0%, transparent 70%);
+      top: -100px;
+      right: -100px;
+      pointer-events: none;
+    }
+
+    .brand-inner {
+      position: relative;
+      z-index: 1;
+      max-width: 360px;
+    }
+
+    .brand-logo {
+      width: 72px;
+      height: 72px;
+      background: rgba(255,255,255,0.12);
+      border-radius: var(--radius-xl);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.5rem;
+      padding: 10px;
+      backdrop-filter: blur(4px);
+    }
+    .brand-logo img { width: 100%; height: 100%; display: block; }
+
+    .brand-wordmark {
+      font-family: var(--font-display);
+      font-size: 2rem;
+      font-weight: 900;
+      letter-spacing: 0.14em;
+      color: #ffffff;
+      margin-bottom: 0.5rem;
+    }
+
+    .brand-tagline {
+      font-family: var(--font-sans);
+      font-size: 0.9375rem;
+      font-weight: 400;
+      color: rgba(255,255,255,0.72);
+      margin: 0 0 2rem;
+      line-height: 1.5;
+    }
+
+    .brand-features {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .brand-features li {
+      font-family: var(--font-sans);
+      font-size: 0.875rem;
+      font-weight: 400;
+      color: rgba(255,255,255,0.80);
+      padding-left: 1.25rem;
+      position: relative;
+      line-height: 1.4;
+    }
+    .brand-features li::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      color: #6bff8f;
+      font-weight: 700;
+    }
+
+    /* ── Form panel ────────────────────────────────── */
+    .form-panel {
+      width: 480px;
+      min-width: 480px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--color-surface-container-lowest);
+      border-left: 1px solid var(--color-outline-variant);
+      padding: 2rem;
+      overflow-y: auto;
+    }
+
+    .form-inner {
+      width: 100%;
+      max-width: 360px;
+    }
+
+    .mobile-logo { display: none; }
+
+    .form-title {
+      font-family: var(--font-display);
+      font-size: 1.625rem;
+      font-weight: 700;
+      color: var(--color-on-surface);
+      margin: 0 0 0.375rem;
+    }
+
+    .form-subtitle {
+      font-family: var(--font-sans);
+      font-size: 0.875rem;
+      font-weight: 400;
+      color: var(--color-on-surface-variant);
+      margin: 0 0 2rem;
+    }
+
+    .auth-form {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .submit-btn {
+      width: 100%;
+      padding: 0.75rem 1.5rem;
+      margin-top: 0.5rem;
+      background: var(--color-primary);
+      color: var(--color-on-primary);
+      border: none;
+      border-radius: var(--radius-lg);
+      font-family: var(--font-sans);
+      font-size: 0.9375rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity var(--duration-fast) var(--ease-default);
+      letter-spacing: 0.02em;
+    }
+    .submit-btn:hover:not(:disabled) { opacity: 0.88; }
+    .submit-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .form-footer {
+      margin-top: 1.5rem;
+      text-align: center;
+      font-family: var(--font-sans);
+      font-size: 0.875rem;
+      font-weight: 400;
+      color: var(--color-on-surface-variant);
+    }
+
+    /* ── Mobile ────────────────────────────────────── */
+    @media (max-width: 767px) {
+      .brand-panel { display: none; }
+      .form-panel {
+        width: 100%;
+        min-width: unset;
+        border-left: none;
+        background: var(--color-surface);
+        align-items: flex-start;
+        padding-top: 3rem;
+      }
+      .form-inner { max-width: 100%; }
+      .mobile-logo {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1.5rem;
+      }
+      .mobile-logo img {
+        width: 56px;
+        height: 56px;
+      }
+    }
+  `],
 })
 export class RegisterComponent {
   private readonly fb = inject(FormBuilder);
