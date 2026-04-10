@@ -48,10 +48,10 @@ import { ThemeService } from '../core/theme/theme.service';
     }
 
     .sidebar-brand {
-      padding: 1.25rem 1.25rem 0.75rem;
+      padding: 0.875rem 1rem 0.625rem;
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.625rem;
       font-weight: 900;
       font-size: 0.9rem;
       letter-spacing: 0.12em;
@@ -60,58 +60,75 @@ import { ThemeService } from '../core/theme/theme.service';
       flex-shrink: 0;
     }
     .brand-icon {
-      width: 32px;
-      height: 32px;
+      width: 22px;
+      height: 38px;
       flex-shrink: 0;
-      background: var(--color-secondary-container);
-      border-radius: var(--radius-md);
       display: flex;
       align-items: center;
       justify-content: center;
-      overflow: hidden;
-      padding: 3px;
     }
-    .brand-icon img { width: 100%; height: 100%; display: block; }
+    .brand-icon img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: contain;
+      filter: drop-shadow(0 1px 2px color-mix(in srgb, var(--color-on-surface) 14%, transparent));
+    }
     .brand-name {
-      font-size: 0.875rem;
-      font-weight: 900;
-      letter-spacing: 0.14em;
+      font-size: 0.8125rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
       color: var(--color-on-surface);
-      font-family: var(--font-display);
+      font-family: var(--font-brand);
       white-space: nowrap;
       overflow: hidden;
     }
-    .sidebar.collapsed .sidebar-brand { justify-content: center; padding: 1.25rem 0 0.75rem; }
+    .sidebar.collapsed .sidebar-brand { justify-content: center; padding: 0.875rem 0 0.5rem; }
     .sidebar.collapsed .sidebar-brand span { display: none; }
 
-    .nav-section { padding: 0.5rem 0.75rem; flex: 1; }
+    .nav-section { padding: 0.5rem 0.625rem; flex: 1; }
 
     .nav-item, .nav-item-toggle {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
-      padding: 0.625rem 0.75rem;
-      border-radius: var(--radius-lg);
-      margin-bottom: 0.25rem;
+      gap: 0.625rem;
+      padding: 0.4375rem 0.625rem;
+      border-radius: var(--radius-md);
+      margin-bottom: 0.125rem;
       text-decoration: none;
       color: var(--color-on-surface-variant);
-      font-weight: 200;
-      font-size: 0.875rem;
+      font-weight: 400;
+      font-size: 0.8125rem;
+      line-height: 1.2;
+      min-height: 0;
       transition: background var(--duration-fast) var(--ease-default), color var(--duration-fast) var(--ease-default);
       position: relative;
       cursor: pointer;
     }
     .nav-item-toggle { background: transparent; border: none; width: 100%; text-align: left; font-family: 'Figtree', sans-serif; }
-    .nav-item:hover, .nav-item-toggle:hover { background: var(--color-surface-container); color: var(--color-on-surface); }
-    .nav-item.active, .nav-item-toggle.active {
-      background: var(--color-surface-container);
-      border: 1px solid var(--color-outline-variant);
+    .nav-item:hover, .nav-item-toggle:hover {
+      background: var(--color-surface-container-low);
       color: var(--color-on-surface);
-      font-weight: 700;
-      box-shadow: var(--shadow-sm);
+    }
+    .nav-item.active, .nav-item-toggle.active {
+      background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+      color: color-mix(in srgb, var(--color-primary) 80%, var(--color-on-surface));
+      font-weight: 600;
+    }
+    .nav-item.active::before, .nav-item-toggle.active::before {
+      content: '';
+      position: absolute;
+      left: -0.625rem;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 60%;
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      background: var(--color-primary);
     }
 
-    .nav-icon { width: 1.25rem; height: 1.25rem; opacity: 0.8; flex-shrink: 0; }
+    .nav-icon { width: 1.125rem; height: 1.125rem; opacity: 0.85; flex-shrink: 0; }
+    .nav-item.active .nav-icon, .nav-item-toggle.active .nav-icon { opacity: 1; }
     .toggle-chevron {
       margin-left: auto;
       flex-shrink: 0;
@@ -191,24 +208,24 @@ import { ThemeService } from '../core/theme/theme.service';
     .sidebar.collapsed .user-footer-row { justify-content: center; padding: 0.625rem 0; }
 
     .sidebar-footer {
-      padding: 1rem 0.75rem;
+      padding: 0.5rem 0.625rem 0.625rem;
       border-top: 1px solid var(--color-outline-variant);
     }
 
     .user-footer-row {
       display: flex;
       align-items: center;
-      gap: 0.625rem;
-      padding: 0.625rem 0.5rem;
+      gap: 0.5rem;
+      padding: 0.4375rem 0.5rem;
       border-radius: var(--radius-md);
       cursor: default;
       transition: background var(--duration-fast) var(--ease-default);
     }
-    .user-footer-row:hover { background: var(--color-surface-container); }
+    .user-footer-row:hover { background: var(--color-surface-container-low); }
 
     .avatar {
-      width: 2.25rem;
-      height: 2.25rem;
+      width: 1.875rem;
+      height: 1.875rem;
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -330,24 +347,6 @@ import { ThemeService } from '../core/theme/theme.service';
       gap: 0.625rem;
     }
 
-    .header-sidebar-toggle {
-      background: transparent;
-      border: none;
-      cursor: pointer;
-      color: var(--color-on-surface-variant);
-      padding: 0.375rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: var(--radius-md);
-      flex-shrink: 0;
-      transition: background var(--duration-fast) var(--ease-default), color var(--duration-fast) var(--ease-default);
-    }
-    .header-sidebar-toggle:hover {
-      background: var(--color-surface-container);
-      color: var(--color-on-surface);
-    }
-
     .theme-toggle-btn {
       background: transparent;
       border: none;
@@ -359,7 +358,6 @@ import { ThemeService } from '../core/theme/theme.service';
       justify-content: center;
       border-radius: var(--radius-md);
       flex-shrink: 0;
-      margin-left: auto;
       transition: background var(--duration-fast) var(--ease-default), color var(--duration-fast) var(--ease-default);
     }
     .theme-toggle-btn:hover {
@@ -368,52 +366,62 @@ import { ThemeService } from '../core/theme/theme.service';
     }
 
     .page-header-title {
+      flex: 1;
       font-size: 1.125rem;
       font-weight: 700;
       margin: 0;
       color: var(--color-on-surface);
+      font-family: 'Geist', sans-serif;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+    }
+
+    /* Toggle buttons: show only the relevant one per breakpoint */
+
+    /* Desktop collapse toggle — hidden on mobile */
+    .btn-collapse-desktop {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      color: var(--color-on-surface-variant);
+      padding: 0.375rem;
       display: flex;
       align-items: center;
-      gap: 0.75rem;
-      font-family: 'Geist', sans-serif;
+      justify-content: center;
+      border-radius: var(--radius-md);
+      flex-shrink: 0;
+      transition: background var(--duration-fast) var(--ease-default), color var(--duration-fast) var(--ease-default);
     }
-    .page-header-sep {
-      color: var(--color-outline-variant);
-      font-weight: 200;
+    .btn-collapse-desktop:hover {
+      background: var(--color-surface-container);
+      color: var(--color-on-surface);
     }
-    .back-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.25rem;
-      font-size: 0.8125rem;
-      font-weight: 300;
-      color: var(--color-on-surface-variant);
-      text-decoration: none;
-      transition: color var(--duration-fast) var(--ease-default);
-    }
-    .back-link:hover { color: var(--color-on-surface); }
 
-    /* Mobile */
-    .mobile-header {
+    /* Mobile hamburger — hidden on desktop */
+    .btn-hamburger-mobile {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      color: var(--color-on-surface-variant);
+      padding: 0.375rem;
       display: none;
       align-items: center;
-      gap: 1rem;
-      padding: 0.75rem 1rem;
-      background: var(--color-surface-container-lowest);
-      border-bottom: 1px solid var(--color-outline-variant);
-      position: sticky;
-      top: 0;
-      z-index: 50;
+      justify-content: center;
+      border-radius: var(--radius-md);
+      flex-shrink: 0;
+      transition: background var(--duration-fast) var(--ease-default), color var(--duration-fast) var(--ease-default);
     }
-    .hamburger {
-      border: none; background: transparent; cursor: pointer; padding: 0.25rem;
-      color: var(--color-on-surface); display: flex; align-items: center;
+    .btn-hamburger-mobile:hover {
+      background: var(--color-surface-container);
+      color: var(--color-on-surface);
     }
-    .mobile-brand { font-size: 1.25rem; font-weight: 700; color: var(--color-on-surface); }
 
     @media (max-width: 767px) {
       :host { flex-direction: column; }
-      .mobile-header { display: flex; }
+      .btn-collapse-desktop { display: none; }
+      .btn-hamburger-mobile { display: flex; }
       .sidebar {
         display: flex;
         position: fixed;
@@ -437,14 +445,6 @@ import { ThemeService } from '../core/theme/theme.service';
     }
   `],
   template: `
-    <!-- Mobile top bar -->
-    <div class="mobile-header">
-      <button class="hamburger" (click)="toggleSidebar()" aria-label="Abrir menu" type="button">
-        <lucide-icon [img]="icons.Menu" [size]="20" aria-hidden="true" />
-      </button>
-      <span class="mobile-brand">PAPAGAI</span>
-    </div>
-
     @if (sidebarOpen()) {
       <div class="sidebar-overlay" (click)="closeSidebar()"></div>
     }
@@ -502,9 +502,10 @@ import { ThemeService } from '../core/theme/theme.service';
 
     <main class="main">
       <div class="page-header-bar">
-        <!-- Content section: collapse/expand button + page title -->
+        <!-- Content section: toggle + page title -->
         <div class="header-content-section">
-          <button type="button" class="header-sidebar-toggle" (click)="toggleCollapse()"
+          <!-- Desktop only: sidebar collapse/expand toggle -->
+          <button type="button" class="btn-collapse-desktop" (click)="toggleCollapse()"
                   [title]="sidebarCollapsed() ? 'Expandir menu' : 'Recolher menu'"
                   [attr.aria-label]="sidebarCollapsed() ? 'Expandir menu lateral' : 'Recolher menu lateral'">
             @if (sidebarCollapsed()) {
@@ -513,26 +514,12 @@ import { ThemeService } from '../core/theme/theme.service';
               <lucide-icon [img]="icons.PanelLeftClose" [size]="18" aria-hidden="true" />
             }
           </button>
-          <h1 class="page-header-title">
-            @if (isInstancePage()) {
-              <a routerLink="/dashboard" class="back-link">
-                <lucide-icon [img]="icons.ChevronLeft" [size]="16" aria-hidden="true" />
-                Voltar
-              </a>
-              <span class="page-header-sep">|</span>
-            }
-            {{ pageTitle() }}
-          </h1>
-          <button type="button" class="theme-toggle-btn"
-                  (click)="theme.toggle()"
-                  [attr.aria-label]="theme.isDark() ? 'Mudar para tema claro' : 'Mudar para tema escuro'"
-                  [title]="theme.isDark() ? 'Tema claro' : 'Tema escuro'">
-            @if (theme.isDark()) {
-              <lucide-icon [img]="icons.Sun" [size]="18" aria-hidden="true" />
-            } @else {
-              <lucide-icon [img]="icons.Moon" [size]="18" aria-hidden="true" />
-            }
+          <!-- Mobile only: hamburger that opens the drawer -->
+          <button type="button" class="btn-hamburger-mobile" (click)="toggleSidebar()"
+                  aria-label="Abrir menu de navegação">
+            <lucide-icon [img]="icons.Menu" [size]="18" aria-hidden="true" />
           </button>
+          <h1 class="page-header-title">{{ pageTitle() }}</h1>
           @if (headerActions.actions().length) {
             <div class="header-actions">
               @for (action of headerActions.actions(); track action.id) {
@@ -545,6 +532,16 @@ import { ThemeService } from '../core/theme/theme.service';
               }
             </div>
           }
+          <button type="button" class="theme-toggle-btn"
+                  (click)="theme.toggle()"
+                  [attr.aria-label]="theme.isDark() ? 'Mudar para tema claro' : 'Mudar para tema escuro'"
+                  [title]="theme.isDark() ? 'Tema claro' : 'Tema escuro'">
+            @if (theme.isDark()) {
+              <lucide-icon [img]="icons.Sun" [size]="18" aria-hidden="true" />
+            } @else {
+              <lucide-icon [img]="icons.Moon" [size]="18" aria-hidden="true" />
+            }
+          </button>
         </div>
       </div>
       <router-outlet />

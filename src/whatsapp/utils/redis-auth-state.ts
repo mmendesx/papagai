@@ -1,8 +1,12 @@
 import { Redis } from 'ioredis';
 import { initAuthCreds, BufferJSON } from '@whiskeysockets/baileys';
 
-export async function useRedisAuthState(redis: Redis, instanceName: string) {
-  const prefix = `papagai:${instanceName}`;
+export async function useRedisAuthState(
+  redis: Redis,
+  userId: string,
+  instanceName: string,
+) {
+  const prefix = `papagai:${userId}:${instanceName}`;
 
   const readData = async (key: string): Promise<any> => {
     const data = await redis.get(key);

@@ -1,0 +1,50 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: papagai_test
+          POSTGRES_USER: papagai
+          POSTGRES_PASSWORD: papagai
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - name: Run e2e tests
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USER: papagai
+          DB_PASS: papagai
+          DB_NAME: papagai_test
+          NODE_ENV: development
+          JWT_SECRET: e2e-integration-secret
+          APP_KEY: ci-app-key
+          REDIS_URL: redis://localhost:6379
+        run: npm run test:e2e

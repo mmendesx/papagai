@@ -46,6 +46,11 @@ services:
         condition: service_healthy
     expose:
       - "3000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     environment:
       NODE_ENV: development
       LOG_LEVEL: info
@@ -60,6 +65,7 @@ services:
       REDIS_URL: redis://redis:6379
       MEDIA_DIR: /app/media
       INSTANCES_DIR: /app/instances
+      # WEBHOOK_ALLOW_PRIVATE_HOSTS: "true"  # dev only — allows localhost webhook targets
     volumes:
       - .:/app
       - /app/node_modules

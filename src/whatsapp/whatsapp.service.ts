@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -6,70 +11,75 @@ import { InstanceConfig } from '../instances/entities/instance-config.entity.js'
 import { Redis } from 'ioredis';
 import { useRedisAuthState } from './utils/redis-auth-state.js';
 import makeWASocket, {
-  DisconnectReason,
-  downloadContentFromMessage,
   fetchLatestBaileysVersion,
   fetchLatestWaWebVersion,
 } from '@whiskeysockets/baileys';
-import { Boom } from '@hapi/boom';
 import * as fs from 'fs';
-import * as path from 'path';
-import axios from 'axios';
 import {
   Instance,
-  MediaFile,
   WebhookData,
   ChatInfo,
   ContactInfo,
 } from './interfaces/whatsapp.interface.js';
 import { WebhookService } from '../webhook/webhook.service.js';
+import { ChatStoreService } from './chat-store.service.js';
 import { phoneNumberToJid } from './utils/jid.js';
-
-const MEDIA_EXTENSION_FALLBACK: Record<string, string> = {
-  image: 'jpg',
-  audio: 'ogg',
-  video: 'mp4',
-  document: 'bin',
-  sticker: 'webp',
-};
+import { downloadMedia } from './utils/media-downloader.js';
+import {
+  MAX_RECONNECT_RETRIES,
+  ReconnectionContext,
+  handleConnectionClose,
+} from './utils/reconnection-manager.js';
+import { WebhookEnricher } from './utils/webhook-enricher.js';
+import { resolveJid } from './utils/jid-resolver.js';
 
 @Injectable()
 export class WhatsappService implements OnModuleDestroy, OnModuleInit {
-  private static readonly MAX_RETRIES = 5;
   private readonly logger = new Logger(WhatsappService.name);
   private instances: Map<string, Instance> = new Map();
   private qrCodes: Map<string, string> = new Map();
   private mediaDir: string;
   private readonly redis: Redis;
-
-  private readonly MESSAGE_TYPE_DETECTORS: Array<{
-    test: (m: any) => boolean;
-    resolve: string | ((m: any) => string);
-  }> = [
-    { test: (m) => !!(m.conversation || m.extendedTextMessage), resolve: 'text' },
-    { test: (m) => !!m.imageMessage, resolve: 'image' },
-    { test: (m) => !!m.audioMessage, resolve: (m) => (m.audioMessage.ptt ? 'voice' : 'audio') },
-    { test: (m) => !!m.videoMessage, resolve: 'video' },
-    { test: (m) => !!m.documentMessage, resolve: 'document' },
-    { test: (m) => !!m.stickerMessage, resolve: 'sticker' },
-    { test: (m) => !!m.locationMessage, resolve: 'location' },
-    { test: (m) => !!m.contactMessage, resolve: 'contact' },
-    { test: (m) => !!m.buttonsResponseMessage, resolve: 'button_response' },
-    { test: (m) => !!m.listResponseMessage, resolve: 'list_response' },
-    { test: (m) => !!m.reactionMessage, resolve: 'reaction' },
-  ];
+  private readonly webhookEnricher: WebhookEnricher;
+  private readonly reconnectionContext: ReconnectionContext;
 
   constructor(
     private configService: ConfigService,
     private webhookService: WebhookService,
+    private chatStore: ChatStoreService,
     @InjectRepository(InstanceConfig)
     private instanceConfigRepo: Repository<InstanceConfig>,
   ) {
-    this.redis = new Redis(this.configService.get<string>('redisUrl') || 'redis://localhost:6379');
+    this.redis = new Redis(
+      this.configService.get<string>('redisUrl') || 'redis://localhost:6379',
+    );
     this.mediaDir = this.configService.get<string>('mediaDir') || './media';
     if (!fs.existsSync(this.mediaDir)) {
       fs.mkdirSync(this.mediaDir, { recursive: true });
     }
+
+    this.webhookEnricher = new WebhookEnricher((msg, type) =>
+      downloadMedia(msg, type, this.mediaDir, this.logger),
+    );
+
+    this.reconnectionContext = {
+      maxRetries: MAX_RECONNECT_RETRIES,
+      logger: this.logger,
+      webhookService: this.webhookService,
+      onRemoveFromMaps: (key) => {
+        this.instances.delete(key);
+        this.qrCodes.delete(key);
+      },
+      onReconnect: (key, retryCount) => {
+        this.reconnectInstance(key, retryCount).catch((err: unknown) =>
+          this.logger.error(
+            `Reconnect failed for "${key}": ${err instanceof Error ? err.message : String(err)}`,
+          ),
+        );
+      },
+      onPurge: (userId, instanceName) =>
+        this.purgeInstance(userId, instanceName),
+    };
   }
 
   async onModuleInit(): Promise<void> {
@@ -86,16 +96,17 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
     for (const config of configs) {
       try {
         await this.createInstance(
+          config.userId,
           config.name,
           config.webhookUrl ?? undefined,
           config.webhookHeaders,
           config.webhookEnabled,
           config.webhookEvents,
         );
-        this.logger.log(`Restored instance "${config.name}"`);
+        this.logger.log(`Restored instance "${config.userId}:${config.name}"`);
       } catch (error) {
         this.logger.error(
-          `Failed to restore instance "${config.name}": ${error instanceof Error ? error.message : String(error)}`,
+          `Failed to restore instance "${config.userId}:${config.name}": ${error instanceof Error ? error.message : String(error)}`,
         );
       }
 
@@ -106,36 +117,49 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
   }
 
   async createInstance(
+    userId: string,
     instanceName: string,
     webhookUrl?: string,
     webhookHeaders?: Record<string, string>,
     webhookEnabled?: boolean,
     webhookEvents?: string[],
   ): Promise<Instance> {
-    if (this.instances.has(instanceName)) {
+    const compositeKey = `${userId}:${instanceName}`;
+    if (this.instances.has(compositeKey)) {
       throw new Error(`Papagai ${instanceName} já existe!`);
     }
 
-    const { state, saveCreds } = await useRedisAuthState(this.redis, instanceName);
+    const { state, saveCreds } = await useRedisAuthState(
+      this.redis,
+      userId,
+      instanceName,
+    );
 
     let version: [number, number, number] | undefined;
     try {
       const result = await fetchLatestWaWebVersion({
         headers: {
           'sec-fetch-site': 'none',
-          'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+          'user-agent':
+            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
         },
       });
       version = result.error ? undefined : result.version;
       if (result.error) {
-        const fallback = await fetchLatestBaileysVersion({}).catch(() => ({ version: undefined }));
+        const fallback = await fetchLatestBaileysVersion({}).catch(() => ({
+          version: undefined,
+        }));
         version = fallback.version;
       }
     } catch {
-      const fallback = await fetchLatestBaileysVersion({}).catch(() => ({ version: undefined }));
+      const fallback = await fetchLatestBaileysVersion({}).catch(() => ({
+        version: undefined,
+      }));
       version = fallback.version;
     }
-    this.logger.debug(`Using Baileys version: ${version?.join('.') ?? 'built-in default'}`);
+    this.logger.debug(
+      `Using Baileys version: ${version?.join('.') ?? 'built-in default'}`,
+    );
 
     const sock = makeWASocket({
       version,
@@ -150,9 +174,17 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
       getMessage: async () => ({ conversation: '' }),
     });
 
-    const DEFAULT_WEBHOOK_EVENTS = ['message', 'message_update', 'qr', 'connected', 'disconnected'];
+    const DEFAULT_WEBHOOK_EVENTS = [
+      'message',
+      'message_update',
+      'qr',
+      'connected',
+      'disconnected',
+    ];
 
-    const resolvedWebhookEnabled = webhookUrl ? (webhookEnabled ?? true) : false;
+    const resolvedWebhookEnabled = webhookUrl
+      ? (webhookEnabled ?? true)
+      : false;
     const resolvedWebhookEvents = webhookEvents ?? DEFAULT_WEBHOOK_EVENTS;
 
     const instance: Instance = {
@@ -162,6 +194,7 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
       webhookEnabled: resolvedWebhookEnabled,
       webhookEvents: resolvedWebhookEvents,
       name: instanceName,
+      userId,
       connected: false,
       qr: null,
       saveCreds,
@@ -170,22 +203,40 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
       retryCount: 0,
     };
 
-    this.instances.set(instanceName, instance);
+    this.instances.set(compositeKey, instance);
     this.registerSocketEvents(instance);
+
+    // Hydrate chat store from Redis (non-blocking — failure is logged, not thrown)
+    this.chatStore
+      .hydrate(userId, instanceName)
+      .catch((err: unknown) =>
+        this.logger.warn(
+          `Chat store hydration failed for "${compositeKey}": ${err instanceof Error ? err.message : String(err)}`,
+        ),
+      );
 
     await this.instanceConfigRepo.upsert(
       {
+        userId,
         name: instanceName,
         webhookUrl: webhookUrl ?? null,
         webhookHeaders: webhookHeaders ?? {},
         webhookEnabled: resolvedWebhookEnabled,
         webhookEvents: resolvedWebhookEvents,
       },
-      ['name'],
+      ['userId', 'name'],
     );
 
-    this.logger.log(`Instance "${instanceName}" created`);
+    this.logger.log(`Instance "${compositeKey}" created`);
     return instance;
+  }
+
+  private instanceKey(userId: string, name: string): string {
+    return `${userId}:${name}`;
+  }
+
+  private instanceKeyOf(instance: Instance): string {
+    return this.instanceKey(instance.userId, instance.name);
   }
 
   private registerSocketEvents(instance: Instance): void {
@@ -197,10 +248,34 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
 
     sock.ev.on('creds.update', instance.saveCreds);
 
+    sock.ev.on('messaging-history.set', ({ chats, messages, isLatest, progress }) => {
+      this.logger.log(
+        `History sync for "${instance.name}": ${chats.length} chats, ${messages.length} messages (latest=${isLatest}, progress=${progress ?? '?'})`,
+      );
+      this.chatStore.recordHistorySync(
+        instance.userId,
+        instance.name,
+        chats,
+        messages,
+      );
+    });
+
     sock.ev.on('messages.upsert', ({ messages, type }) => {
       if (type !== 'notify') return;
       for (const msg of messages) {
-        if (!msg.key.fromMe) {
+        // Record every message (both directions) in the chat store.
+        // recordIncoming/recordOutgoing both dedup on msg.key.id so echoes
+        // from Baileys after send() won't double-count.
+        if (msg.key.fromMe) {
+          this.chatStore.recordOutgoing(
+            instance.userId,
+            instance.name,
+            msg.key.remoteJid ?? '',
+            null,
+            msg,
+          );
+        } else {
+          this.chatStore.recordIncoming(instance.userId, instance.name, msg);
           this.handleIncomingMessage(instance, msg).catch((err) =>
             this.logger.error(
               `Error handling incoming message for "${instance.name}": ${err instanceof Error ? err.message : String(err)}`,
@@ -231,8 +306,10 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
 
     if (qr) {
       instance.qr = qr;
-      this.qrCodes.set(instance.name, qr);
-      this.logger.log(`QR code generated for instance "${instance.name}"`);
+      this.qrCodes.set(this.instanceKeyOf(instance), qr);
+      this.logger.log(
+        `QR code generated for instance "${this.instanceKeyOf(instance)}"`,
+      );
       const data: WebhookData = {
         event: 'qr',
         instance: instance.name,
@@ -247,7 +324,7 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
       instance.lastConnectedAt = Date.now();
       instance.retryCount = 0;
       instance.qr = null;
-      this.qrCodes.delete(instance.name);
+      this.qrCodes.delete(this.instanceKeyOf(instance));
       const phoneNumber = (instance.socket.user?.id ?? '').split(':')[0];
       this.logger.log(
         `Instance "${instance.name}" connected as ${phoneNumber}`,
@@ -262,79 +339,8 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
     }
 
     if (connection === 'close') {
-      this.handleConnectionClose(instance, lastDisconnect);
+      handleConnectionClose(instance, lastDisconnect, this.reconnectionContext);
     }
-  }
-
-  private handleConnectionClose(instance: Instance, lastDisconnect: any): void {
-    const statusCode =
-      lastDisconnect?.error instanceof Boom
-        ? lastDisconnect.error.output?.statusCode
-        : null;
-    const isLoggedOut = statusCode === DisconnectReason.loggedOut;
-    const isConflict = statusCode === 440;
-
-    const retryCount = instance.retryCount + 1;
-    const willReconnect = !isLoggedOut && !isConflict && retryCount <= WhatsappService.MAX_RETRIES;
-
-    this.logger.warn(
-      `Instance "${instance.name}" disconnected — statusCode=${statusCode}, attempt=${retryCount}/${WhatsappService.MAX_RETRIES}, willReconnect=${willReconnect}`,
-    );
-
-    const data: WebhookData = {
-      event: 'disconnected',
-      instance: instance.name,
-      reason: lastDisconnect?.error?.message || 'Unknown',
-      willReconnect,
-      timestamp: Date.now(),
-    };
-    this.webhookService.sendWebhook(instance, data).catch(() => undefined);
-
-    if (isConflict) {
-      instance.connected = false;
-      this.instances.delete(instance.name);
-      this.qrCodes.delete(instance.name);
-      this.logger.warn(
-        `Instance "${instance.name}" replaced by another session (conflict) — not reconnecting`,
-      );
-      return;
-    }
-
-    if (isLoggedOut) {
-      instance.connected = false;
-      this.instances.delete(instance.name);
-      this.qrCodes.delete(instance.name);
-
-      const connectedDurationMs = instance.lastConnectedAt ? Date.now() - instance.lastConnectedAt : null;
-      const isSyncFailure = connectedDurationMs !== null && connectedDurationMs < 10_000;
-
-      if (isSyncFailure) {
-        // Baileys self-logout due to app state sync race condition on fresh connection.
-        // Keys saved during the brief session may be needed — retry without purging.
-        this.logger.warn(`Instance "${instance.name}" hit app state sync failure (connected for ${connectedDurationMs}ms) — retrying without purge`);
-        setTimeout(() => this.reconnectInstance(instance.name, 0), 3000);
-      } else {
-        this.purgeInstance(instance.name).catch((err: unknown) =>
-          this.logger.error(`Failed to purge logged-out instance "${instance.name}": ${err instanceof Error ? err.message : String(err)}`),
-        );
-      }
-      return;
-    }
-
-    instance.connected = false;
-    instance.retryCount = retryCount;
-
-    if (retryCount > WhatsappService.MAX_RETRIES) {
-      this.logger.error(
-        `Instance "${instance.name}" gave up reconnecting after ${WhatsappService.MAX_RETRIES} attempts`,
-      );
-      instance.connected = false;
-      this.instances.delete(instance.name);
-      this.qrCodes.delete(instance.name);
-      return;
-    }
-
-    setTimeout(() => this.reconnectInstance(instance.name, retryCount), 5000);
   }
 
   private async handleIncomingMessage(
@@ -344,7 +350,7 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
     const sender: string = msg.key.remoteJid;
     const phoneNumber = sender.split('@')[0];
     const pushName: string = msg.pushName || 'Unknown';
-    const messageType = this.getMessageType(msg);
+    const messageType = this.webhookEnricher.getMessageType(msg);
 
     const webhookData: WebhookData = {
       event: 'message',
@@ -358,7 +364,7 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
       groupId: sender.includes('@g.us') ? sender : null,
     };
 
-    await this.enrichWebhookData(webhookData, msg, messageType);
+    await this.webhookEnricher.enrich(webhookData, msg, messageType);
 
     this.logger.log(
       `Incoming ${messageType} from ${phoneNumber} on instance "${instance.name}"`,
@@ -366,164 +372,42 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
     await this.webhookService.sendWebhook(instance, webhookData);
   }
 
-  private async enrichWebhookData(
-    webhookData: WebhookData,
-    msg: any,
-    messageType: string,
-  ): Promise<void> {
-    type Enricher = (msg: any, data: WebhookData) => Promise<void>;
-    const ENRICHERS: Partial<Record<string, Enricher>> = {
-      text: async (msg, data) => {
-        data.text = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
-      },
-      image: async (msg, data) => {
-        const r = await this.downloadMedia(msg, 'image');
-        if (r) { data.image = r; data.caption = r.caption; }
-      },
-      audio: async (msg, data) => {
-        const r = await this.downloadMedia(msg, 'audio');
-        if (r) { data.audio = r; data.duration = r.duration; }
-      },
-      voice: async (msg, data) => {
-        const r = await this.downloadMedia(msg, 'audio');
-        if (r) { data.voice = r; data.duration = r.duration; }
-      },
-      video: async (msg, data) => {
-        const r = await this.downloadMedia(msg, 'video');
-        if (r) { data.video = r; data.caption = r.caption; data.duration = r.duration; }
-      },
-      document: async (msg, data) => {
-        const r = await this.downloadMedia(msg, 'document');
-        if (r) { data.document = r; data.filename = r.filename; }
-      },
-      sticker: async (msg, data) => {
-        const r = await this.downloadMedia(msg, 'sticker');
-        if (r) data.sticker = r;
-      },
-      location: async (msg, data) => {
-        const loc = msg.message?.locationMessage;
-        data.location = {
-          degreesLatitude: loc?.degreesLatitude,
-          degreesLongitude: loc?.degreesLongitude,
-          name: loc?.name,
-          address: loc?.address,
-        };
-      },
-      contact: async (msg, data) => {
-        const contact = msg.message?.contactMessage;
-        const vcard: string = contact?.vcard || '';
-        data.contact = {
-          displayName: contact?.displayName || '',
-          vcard,
-          numbers: this.parseVCard(vcard),
-        };
-      },
-      button_response: async (msg, data) => {
-        const btn = msg.message?.buttonsResponseMessage;
-        data.buttonId = btn?.selectedButtonId;
-        data.text = btn?.selectedDisplayText;
-      },
-      reaction: async (msg, data) => {
-        const react = msg.message?.reactionMessage;
-        data.reaction = react?.text;
-        data.parentMessageId = react?.key?.id;
-      },
-    };
-    const enrich = ENRICHERS[messageType];
-    if (enrich) await enrich(msg, webhookData);
-  }
-
-  private getMessageType(msg: any): string {
-    const m = msg.message;
-    if (!m) return 'unknown';
-    const detector = this.MESSAGE_TYPE_DETECTORS.find(({ test }) => test(m));
-    if (!detector) return 'unknown';
-    return typeof detector.resolve === 'function' ? detector.resolve(m) : detector.resolve;
-  }
-
-  private async downloadMedia(
-    msg: any,
-    mediaType: string,
-  ): Promise<MediaFile | null> {
-    try {
-      const messageKey = `${mediaType}Message`;
-      const mediaMessage: any = msg.message?.[messageKey] ?? null;
-      if (!mediaMessage) return null;
-
-      const stream = await downloadContentFromMessage(mediaMessage, mediaType as any);
-
-      const mimeType: string = mediaMessage.mimetype || '';
-      const extensionFromMime = mimeType.split('/')[1];
-      const extension =
-        extensionFromMime || MEDIA_EXTENSION_FALLBACK[mediaType] || 'bin';
-
-      const fileName = `${Date.now()}_${mediaType}.${extension}`;
-      const filePath = path.join(this.mediaDir, fileName);
-
-      const chunks: Buffer[] = [];
-      for await (const chunk of stream) {
-        chunks.push(chunk);
-      }
-      const buffer = Buffer.concat(chunks);
-      fs.writeFileSync(filePath, buffer);
-
-      return {
-        path: filePath,
-        url: `/media/${fileName}`,
-        filename: fileName,
-        mimetype: mimeType,
-        size: mediaMessage.fileLength ?? buffer.length,
-        caption: mediaMessage.caption || null,
-        duration: mediaMessage.seconds ?? undefined,
-      };
-    } catch (error) {
-      this.logger.error(
-        `Failed to download ${mediaType} media for message ${msg.key?.id}: ${error instanceof Error ? error.message : String(error)}`,
-      );
-      return null;
-    }
-  }
-
-  private async fetchBuffer(url: string): Promise<Buffer> {
-    if (url.startsWith('http')) {
-      const response = await axios.get(url, { responseType: 'arraybuffer' });
-      return Buffer.from(response.data as ArrayBuffer);
-    }
-    return fs.readFileSync(url);
-  }
-
-  private parseVCard(vcard: string): string[] {
-    const numbers: string[] = [];
-    const regex = /TEL[^:]*:([^\r\n]+)/g;
-    let match: RegExpExecArray | null;
-    while ((match = regex.exec(vcard)) !== null) {
-      const number = match[1].trim();
-      if (number) numbers.push(number);
-    }
-    return numbers;
-  }
-
-  private getConnectedInstance(instanceName: string): Instance {
-    const instance = this.instances.get(instanceName);
+  private getConnectedInstance(userId: string, instanceName: string): Instance {
+    const key = this.instanceKey(userId, instanceName);
+    const instance = this.instances.get(key);
     if (!instance || !instance.connected) {
       throw new Error(`Papagai ${instanceName} não está conectado!`);
     }
     return instance;
   }
 
-  private async purgeInstance(instanceName: string): Promise<void> {
-    const redisKeys = await this.redis.keys(`papagai:${instanceName}:*`);
+  private async purgeInstance(
+    userId: string,
+    instanceName: string,
+  ): Promise<void> {
+    const key = this.instanceKey(userId, instanceName);
+    this.chatStore.clearInstance(userId, instanceName);
+    const redisKeys = await this.redis.keys(
+      `papagai:${userId}:${instanceName}:*`,
+    );
     if (redisKeys.length > 0) {
       await this.redis.del(...redisKeys);
     }
-    await this.instanceConfigRepo.delete({ name: instanceName });
-    this.logger.log(`Purged storage for logged-out instance "${instanceName}"`);
+    await this.instanceConfigRepo.delete({ userId, name: instanceName });
+    this.logger.log(`Purged storage for logged-out instance "${key}"`);
   }
 
-  async send(instanceName: string, to: string, content: any): Promise<any> {
-    const instance = this.getConnectedInstance(instanceName);
-    const jid = await this.resolveJid(instance, to);
-    this.logger.debug(`Sending to JID: ${jid}, content keys: ${Object.keys(content).join(', ')}`);
+  async send(
+    userId: string,
+    instanceName: string,
+    to: string,
+    content: any,
+  ): Promise<any> {
+    const instance = this.getConnectedInstance(userId, instanceName);
+    const jid = await resolveJid(instance.socket, to, this.logger);
+    this.logger.debug(
+      `Sending to JID: ${jid}, content keys: ${Object.keys(content).join(', ')}`,
+    );
 
     let payload = content;
     const myJid = instance.socket.user?.id ?? '';
@@ -539,41 +423,29 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
     }
 
     const result = await instance.socket.sendMessage(jid, payload);
-    this.logger.debug(`sendMessage result: id=${result?.key?.id} status=${result?.status}`);
+    this.logger.debug(
+      `sendMessage result: id=${result?.key?.id} status=${result?.status}`,
+    );
+
+    // Extract text body for the store preview (best-effort)
+    const textBody: string | null =
+      content?.text ??
+      content?.caption ??
+      (typeof content === 'string' ? content : null);
+
+    // Record in the chat store; the messages.upsert Baileys echo will be deduped
+    // by msg.key.id so this does not double-count.
+    this.chatStore.recordOutgoing(userId, instanceName, to, textBody, result);
+
     return result;
   }
 
-  private async resolveJid(instance: Instance, to: string): Promise<string> {
-    const candidateJid = phoneNumberToJid(to);
-    try {
-      const results = await instance.socket.onWhatsApp(candidateJid);
-      const match = results?.[0];
-      if (match?.exists && match?.jid) {
-        this.logger.debug(`onWhatsApp resolved ${to} → ${match.jid}`);
-        return match.jid;
-      }
-      // Number not found with 9-digit; try without if it was inserted
-      const fallbackJid = phoneNumberToJid(to.replace(/^55(\d{2})9(\d{8})$/, '55$1$2'));
-      if (fallbackJid !== candidateJid) {
-        const fallbackResults = await instance.socket.onWhatsApp(fallbackJid);
-        const fallbackMatch = fallbackResults?.[0];
-        if (fallbackMatch?.exists && fallbackMatch?.jid) {
-          this.logger.debug(`onWhatsApp resolved ${to} via fallback → ${fallbackMatch.jid}`);
-          return fallbackMatch.jid;
-        }
-      }
-      this.logger.warn(`${to} not found on WhatsApp (tried ${candidateJid})`);
-    } catch (err) {
-      this.logger.warn(`onWhatsApp check failed for ${to}: ${err instanceof Error ? err.message : String(err)} — using constructed JID`);
-    }
-    return candidateJid;
-  }
-
   async getContactInfo(
+    userId: string,
     instanceName: string,
     number: string,
   ): Promise<ContactInfo> {
-    const instance = this.getConnectedInstance(instanceName);
+    const instance = this.getConnectedInstance(userId, instanceName);
     const jid = phoneNumberToJid(number);
 
     try {
@@ -597,34 +469,71 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
   }
 
   async getChats(
+    userId: string,
     instanceName: string,
-    includeMessages: boolean,
+    _includeMessages: boolean,
   ): Promise<ChatInfo[]> {
-    const instance = this.getConnectedInstance(instanceName);
-
-    try {
-      const sock = instance.socket as any;
-      const chats: any[] = typeof sock.getChats === 'function'
-        ? await sock.getChats()
-        : [];
-
-      return chats.map((chat: any) => ({
-        phoneNumber: (chat.id || '').split('@')[0],
-        pushName: chat.name || chat.notify || '',
-        unreadCount: chat.unreadCount || 0,
-        lastMessage: includeMessages ? chat.lastMessage?.message?.conversation : undefined,
-        timestamp: chat.conversationTimestamp || Date.now(),
-        isGroup: (chat.id || '').includes('@g.us'),
-      }));
-    } catch (error) {
-      this.logger.warn(
-        `Could not fetch chats for instance "${instanceName}": ${error instanceof Error ? error.message : String(error)}`,
-      );
-      return [];
+    // Instance must exist (connected or not) — just check it's registered
+    const key = this.instanceKey(userId, instanceName);
+    if (!this.instances.has(key)) {
+      throw new Error(`Papagai ${instanceName} não encontrado`);
     }
+
+    const summaries = this.chatStore.getChats(userId, instanceName);
+    return summaries.map((s) => ({
+      id: s.id,
+      phoneNumber: s.phoneNumber,
+      pushName: s.name ?? '',
+      name: s.name ?? undefined,
+      unreadCount: s.unreadCount,
+      lastMessage: s.lastMessage ?? undefined,
+      timestamp: s.lastMessageAt,
+      isGroup: s.isGroup,
+    }));
+  }
+
+  getChatMessages(
+    userId: string,
+    instanceName: string,
+    chatId: string,
+    limit: number,
+  ): import('./chat-store.service.js').StoredMessage[] {
+    const key = this.instanceKey(userId, instanceName);
+    if (!this.instances.has(key)) {
+      throw new Error(`Papagai ${instanceName} não encontrado`);
+    }
+    return this.chatStore.getMessages(userId, instanceName, chatId, limit);
+  }
+
+  markChatRead(userId: string, instanceName: string, chatId: string): void {
+    this.chatStore.markRead(userId, instanceName, chatId);
+  }
+
+  getMetrics(
+    userId: string,
+    instanceName: string,
+  ): {
+    messagesSent: number;
+    messagesReceived: number;
+    activeConversations: number;
+    webhookEnabled: boolean;
+  } {
+    const key = this.instanceKey(userId, instanceName);
+    const instance = this.instances.get(key);
+    if (!instance) {
+      throw new Error(`Papagai ${instanceName} não encontrado`);
+    }
+    const counters = this.chatStore.getCounters(userId, instanceName);
+    return {
+      messagesSent: counters.sent,
+      messagesReceived: counters.received,
+      activeConversations: counters.activeConversations,
+      webhookEnabled: instance.webhookEnabled,
+    };
   }
 
   async updateWebhookConfig(
+    userId: string,
     instanceName: string,
     config: {
       webhookUrl?: string;
@@ -633,53 +542,73 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
       webhookEvents?: string[];
     },
   ): Promise<Instance> {
-    const instance = this.instances.get(instanceName);
+    const key = this.instanceKey(userId, instanceName);
+    const instance = this.instances.get(key);
     if (!instance) {
-      throw new Error(`Instance "${instanceName}" not found`);
+      throw new Error(`Instance "${key}" not found`);
     }
 
-    if (config.webhookUrl !== undefined) instance.webhookUrl = config.webhookUrl;
-    if (config.webhookHeaders !== undefined) instance.webhookHeaders = config.webhookHeaders;
-    if (config.webhookEnabled !== undefined) instance.webhookEnabled = config.webhookEnabled;
-    if (config.webhookEvents !== undefined) instance.webhookEvents = config.webhookEvents;
+    if (config.webhookUrl !== undefined)
+      instance.webhookUrl = config.webhookUrl;
+    if (config.webhookHeaders !== undefined)
+      instance.webhookHeaders = config.webhookHeaders;
+    if (config.webhookEnabled !== undefined)
+      instance.webhookEnabled = config.webhookEnabled;
+    if (config.webhookEvents !== undefined)
+      instance.webhookEvents = config.webhookEvents;
 
     await this.instanceConfigRepo.update(
-      { name: instanceName },
+      { userId, name: instanceName },
       {
-        ...(config.webhookUrl !== undefined && { webhookUrl: config.webhookUrl }),
-        ...(config.webhookHeaders !== undefined && { webhookHeaders: config.webhookHeaders }),
-        ...(config.webhookEnabled !== undefined && { webhookEnabled: config.webhookEnabled }),
-        ...(config.webhookEvents !== undefined && { webhookEvents: config.webhookEvents }),
+        ...(config.webhookUrl !== undefined && {
+          webhookUrl: config.webhookUrl,
+        }),
+        ...(config.webhookHeaders !== undefined && {
+          webhookHeaders: config.webhookHeaders,
+        }),
+        ...(config.webhookEnabled !== undefined && {
+          webhookEnabled: config.webhookEnabled,
+        }),
+        ...(config.webhookEvents !== undefined && {
+          webhookEvents: config.webhookEvents,
+        }),
       },
     );
 
     return instance;
   }
 
-  getInstance(name: string): Instance | undefined {
-    return this.instances.get(name);
+  getInstance(userId: string, name: string): Instance | undefined {
+    return this.instances.get(this.instanceKey(userId, name));
   }
 
-  getQR(name: string): string | null {
-    return this.qrCodes.get(name) || null;
+  getQR(userId: string, name: string): string | null {
+    return this.qrCodes.get(this.instanceKey(userId, name)) || null;
   }
 
-  getInstances(): Array<{
-    name: string;
-    connected: boolean;
-    startTime: number;
-    webhookEnabled: boolean;
-    webhook: {
-      url: string | null;
-      headers: Record<string, string>;
-      enabled: boolean;
-      events: string[];
-    };
-    phoneNumber: string | null;
-  }> {
-    return [...this.instances.keys()].map((name) => {
-      const instance = this.instances.get(name)!;
-      return {
+  getInstances(
+    userId: string,
+    pagination: { page: number; limit: number },
+  ): {
+    instances: Array<{
+      name: string;
+      connected: boolean;
+      startTime: number;
+      webhookEnabled: boolean;
+      webhook: {
+        url: string | null;
+        headers: Record<string, string>;
+        enabled: boolean;
+        events: string[];
+      };
+      phoneNumber: string | null;
+    }>;
+    total: number;
+  } {
+    const prefix = `${userId}:`;
+    const all = [...this.instances.entries()]
+      .filter(([key]) => key.startsWith(prefix))
+      .map(([, instance]) => ({
         name: instance.name,
         connected: instance.connected,
         startTime: instance.startTime,
@@ -693,42 +622,64 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
         phoneNumber: instance.socket?.user?.id
           ? instance.socket.user.id.split(':')[0]
           : null,
-      };
-    });
+      }));
+
+    const total = all.length;
+    const start = (pagination.page - 1) * pagination.limit;
+    const end = start + pagination.limit;
+
+    return { instances: all.slice(start, end), total };
   }
 
-  async disconnectInstance(instanceName: string): Promise<boolean> {
-    const instance = this.instances.get(instanceName);
+  async disconnectInstance(
+    userId: string,
+    instanceName: string,
+  ): Promise<boolean> {
+    const key = this.instanceKey(userId, instanceName);
+    const instance = this.instances.get(key);
     if (!instance) return false;
 
+    this.chatStore.clearInstance(userId, instanceName);
     instance.socket.end(undefined);
-    this.instances.delete(instanceName);
-    this.qrCodes.delete(instanceName);
-    const redisKeys = await this.redis.keys(`papagai:${instanceName}:*`);
+    this.instances.delete(key);
+    this.qrCodes.delete(key);
+    const redisKeys = await this.redis.keys(
+      `papagai:${userId}:${instanceName}:*`,
+    );
     if (redisKeys.length > 0) {
       await this.redis.del(...redisKeys);
     }
-    this.logger.log(`Instance "${instanceName}" disconnected and removed`);
-    await this.instanceConfigRepo.delete({ name: instanceName });
+    this.logger.log(`Instance "${key}" disconnected and removed`);
+    await this.instanceConfigRepo.delete({ userId, name: instanceName });
     return true;
   }
 
-  async reconnectInstance(instanceName: string, retryCount = 0): Promise<void> {
-    const existing = this.instances.get(instanceName);
+  async reconnectInstance(compositeKey: string, retryCount = 0): Promise<void> {
+    const existing = this.instances.get(compositeKey);
     if (!existing) {
       this.logger.warn(
-        `Reconnect requested for unknown instance "${instanceName}" — skipping`,
+        `Reconnect requested for unknown instance "${compositeKey}" — skipping`,
       );
       return;
     }
 
-    const { webhookUrl, webhookHeaders, webhookEnabled, webhookEvents } = existing;
-    this.instances.delete(instanceName);
-    this.qrCodes.delete(instanceName);
+    const {
+      userId,
+      name,
+      webhookUrl,
+      webhookHeaders,
+      webhookEnabled,
+      webhookEvents,
+    } = existing;
+    this.instances.delete(compositeKey);
+    this.qrCodes.delete(compositeKey);
 
-    this.logger.log(`Reconnecting instance "${instanceName}" (attempt ${retryCount})`);
+    this.logger.log(
+      `Reconnecting instance "${compositeKey}" (attempt ${retryCount})`,
+    );
     const newInstance = await this.createInstance(
-      instanceName,
+      userId,
+      name,
       webhookUrl ?? undefined,
       webhookHeaders,
       webhookEnabled,
@@ -743,11 +694,14 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
       try {
         instance.socket.ev.removeAllListeners('connection.update');
         instance.socket.ev.removeAllListeners('creds.update');
+        instance.socket.ev.removeAllListeners('messaging-history.set');
         instance.socket.ev.removeAllListeners('messages.upsert');
         instance.socket.ev.removeAllListeners('messages.update');
         instance.socket.end(undefined);
       } catch (err) {
-        this.logger.warn(`Error closing socket for "${name}": ${err instanceof Error ? err.message : String(err)}`);
+        this.logger.warn(
+          `Error closing socket for "${name}": ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
     }
     this.instances.clear();

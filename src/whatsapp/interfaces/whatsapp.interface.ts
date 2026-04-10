@@ -7,6 +7,7 @@ export interface Instance {
   webhookEnabled: boolean;
   webhookEvents: string[];
   name: string;
+  userId: string;
   connected: boolean;
   qr: string | null;
   saveCreds: () => Promise<void>;
@@ -89,8 +90,10 @@ export interface WebhookData {
 }
 
 export interface ChatInfo {
+  id: string;
   phoneNumber: string;
   pushName: string;
+  name?: string;
   unreadCount: number;
   lastMessage?: string;
   timestamp: number;

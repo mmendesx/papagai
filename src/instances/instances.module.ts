@@ -7,7 +7,11 @@ import { InstancesController } from './instances.controller.js';
 import { InstanceConfig } from './entities/instance-config.entity.js';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([InstanceConfig]), WhatsappModule, AuthModule],
+  imports: [
+    TypeOrmModule.forFeature([InstanceConfig]),
+    WhatsappModule,
+    AuthModule,
+  ],
   controllers: [InstancesController],
   providers: [InstancesService],
   exports: [InstancesService],

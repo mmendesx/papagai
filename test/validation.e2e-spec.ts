@@ -1,7 +1,9 @@
 jest.mock('@whiskeysockets/baileys', () => ({
   __esModule: true,
   default: jest.fn(),
-  useMultiFileAuthState: jest.fn().mockResolvedValue({ state: {}, saveCreds: jest.fn() }),
+  useMultiFileAuthState: jest
+    .fn()
+    .mockResolvedValue({ state: {}, saveCreds: jest.fn() }),
   DisconnectReason: { loggedOut: 401 },
   downloadContentFromMessage: jest.fn(),
 }));
@@ -53,7 +55,11 @@ describe('Validation (e2e)', () => {
     app = moduleFixture.createNestApplication<NestExpressApplication>();
 
     app.useGlobalPipes(
-      new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: false }),
+      new ValidationPipe({
+        whitelist: true,
+        transform: true,
+        forbidNonWhitelisted: false,
+      }),
     );
     app.useGlobalFilters(new HttpExceptionFilter());
     app.useGlobalInterceptors(new LoggingInterceptor());
@@ -77,18 +83,20 @@ describe('Validation (e2e)', () => {
     jest.clearAllMocks();
   });
 
-  it('POST /api/instances/create with name too short returns 400 with structured body', () => {
+  it('POST /api/instances/create with invalid name returns 400 with structured body', () => {
     return request(app.getHttpServer())
       .post('/api/instances/create')
       .set(authHeader)
-      .send({ name: 'ab' })
+      .send({ name: 'ab/cd' })
       .expect(400)
       .expect((res) => {
         expect(res.body.statusCode).toBe(400);
         expect(res.body.path).toBe('/api/instances/create');
         expect(res.body.timestamp).toBeDefined();
         expect(() => new Date(res.body.timestamp)).not.toThrow();
-        expect(new Date(res.body.timestamp).toString()).not.toBe('Invalid Date');
+        expect(new Date(res.body.timestamp).toString()).not.toBe(
+          'Invalid Date',
+        );
         expect(res.body.message).toBeDefined();
       });
   });

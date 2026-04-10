@@ -35,10 +35,19 @@
         "test:watch": "jest --watch",
         "test:cov": "jest --coverage",
         "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-        "test:e2e": "jest --config ./test/jest-e2e.json"
+        "test:e2e": "DB_NAME=papagai_test jest --config ./test/jest-e2e.json --runInBand",
+        "migration:generate": "node --loader ts-node/esm ./node_modules/typeorm/cli.js -d src/typeorm.datasource.ts migration:generate",
+        "migration:create": "node --loader ts-node/esm ./node_modules/typeorm/cli.js migration:create",
+        "migration:run": "node --loader ts-node/esm ./node_modules/typeorm/cli.js -d src/typeorm.datasource.ts migration:run",
+        "migration:revert": "node --loader ts-node/esm ./node_modules/typeorm/cli.js -d src/typeorm.datasource.ts migration:revert",
+        "migration:show": "node --loader ts-node/esm ./node_modules/typeorm/cli.js -d src/typeorm.datasource.ts migration:show",
+        "plan-review": "node -r ts-node/register scripts/plan-review/cli.ts",
+        "test:plan-review": "jest --config test/plan-review/jest-plan-review.json --forceExit",
+        "test:playwright": "playwright test"
     },
     "dependencies": {
         "@hapi/boom": "^10.0.1",
+        "@nest-lab/throttler-storage-redis": "^1.2.0",
         "@nestjs/axios": "^4.0.1",
         "@nestjs/common": "^11.0.1",
         "@nestjs/config": "^4.0.3",
@@ -47,6 +56,7 @@
         "@nestjs/platform-express": "^11.0.1",
         "@nestjs/schedule": "^6.1.1",
         "@nestjs/serve-static": "^5.0.4",
+        "@nestjs/throttler": "^6.5.0",
         "@nestjs/typeorm": "^11.0.0",
         "@whiskeysockets/baileys": "npm:whaileys@6.4.9",
         "axios": "^1.7.2",
@@ -68,11 +78,12 @@
         "@nestjs/cli": "^11.0.17",
         "@nestjs/schematics": "^11.0.0",
         "@nestjs/testing": "^11.0.1",
+        "@playwright/test": "^1.59.1",
         "@types/bcrypt": "^6.0.0",
         "@types/express": "^5.0.0",
         "@types/jest": "^30.0.0",
         "@types/multer": "^1.4.12",
-        "@types/node": "^22.10.7",
+        "@types/node": "^22.19.17",
         "@types/pg": "^8.11.0",
         "@types/qrcode": "^1.5.5",
         "@types/supertest": "^6.0.2",
@@ -92,6 +103,13 @@
         "tsconfig-paths": "^4.2.0",
         "typescript": "^5.7.3",
         "typescript-eslint": "^8.20.0"
+    },
+    "overrides": {
+        "path-to-regexp": "8.4.2",
+        "picomatch": "4.0.4",
+        "music-metadata": "11.12.3",
+        "lodash": "4.18.1",
+        "axios": "^1.7.2"
     },
     "jest": {
         "moduleFileExtensions": [

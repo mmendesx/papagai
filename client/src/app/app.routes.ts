@@ -35,6 +35,20 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'instances/:name/chats',
+        loadComponent: () =>
+          import('./features/instance-detail/instance-chats.component').then(
+            (m) => m.InstanceChatsComponent,
+          ),
+      },
+      {
+        path: 'instances/:name/settings',
+        loadComponent: () =>
+          import('./features/instance-detail/instance-settings.component').then(
+            (m) => m.InstanceSettingsComponent,
+          ),
+      },
+      {
         path: 'docs',
         loadComponent: () =>
           import('./features/docs/docs-page.component').then((m) => m.DocsPageComponent),

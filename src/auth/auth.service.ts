@@ -25,26 +25,30 @@ export class AuthService {
     private readonly configService: ConfigService,
   ) {}
 
-  async register(dto: RegisterDto): Promise<{ user: PublicUser; accessToken: string }> {
+  async register(
+    dto: RegisterDto,
+  ): Promise<{ user: PublicUser; accessToken: string }> {
     const expectedKey = this.configService.get<string>('appKey', '');
     if (!expectedKey) {
       throw new ForbiddenException({
-        message: 'Registration is disabled',
+        message: 'Cadastro desabilitado',
         error: 'Forbidden',
         code: 'REGISTRATION_DISABLED',
       });
     }
     if (dto.appKey !== expectedKey) {
       throw new ForbiddenException({
-        message: 'Invalid application key',
+        message: 'Chave de aplicação inválida',
         error: 'Forbidden',
         code: 'INVALID_APP_KEY',
       });
     }
 
-    const existing = await this.usersRepo.findOne({ where: { email: dto.email.toLowerCase() } });
+    const existing = await this.usersRepo.findOne({
+      where: { email: dto.email.toLowerCase() },
+    });
     if (existing) {
-      throw new ConflictException('Email already registered');
+      throw new ConflictException('E-mail já cadastrado');
     }
 
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
@@ -59,7 +63,7 @@ export class AuthService {
       if (e instanceof QueryFailedError) {
         const code = (e.driverError as { code?: string } | undefined)?.code;
         if (code === '23505') {
-          throw new ConflictException('Email already registered');
+          throw new ConflictException('E-mail já cadastrado');
         }
       }
       throw e;
@@ -72,16 +76,18 @@ export class AuthService {
     };
   }
 
-  async login(dto: LoginDto): Promise<{ user: PublicUser; accessToken: string }> {
+  async login(
+    dto: LoginDto,
+  ): Promise<{ user: PublicUser; accessToken: string }> {
     const user = await this.usersRepo.findOne({
       where: { email: dto.email.toLowerCase() },
     });
     if (!user) {
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException('E-mail ou senha inválidos');
     }
     const ok = await bcrypt.compare(dto.password, user.passwordHash);
     if (!ok) {
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException('E-mail ou senha inválidos');
     }
     const accessToken = await this.signToken(user);
     return {

@@ -22,7 +22,10 @@ export function phoneNumberToJid(phone: string): string {
 
   const normalized = phone.replace(/\+/g, '');
 
-  if (normalized.startsWith(BRAZIL_CODE) && normalized.length === BRAZIL_LEN_WITHOUT_NINTH) {
+  if (
+    normalized.startsWith(BRAZIL_CODE) &&
+    normalized.length === BRAZIL_LEN_WITHOUT_NINTH
+  ) {
     const ddd = normalized.substring(2, 4);
     const digits = normalized.substring(4); // 8 digits
     return `${BRAZIL_CODE}${ddd}9${digits}${WHATSAPP_SUFFIX}`;

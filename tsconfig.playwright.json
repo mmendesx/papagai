@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "types": ["node", "@playwright/test"],
+    "composite": true,
+    "outDir": "./dist-playwright"
+  },
+  "include": ["playwright.config.ts", "e2e/**/*.ts"]
+}

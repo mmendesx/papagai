@@ -1,7 +1,9 @@
 jest.mock('@whiskeysockets/baileys', () => ({
   __esModule: true,
   default: jest.fn(),
-  useMultiFileAuthState: jest.fn().mockResolvedValue({ state: {}, saveCreds: jest.fn() }),
+  useMultiFileAuthState: jest
+    .fn()
+    .mockResolvedValue({ state: {}, saveCreds: jest.fn() }),
   DisconnectReason: { loggedOut: 401 },
   downloadContentFromMessage: jest.fn(),
 }));
@@ -27,7 +29,7 @@ const mockWhatsappService = {
   createInstance: jest.fn(),
   getInstance: jest.fn().mockReturnValue(undefined),
   getQR: jest.fn().mockReturnValue(null),
-  getInstances: jest.fn().mockReturnValue([]),
+  getInstances: jest.fn().mockReturnValue({ instances: [], total: 0 }),
   disconnectInstance: jest.fn(),
   sendText: jest.fn(),
   sendButtons: jest.fn(),
@@ -58,7 +60,13 @@ describe('App (e2e)', () => {
       .compile();
 
     app = moduleFixture.createNestApplication<NestExpressApplication>();
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: false }));
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        transform: true,
+        forbidNonWhitelisted: false,
+      }),
+    );
     app.useGlobalFilters(new HttpExceptionFilter());
     app.useGlobalInterceptors(new LoggingInterceptor());
     await app.init();
@@ -81,21 +89,23 @@ describe('App (e2e)', () => {
       .get('/api/instances')
       .set(authHeader)
       .expect(200)
-      .expect(res => {
+      .expect((res) => {
         expect(res.body.total).toBe(0);
         expect(res.body.instances).toEqual([]);
       });
   });
 
   it('GET /api/instances without Authorization returns 401', () => {
-    return request(app.getHttpServer() as App).get('/api/instances').expect(401);
+    return request(app.getHttpServer() as App)
+      .get('/api/instances')
+      .expect(401);
   });
 
   it('POST /api/instances/create with invalid name returns 400', () => {
     return request(app.getHttpServer() as App)
       .post('/api/instances/create')
       .set(authHeader)
-      .send({ name: 'ab' })
+      .send({ name: 'ab/cd' })
       .expect(400);
   });
 });

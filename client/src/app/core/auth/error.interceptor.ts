@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { TuiAlertService } from '@taiga-ui/core';
 import { catchError, throwError } from 'rxjs';
 import { DOCS_TRY_IT } from '../http/docs-try-it.context';
+import { SUPPRESS_ERROR_ALERT } from '../http/suppress-error-alert.context';
 
 const TOKEN_KEY = 'papagai_access_token';
 
@@ -33,6 +34,7 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
         return throwError(() => err);
       }
 
+      const suppressAlert = req.context.get(SUPPRESS_ERROR_ALERT);
       const url = err.url ?? req.url;
 
       if (isPublicAuthUrl(url)) {
@@ -52,13 +54,15 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
         return throwError(() => err);
       }
 
-      alerts
-        .open(messageFromError(err), {
-          label: 'Error',
-          appearance: 'negative',
-          autoClose: 6000,
-        })
-        .subscribe();
+      if (!suppressAlert) {
+        alerts
+          .open(messageFromError(err), {
+            label: 'Error',
+            appearance: 'negative',
+            autoClose: 6000,
+          })
+          .subscribe();
+      }
 
       return throwError(() => err);
     }),

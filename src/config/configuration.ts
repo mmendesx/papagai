@@ -15,6 +15,11 @@ export default () => ({
   jwtSecret: process.env.JWT_SECRET ?? DEV_JWT_SECRET_PLACEHOLDER,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '24h',
   corsOrigin: process.env.CORS_ORIGIN ?? '*',
+  webhookAllowPrivateHosts:
+    process.env.WEBHOOK_ALLOW_PRIVATE_HOSTS === 'true' &&
+    process.env.NODE_ENV === 'development',
+  authThrottleTtl: parseInt(process.env.AUTH_THROTTLE_TTL ?? '60', 10),
+  authThrottleLimit: parseInt(process.env.AUTH_THROTTLE_LIMIT ?? '5', 10),
   db: {
     host: process.env.DB_HOST || 'localhost',
     port: parseInt(process.env.DB_PORT ?? '5432', 10),

@@ -1,25 +1,19 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpContext, httpResource } from '@angular/common/http';
+import { SUPPRESS_ERROR_ALERT } from '../../core/http/suppress-error-alert.context';
 import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
-  effect,
+  computed,
   inject,
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
-import { TuiAlertService, TuiButton } from '@taiga-ui/core';
-import { TuiTextfield } from '@taiga-ui/core/components/textfield';
-import { TuiConfirmService } from '@taiga-ui/kit/components/confirm';
-import { TuiCheckbox } from '@taiga-ui/kit/components/checkbox';
-import { TuiSwitch } from '@taiga-ui/kit/components/switch';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom, timer } from 'rxjs';
 import { filter, map, switchMap, takeWhile, tap } from 'rxjs/operators';
-import { ChatsComponent } from './chats.component';
-import { SendMessageComponent } from './send-message.component';
 import { HeaderActionsService } from '../../shared/header-actions.service';
+import { InstanceTabsComponent } from './instance-tabs.component';
 
 type QrResponse = {
   qr?: string;
@@ -36,163 +30,227 @@ type StatusResponse = {
   startTime: string;
   uptime: number;
   phoneNumber?: string;
-  webhook?: WebhookConfig;
+  webhook?: {
+    url: string | null;
+    headers: Record<string, string>;
+    enabled: boolean;
+    events: string[];
+  };
 };
 
-type WebhookConfig = {
-  url: string | null;
-  headers: Record<string, string>;
-  enabled: boolean;
-  events: string[];
-};
+// TODO: Replace with real metrics signal once backend exposes /metrics endpoint
+interface InstanceMetrics {
+  messagesSent: number | null;
+  messagesReceived: number | null;
+  activeConversations: number | null;
+  webhookEnabled: boolean | null;
+}
 
-type WebhookResponse = {
-  instance: string;
-  webhook: WebhookConfig;
+// TODO: Populate recentActivity signal when backend exposes activity feed endpoint
+interface RecentActivityItem {
+  id: string;
+  type: string;
+  description: string;
+  timestamp: string;
+}
+
+const EMPTY_METRICS: InstanceMetrics = {
+  messagesSent: null,
+  messagesReceived: null,
+  activeConversations: null,
+  webhookEnabled: null,
 };
 
 @Component({
   selector: 'app-instance-detail',
   standalone: true,
-  imports: [
-    FormsModule,
-    TuiButton,
-    TuiCheckbox,
-    TuiSwitch,
-    ...TuiTextfield,
-    SendMessageComponent,
-    ChatsComponent,
-  ],
+  imports: [RouterLink, InstanceTabsComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (qrData(); as q) {
       @if (q.status === 'connected') {
 
-        <!-- Status strip -->
-        <div class="status-strip">
-          <span class="conn-dot"></span>
-          <span class="strip-label">Conectado</span>
-          @if ((q.phoneNumber ?? status()?.phoneNumber); as phone) {
-            <span class="strip-sep">·</span>
-            <span class="strip-phone">{{ phone }}</span>
-          }
-          @if (status(); as s) {
-            <span class="strip-sep">·</span>
-            <span class="strip-uptime">{{ formatMs(s.uptime) }}</span>
-          }
-        </div>
+        <!-- Unified tab bar -->
+        @if (name(); as n) {
+          <app-instance-tabs
+            [instanceName]="n"
+            [connected]="status()?.connected ?? null"
+          />
+        }
 
-        <!-- Two-panel layout -->
-        <div class="detail-layout">
+        <!-- Main content area -->
+        <div class="page-content">
 
-          <!-- Left: Send + Webhook -->
-          <div class="detail-left">
-
-            <!-- Send Message section -->
-            <div class="left-section">
-              <div class="left-section-header">
-                <span class="section-title">Enviar Mensagem</span>
-              </div>
-              @if (name(); as n) {
-                <app-send-message [instanceName]="n" />
-              }
-            </div>
-
-            <!-- Webhook section (collapsible) -->
-            <div class="left-section">
-              <button type="button" class="left-section-header webhook-toggle-header"
-                      (click)="toggleWebhookOpen()">
-                <span class="section-title">Webhook</span>
-                <span class="webhook-badge" [class.active]="whEnabled()">
-                  {{ whEnabled() ? 'ativo' : 'inativo' }}
-                </span>
-                <svg class="chevron-icon" [class.rotated]="webhookOpen()"
-                     width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                  <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5"
-                        stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </button>
-              @if (webhookOpen()) {
-                @if (webhookLoading()) {
-                  <p class="loading-text wh-pad">Carregando…</p>
-                } @else {
-                  <form class="webhook-form" (ngSubmit)="saveWebhook()">
-                    <label class="toggle-row">
-                      <input tuiSwitch type="checkbox"
-                        [ngModel]="whEnabled()"
-                        (ngModelChange)="whEnabled.set($event)"
-                        [ngModelOptions]="{ standalone: true }" />
-                      <span class="toggle-label">Ativar</span>
-                    </label>
-                    <tui-textfield>
-                      <label tuiLabel>URL</label>
-                      <input tuiTextfield type="url"
-                        [ngModel]="whUrl()"
-                        (ngModelChange)="whUrl.set($event)"
-                        [ngModelOptions]="{ standalone: true }"
-                        autocomplete="off"
-                        placeholder="https://example.com/webhook" />
-                    </tui-textfield>
-                    <tui-textfield>
-                      <label tuiLabel>Cabeçalhos (JSON)</label>
-                      <input tuiTextfield type="text"
-                        [ngModel]="whHeadersJson()"
-                        (ngModelChange)="whHeadersJson.set($event)"
-                        [ngModelOptions]="{ standalone: true }"
-                        autocomplete="off"
-                        placeholder="{}" />
-                    </tui-textfield>
-                    <div class="form-section">
-                      <p class="section-label-small">Eventos</p>
-                      <div class="events-grid">
-                        @for (ev of availableEvents; track ev) {
-                          <label class="event-row">
-                            <input tuiCheckbox type="checkbox"
-                              [ngModel]="whEvents().includes(ev)"
-                              (ngModelChange)="toggleEvent(ev)"
-                              [ngModelOptions]="{ standalone: true }" />
-                            <span class="event-label">{{ translateEvent(ev) }}</span>
-                          </label>
-                        }
-                      </div>
-                    </div>
-                    <div class="form-footer">
-                      <button tuiButton type="submit" size="s" appearance="primary"
-                              [disabled]="webhookSaving()">
-                        {{ webhookSaving() ? 'Salvando…' : 'Salvar' }}
-                      </button>
-                    </div>
-                  </form>
-                }
-              }
-            </div>
-
-          </div>
-
-          <!-- Right: Conversations -->
-          <div class="detail-right">
-            <div class="right-header">
-              <span class="section-title">Conversas</span>
-            </div>
-            @if (name(); as n) {
-              <app-chats [instanceName]="n" />
+          <!-- Inline connection meta row -->
+          <div class="conn-meta-row" aria-label="Status da conexão">
+            <span class="conn-status-dot" aria-hidden="true"></span>
+            <span class="conn-status-label">Conectado</span>
+            @if ((q.phoneNumber ?? status()?.phoneNumber); as phone) {
+              <span class="conn-meta-sep" aria-hidden="true">·</span>
+              <span class="conn-meta-text">{{ formatPhone(phone) }}</span>
+            }
+            @if (status(); as s) {
+              <span class="conn-meta-sep" aria-hidden="true">·</span>
+              <span class="conn-meta-text">Ativo há {{ formatMs(s.uptime) }}</span>
             }
           </div>
 
-        </div>
+          <!-- RESUMO section -->
+          <section class="content-section" aria-label="Resumo da instância">
+            <h2 class="section-label" aria-label="Seção: Resumo">RESUMO</h2>
+            <div class="metrics-grid">
+
+              <!-- Mensagens Enviadas -->
+              <div class="metric-card">
+                <div class="metric-card-top">
+                  <div class="metric-icon-tile metric-icon-tile--sent" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"/>
+                    </svg>
+                  </div>
+                </div>
+                <span class="metric-value" [attr.aria-label]="'Mensagens enviadas: ' + (metrics().messagesSent ?? 'sem dados')">
+                  {{ metrics().messagesSent ?? '—' }}
+                </span>
+                <span class="metric-label">Mensagens Enviadas</span>
+                <span class="metric-trend">Últimos 7 dias</span>
+              </div>
+
+              <!-- Mensagens Recebidas -->
+              <div class="metric-card">
+                <div class="metric-card-top">
+                  <div class="metric-icon-tile metric-icon-tile--received" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 3.75H6.912a2.25 2.25 0 00-2.15 1.588L2.35 13.177a2.25 2.25 0 00-.1.661V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18v-4.162c0-.224-.034-.447-.1-.661L19.24 5.338a2.25 2.25 0 00-2.15-1.588H15M2.25 13.5h3.86a2.25 2.25 0 012.012 1.244l.256.512a2.25 2.25 0 002.013 1.244h3.218a2.25 2.25 0 002.013-1.244l.256-.512a2.25 2.25 0 012.013-1.244h3.859M12 3v8.25m0 0l-3-3m3 3l3-3"/>
+                    </svg>
+                  </div>
+                </div>
+                <span class="metric-value" [attr.aria-label]="'Mensagens recebidas: ' + (metrics().messagesReceived ?? 'sem dados')">
+                  {{ metrics().messagesReceived ?? '—' }}
+                </span>
+                <span class="metric-label">Mensagens Recebidas</span>
+                <span class="metric-trend">Últimos 7 dias</span>
+              </div>
+
+              <!-- Conversas Ativas -->
+              <div class="metric-card">
+                <div class="metric-card-top">
+                  <div class="metric-icon-tile metric-icon-tile--conv" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"/>
+                    </svg>
+                  </div>
+                </div>
+                <span class="metric-value" [attr.aria-label]="'Conversas ativas: ' + (metrics().activeConversations ?? 'sem dados')">
+                  {{ metrics().activeConversations ?? '—' }}
+                </span>
+                <span class="metric-label">Conversas Ativas</span>
+                <span class="metric-trend">Momento atual</span>
+              </div>
+
+              <!-- Webhook -->
+              <div class="metric-card">
+                <div class="metric-card-top">
+                  <div class="metric-icon-tile metric-icon-tile--webhook" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"/>
+                    </svg>
+                  </div>
+                </div>
+                @if (metrics().webhookEnabled === null) {
+                  <span class="metric-value metric-value--muted" aria-label="Webhook: sem dados">—</span>
+                } @else if (metrics().webhookEnabled) {
+                  <span class="webhook-chip webhook-chip--on" aria-label="Webhook: ativo">Ativo</span>
+                } @else {
+                  <span class="webhook-chip webhook-chip--off" aria-label="Webhook: inativo">Inativo</span>
+                }
+                <span class="metric-label">Webhook</span>
+                <span class="metric-trend">Configuração atual</span>
+              </div>
+
+            </div>
+          </section>
+
+          <!-- ACESSO RÁPIDO section -->
+          <section class="content-section" aria-label="Acesso rápido">
+            <h2 class="section-label" aria-label="Seção: Acesso rápido">ACESSO RÁPIDO</h2>
+            <div class="nav-grid">
+
+              <a [routerLink]="['./chats']" class="nav-tile" aria-label="Ir para Conversas">
+                <div class="nav-tile-icon nav-tile-icon--chat" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 9.75a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375m-13.5 3.01c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.184-4.183a1.14 1.14 0 01.778-.332 48.294 48.294 0 005.83-.498c1.585-.233 2.708-1.626 2.708-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z"/>
+                  </svg>
+                </div>
+                <div class="nav-tile-body">
+                  <span class="nav-tile-title">Conversas</span>
+                  <span class="nav-tile-desc">Mensagens e histórico</span>
+                </div>
+                <svg class="nav-tile-chevron" width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                  <path d="M7 4l6 6-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </a>
+
+              <a [routerLink]="['./settings']" class="nav-tile" aria-label="Ir para Configurações">
+                <div class="nav-tile-icon nav-tile-icon--settings" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93.398.164.855.142 1.205-.108l.737-.527a1.125 1.125 0 011.45.12l.773.774c.39.389.44 1.002.12 1.45l-.527.737c-.25.35-.272.806-.107 1.204.165.397.505.71.93.78l.893.15c.543.09.94.56.94 1.109v1.094c0 .55-.397 1.02-.94 1.11l-.893.149c-.425.07-.765.383-.93.78-.165.398-.143.854.107 1.204l.527.738c.32.447.269 1.06-.12 1.45l-.774.773a1.125 1.125 0 01-1.449.12l-.738-.527c-.35-.25-.806-.272-1.203-.107-.397.165-.71.505-.781.929l-.149.894c-.09.542-.56.94-1.11.94h-1.094c-.55 0-1.019-.398-1.11-.94l-.148-.894c-.071-.424-.384-.764-.781-.93-.398-.164-.854-.142-1.204.108l-.738.527c-.447.32-1.06.269-1.45-.12l-.773-.774a1.125 1.125 0 01-.12-1.45l.527-.737c.25-.35.273-.806.108-1.204-.165-.397-.505-.71-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.109v-1.094c0-.55.398-1.02.94-1.11l.894-.149c.424-.07.765-.383.93-.78.165-.398.143-.854-.108-1.204l-.526-.738a1.125 1.125 0 01.12-1.45l.773-.773a1.125 1.125 0 011.45-.12l.737.527c.35.25.807.272 1.204.107.397-.165.71-.505.78-.929l.15-.894z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                  </svg>
+                </div>
+                <div class="nav-tile-body">
+                  <span class="nav-tile-title">Configurações</span>
+                  <span class="nav-tile-desc">Webhook e gerenciamento</span>
+                </div>
+                <svg class="nav-tile-chevron" width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                  <path d="M7 4l6 6-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </a>
+
+            </div>
+          </section>
+
+          <!-- ATIVIDADE RECENTE section -->
+          <section class="content-section" aria-label="Atividade recente">
+            <h2 class="section-label" aria-label="Seção: Atividade recente">ATIVIDADE RECENTE</h2>
+            @if (recentActivity().length > 0) {
+              <div class="activity-list">
+                @for (item of recentActivity(); track item.id) {
+                  <div class="activity-item">
+                    <span class="activity-desc">{{ item.description }}</span>
+                    <span class="activity-time">{{ item.timestamp }}</span>
+                  </div>
+                }
+              </div>
+            } @else {
+              <div class="activity-empty">
+                <div class="activity-empty-icon" aria-hidden="true">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                </div>
+                <p class="activity-empty-text">
+                  Nenhuma atividade registrada ainda. As mensagens recebidas e eventos aparecerão aqui.
+                </p>
+                <span class="activity-soon-pill" aria-label="Em breve">Em breve</span>
+              </div>
+            }
+          </section>
+
+        </div><!-- /page-content -->
 
       } @else if (q.status === 'qr' && q.qrImageData) {
 
         <!-- QR scan state: centered -->
         <div class="qr-layout">
           <div class="qr-card">
-            <div class="status-header">
+            <div class="qr-status-header">
               <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
                 <circle cx="11" cy="11" r="11" fill="var(--color-warning-bg)"/>
                 <path d="M11 7v4l2.5 1.5" style="stroke: var(--color-method-patch);"
                       stroke-width="2" stroke-linecap="round"/>
               </svg>
-              <span class="status-label qr-label">Aguardando leitura do QR Code</span>
+              <span class="qr-status-label">Aguardando leitura do QR Code</span>
             </div>
             <p class="qr-hint">Escaneie com o WhatsApp para conectar</p>
             <img [src]="q.qrImageData" alt="WhatsApp QR Code" class="qr-image" />
@@ -203,8 +261,8 @@ type WebhookResponse = {
 
         <!-- Other status (disconnected, connecting, etc.) -->
         <div class="centered-state">
-          <div class="status-card neutral">
-            <p class="status-text">{{ q.message ?? translateStatus(q.status) }}</p>
+          <div class="other-status-card">
+            <p class="other-status-text">{{ q.message ?? translateStatus(q.status) }}</p>
           </div>
         </div>
 
@@ -221,146 +279,320 @@ type WebhookResponse = {
         display: flex;
         flex-direction: column;
         height: 100%;
-        overflow: hidden;
-      }
-
-      /* ── Status strip ──────────────────────────────────────── */
-      .status-strip {
-        display: flex;
-        align-items: center;
-        gap: 0.625rem;
-        padding: 0.5rem 1.5rem;
-        background: color-mix(in srgb, var(--color-primary-container) 35%, var(--color-surface-container-lowest));
-        border-bottom: 1px solid var(--color-outline-variant);
-        flex-shrink: 0;
+        overflow-y: auto;
         font-family: var(--font-sans);
-        font-size: 0.8125rem;
       }
-      .conn-dot {
-        width: 7px;
-        height: 7px;
-        border-radius: 50%;
-        background: var(--color-primary);
-        flex-shrink: 0;
-      }
-      .strip-label { font-weight: 600; color: var(--color-on-surface); }
-      .strip-sep { color: var(--color-outline-variant); }
-      .strip-phone, .strip-uptime { font-weight: 400; color: var(--color-on-surface-variant); }
 
-      /* ── Two-panel layout ──────────────────────────────────── */
-      .detail-layout {
-        display: flex;
+      /* ── Page content wrapper ──────────────────────────────── */
+      .page-content {
         flex: 1;
-        min-height: 0;
-        overflow: hidden;
-      }
-
-      .detail-left {
-        width: 340px;
-        flex-shrink: 0;
-        border-right: 1px solid var(--color-outline-variant);
-        overflow-y: auto;
+        max-width: 1100px;
+        width: 100%;
+        margin: 0 auto;
+        padding: 1.25rem 1.5rem 2rem;
         display: flex;
         flex-direction: column;
+        gap: 1.75rem;
       }
 
-      .detail-right {
-        flex: 1;
-        min-width: 0;
-        overflow-y: auto;
-        display: flex;
-        flex-direction: column;
-      }
-
-      /* ── Section headers ───────────────────────────────────── */
-      .left-section {
-        border-bottom: 1px solid var(--color-outline-variant);
-        flex-shrink: 0;
-      }
-      .left-section:last-child { border-bottom: none; }
-
-      .left-section-header {
+      /* ── Inline connection meta row ────────────────────────── */
+      .conn-meta-row {
         display: flex;
         align-items: center;
         gap: 0.5rem;
-        padding: 0.75rem 1.25rem 0.625rem;
-        width: 100%;
+        font-size: 0.8125rem;
+        color: var(--color-on-surface-variant);
       }
-
-      .webhook-toggle-header {
-        background: transparent;
-        border: none;
-        cursor: pointer;
-        text-align: left;
-        transition: background var(--duration-fast) var(--ease-default);
+      .conn-status-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--color-success);
+        flex-shrink: 0;
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-success) 22%, transparent);
       }
-      .webhook-toggle-header:hover { background: var(--color-surface-container-low); }
+      .conn-status-label {
+        font-weight: 600;
+        color: color-mix(in srgb, var(--color-primary) 85%, var(--color-on-surface));
+      }
+      .conn-meta-sep { color: var(--color-outline-variant); }
+      .conn-meta-text { color: var(--color-on-surface-variant); }
 
-      .section-title {
+      /* ── Section label ─────────────────────────────────────── */
+      .content-section {
+        display: flex;
+        flex-direction: column;
+        gap: 0.625rem;
+      }
+      .section-label {
+        margin: 0;
         font-size: 0.6875rem;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.07em;
         color: var(--color-on-surface-variant);
-        flex: 1;
-        font-family: var(--font-sans);
       }
 
-      .webhook-badge {
-        font-size: 0.625rem;
-        font-weight: 500;
-        padding: 0.1rem 0.4rem;
-        border-radius: var(--radius-full);
-        background: var(--color-error-container);
-        color: var(--color-on-error-container);
-        font-family: var(--font-sans);
+      /* ── Metrics grid ──────────────────────────────────────── */
+      .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 0.75rem;
       }
-      .webhook-badge.active {
-        background: var(--color-primary-container);
-        color: var(--color-on-primary-container);
-      }
-
-      .chevron-icon {
-        color: var(--color-outline-variant);
-        transition: transform var(--duration-fast) var(--ease-default);
-        flex-shrink: 0;
-      }
-      .chevron-icon.rotated { transform: rotate(180deg); }
-
-      .right-header {
-        display: flex;
-        align-items: center;
-        padding: 0.75rem 1.25rem 0.625rem;
-        border-bottom: 1px solid var(--color-outline-variant);
-        flex-shrink: 0;
-      }
-
-      /* ── Webhook form (compact, inside left panel) ─────────── */
-      .webhook-form {
+      .metric-card {
         display: flex;
         flex-direction: column;
-        gap: 0.875rem;
-        padding: 0 1.25rem 1.25rem;
+        gap: 0.25rem;
+        padding: 1rem 1.125rem 0.875rem;
+        background: var(--color-surface-container-lowest);
+        border: 1px solid var(--color-outline-variant);
+        border-radius: var(--radius-xl);
+        transition:
+          border-color var(--duration-fast) var(--ease-default),
+          transform var(--duration-fast) var(--ease-default),
+          box-shadow var(--duration-fast) var(--ease-default);
       }
-      .wh-pad { padding: 0 1.25rem 1rem; }
-      .form-section { display: flex; flex-direction: column; gap: 0.4rem; }
-      .toggle-row { display: flex; align-items: center; gap: 0.75rem; cursor: pointer; padding: 0.125rem 0; }
-      .toggle-label { font-size: 0.875rem; font-weight: 400; color: var(--color-on-surface); font-family: var(--font-sans); }
-      .section-label-small {
-        font-size: 0.625rem;
+      .metric-card:hover {
+        border-color: var(--color-outline);
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+      }
+      .metric-card-top {
+        margin-bottom: 0.375rem;
+      }
+
+      /* Icon tiles */
+      .metric-icon-tile {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .metric-icon-tile--sent {
+        background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+        color: color-mix(in srgb, var(--color-primary) 75%, var(--color-on-surface));
+      }
+      .metric-icon-tile--received {
+        background: color-mix(in srgb, var(--color-secondary) 10%, transparent);
+        color: color-mix(in srgb, var(--color-secondary) 75%, var(--color-on-surface));
+      }
+      .metric-icon-tile--conv {
+        background: color-mix(in srgb, var(--color-tertiary, var(--color-primary)) 10%, transparent);
+        color: color-mix(in srgb, var(--color-tertiary, var(--color-primary)) 75%, var(--color-on-surface));
+      }
+      .metric-icon-tile--webhook {
+        background: color-mix(in srgb, var(--color-on-surface-variant) 8%, transparent);
+        color: var(--color-on-surface-variant);
+      }
+
+      /* Numeric value */
+      .metric-value {
+        font-size: 2rem;
+        font-weight: 400;
+        color: var(--color-on-surface);
+        line-height: 1.1;
+        font-feature-settings: "tnum";
+        letter-spacing: -0.02em;
+        margin-bottom: 0.375rem;
+        min-height: 2.25rem;
+      }
+      .metric-value--muted {
+        color: var(--color-on-surface-variant);
+      }
+
+      /* Sparkline placeholder */
+      .metric-sparkline {
+        display: block;
+        margin: 0.25rem 0 0.125rem;
+        opacity: 0.5;
+        overflow: visible;
+      }
+      .metric-sparkline-placeholder {
+        height: 18px;
+        margin: 0.25rem 0 0.125rem;
+      }
+
+      /* Webhook chip */
+      .webhook-chip {
+        display: inline-flex;
+        align-items: center;
+        align-self: flex-start;
+        padding: 0.1875rem 0.5rem;
+        border-radius: var(--radius-full);
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-top: 0.25rem;
+        margin-bottom: 0.125rem;
+      }
+      .webhook-chip--on {
+        background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+        color: color-mix(in srgb, var(--color-primary) 80%, var(--color-on-surface));
+        border: 1px solid color-mix(in srgb, var(--color-primary) 20%, transparent);
+      }
+      .webhook-chip--off {
+        background: color-mix(in srgb, var(--color-on-surface-variant) 8%, transparent);
+        color: var(--color-on-surface-variant);
+        border: 1px solid color-mix(in srgb, var(--color-on-surface-variant) 15%, transparent);
+      }
+
+      /* Label + trend */
+      .metric-label {
+        font-size: 0.6875rem;
         font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 0.07em;
-        color: var(--color-on-surface-variant);
-        margin: 0;
-        font-family: var(--font-sans);
+        letter-spacing: 0.06em;
+        color: var(--color-on-surface);
+        margin-top: 0.125rem;
       }
-      .events-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.125rem; }
-      .event-row { display: flex; align-items: center; gap: 0.4rem; cursor: pointer; padding: 0.2rem 0; }
-      .event-label { font-size: 0.8125rem; font-weight: 400; color: var(--color-on-surface); font-family: var(--font-sans); }
-      .form-footer { display: flex; justify-content: flex-end; padding-top: 0.125rem; }
+      .metric-trend {
+        font-size: 0.6875rem;
+        font-weight: 400;
+        color: var(--color-on-surface-variant);
+      }
 
-      /* ── QR state: centered ────────────────────────────────── */
+      /* ── Nav grid ──────────────────────────────────────────── */
+      .nav-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 0.75rem;
+      }
+      .nav-tile {
+        display: flex;
+        align-items: center;
+        gap: 0.875rem;
+        padding: 1rem 1.125rem;
+        min-height: 80px;
+        background: var(--color-surface-container-lowest);
+        border: 1px solid var(--color-outline-variant);
+        border-radius: var(--radius-xl);
+        text-decoration: none;
+        color: inherit;
+        transition:
+          background var(--duration-fast) var(--ease-default),
+          border-color var(--duration-fast) var(--ease-default),
+          transform var(--duration-fast) var(--ease-default),
+          box-shadow var(--duration-fast) var(--ease-default);
+      }
+      .nav-tile:hover {
+        background: var(--color-surface-container-low);
+        border-color: var(--color-outline);
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+      }
+      .nav-tile:focus-visible {
+        outline: 2px solid var(--color-primary);
+        outline-offset: 2px;
+      }
+      .nav-tile-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .nav-tile-icon--chat {
+        background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+        color: color-mix(in srgb, var(--color-primary) 80%, var(--color-on-surface));
+      }
+      .nav-tile-icon--settings {
+        background: color-mix(in srgb, var(--color-secondary) 10%, transparent);
+        color: color-mix(in srgb, var(--color-secondary) 80%, var(--color-on-surface));
+      }
+      .nav-tile-body {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        flex: 1;
+        min-width: 0;
+      }
+      .nav-tile-title {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--color-on-surface);
+      }
+      .nav-tile-desc {
+        font-size: 0.75rem;
+        font-weight: 400;
+        color: var(--color-on-surface-variant);
+        white-space: normal;
+        line-height: 1.35;
+      }
+      .nav-tile-chevron {
+        color: var(--color-outline-variant);
+        flex-shrink: 0;
+        transition: transform var(--duration-fast) var(--ease-default), color var(--duration-fast) var(--ease-default);
+      }
+      .nav-tile:hover .nav-tile-chevron {
+        transform: translateX(3px);
+        color: var(--color-on-surface-variant);
+      }
+
+      /* ── Activity section ──────────────────────────────────── */
+      .activity-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        border: 1px solid var(--color-outline-variant);
+        border-radius: var(--radius-xl);
+        overflow: hidden;
+        background: var(--color-surface-container-lowest);
+      }
+      .activity-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.75rem 1.125rem;
+        border-bottom: 1px solid var(--color-outline-variant);
+        font-size: 0.8125rem;
+      }
+      .activity-item:last-child { border-bottom: none; }
+      .activity-desc { color: var(--color-on-surface); }
+      .activity-time { color: var(--color-on-surface-variant); font-size: 0.75rem; white-space: nowrap; }
+
+      .activity-empty {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.625rem;
+        padding: 2rem 1.5rem;
+        background: var(--color-surface-container-lowest);
+        border: 1px solid var(--color-outline-variant);
+        border-radius: var(--radius-xl);
+        text-align: center;
+      }
+      .activity-empty-icon {
+        color: var(--color-outline-variant);
+        margin-bottom: 0.125rem;
+      }
+      .activity-empty-text {
+        margin: 0;
+        font-size: 0.8125rem;
+        color: var(--color-on-surface-variant);
+        max-width: 36ch;
+        line-height: 1.5;
+      }
+      .activity-soon-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.125rem 0.5rem;
+        background: color-mix(in srgb, var(--color-on-surface-variant) 8%, transparent);
+        border: 1px solid color-mix(in srgb, var(--color-on-surface-variant) 15%, transparent);
+        border-radius: var(--radius-full);
+        font-size: 0.6875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--color-on-surface-variant);
+      }
+
+      /* ── QR state ──────────────────────────────────────────── */
       .qr-layout {
         flex: 1;
         display: flex;
@@ -378,31 +610,9 @@ type WebhookResponse = {
         border-radius: var(--radius-2xl);
         padding: 2rem 2.5rem;
       }
-
-      /* ── Neutral / loading states ──────────────────────────── */
-      .centered-state {
-        flex: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 2rem;
-      }
-      .status-card {
-        border-radius: var(--radius-xl);
-        padding: 1.5rem;
-        border-left: 4px solid transparent;
-      }
-      .status-card.neutral {
-        max-width: 28rem;
-        background: var(--tui-background-neutral-1);
-        border-left-color: var(--tui-border-normal);
-      }
-
-      /* ── Shared elements ───────────────────────────────────── */
-      .status-header { display: flex; align-items: center; gap: 0.75rem; }
-      .status-label { font-size: 1rem; font-weight: 400; font-family: var(--font-sans); }
-      .qr-label { color: var(--color-method-patch); }
-      .qr-hint { margin: 0; font-weight: 400; color: var(--tui-text-secondary); font-family: var(--font-sans); }
+      .qr-status-header { display: flex; align-items: center; gap: 0.75rem; }
+      .qr-status-label { font-size: 1rem; font-weight: 400; color: var(--color-method-patch); }
+      .qr-hint { margin: 0; font-weight: 400; color: var(--tui-text-secondary); }
       .qr-image {
         max-width: 260px;
         border-radius: var(--radius-xl);
@@ -410,17 +620,30 @@ type WebhookResponse = {
         padding: 1rem;
         background: white;
       }
-      .loading-text { color: var(--tui-text-secondary); font-weight: 400; font-family: var(--font-sans); }
-      .status-text { margin: 0; font-weight: 400; color: var(--tui-text-secondary); font-family: var(--font-sans); }
+
+      /* ── Loading / other states ────────────────────────────── */
+      .centered-state {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+      }
+      .other-status-card {
+        border-radius: var(--radius-xl);
+        padding: 1.5rem;
+        border-left: 4px solid var(--tui-border-normal);
+        max-width: 28rem;
+        background: var(--tui-background-neutral-1);
+      }
+      .other-status-text { margin: 0; font-weight: 400; color: var(--tui-text-secondary); }
+      .loading-text { color: var(--tui-text-secondary); font-weight: 400; }
     `,
   ],
 })
 export class InstanceDetailComponent {
   private readonly http = inject(HttpClient);
   private readonly route = inject(ActivatedRoute);
-  private readonly router = inject(Router);
-  private readonly confirm = inject(TuiConfirmService);
-  private readonly alerts = inject(TuiAlertService);
 
   readonly name = toSignal(
     this.route.paramMap.pipe(map((p) => p.get('name'))),
@@ -429,22 +652,18 @@ export class InstanceDetailComponent {
 
   readonly qrData = signal<QrResponse | null>(null);
   readonly status = signal<StatusResponse | null>(null);
-  readonly webhookOpen = signal(true);
 
-  toggleWebhookOpen(): void {
-    this.webhookOpen.update(v => !v);
-  }
+  // Live metrics from GET /api/instances/:name/metrics, polled every 10s
+  private readonly metricsRes = httpResource<{ instance: string; metrics: InstanceMetrics }>(() => {
+    const n = this.name();
+    return n && this.qrData()?.status === 'connected'
+      ? `/api/instances/${encodeURIComponent(n)}/metrics`
+      : undefined;
+  });
+  readonly metrics = computed<InstanceMetrics>(() => this.metricsRes.value()?.metrics ?? EMPTY_METRICS);
 
-  readonly webhookConfig = signal<WebhookConfig | null>(null);
-  readonly webhookLoading = signal(false);
-  readonly webhookSaving = signal(false);
-
-  readonly whUrl = signal('');
-  readonly whHeadersJson = signal('{}');
-  readonly whEnabled = signal(false);
-  readonly whEvents = signal<string[]>([]);
-
-  readonly availableEvents = ['message', 'message_update', 'qr', 'connected', 'disconnected'];
+  // TODO: Populate this signal when backend exposes an activity feed endpoint for the instance
+  readonly recentActivity = signal<RecentActivityItem[]>([]);
 
   private static readonly STATUS_LABELS: Record<string, string> = {
     connected:    'Conectado',
@@ -456,35 +675,29 @@ export class InstanceDetailComponent {
     logout:       'Desconectado',
   };
 
-  private static readonly EVENT_LABELS: Record<string, string> = {
-    message:        'Mensagem',
-    message_update: 'Atualização de mensagem',
-    qr:             'QR Code',
-    connected:      'Conectado',
-    disconnected:   'Desconectado',
-  };
-
   translateStatus(status: string): string {
     return InstanceDetailComponent.STATUS_LABELS[status] ?? status;
   }
 
-  translateEvent(event: string): string {
-    return InstanceDetailComponent.EVENT_LABELS[event] ?? event;
+  formatPhone(raw: string): string {
+    const digits = raw.replace(/\D/g, '');
+    if (digits.length === 13 && digits.startsWith('55')) {
+      // Brazilian mobile (9-digit): +55 XX 9XXXX-XXXX
+      return `+${digits.slice(0, 2)} ${digits.slice(2, 4)} ${digits.slice(4, 9)}-${digits.slice(9)}`;
+    }
+    if (digits.length === 12 && digits.startsWith('55')) {
+      // Brazilian 8-digit: +55 XX XXXX-XXXX
+      return `+${digits.slice(0, 2)} ${digits.slice(2, 4)} ${digits.slice(4, 8)}-${digits.slice(8)}`;
+    }
+    return `+${digits}`;
   }
 
   constructor() {
     const headerActions = inject(HeaderActionsService);
-    headerActions.setActions([
-      {
-        id: 'delete-instance',
-        label: 'Excluir',
-        variant: 'negative',
-        onClick: () => this.confirmDelete(),
-      },
-    ]);
+    headerActions.clearActions();
     inject(DestroyRef).onDestroy(() => headerActions.clearActions());
 
-    // QR polling: runs on status tab, stops once connected
+    // QR polling: stops once connected
     this.route.paramMap
       .pipe(
         map((p) => p.get('name')),
@@ -494,6 +707,9 @@ export class InstanceDetailComponent {
             switchMap(() =>
               this.http.get<QrResponse>(
                 `/api/instances/${encodeURIComponent(instanceName)}/qr`,
+                {
+                  context: new HttpContext().set(SUPPRESS_ERROR_ALERT, true),
+                },
               ),
             ),
             takeWhile((r) => r.status !== 'connected', true),
@@ -502,9 +718,14 @@ export class InstanceDetailComponent {
                 void firstValueFrom(
                   this.http.get<StatusResponse>(
                     `/api/instances/${encodeURIComponent(instanceName)}/status`,
+                    {
+                      context: new HttpContext().set(SUPPRESS_ERROR_ALERT, true),
+                    },
                   ),
                 )
-                  .then((s) => this.status.set(s))
+                  .then((s) => {
+                    this.status.set(s);
+                  })
                   .catch(() => this.status.set(null));
               }
             }),
@@ -516,13 +737,6 @@ export class InstanceDetailComponent {
         next: (r) => this.qrData.set(r),
         error: () => this.qrData.set(null),
       });
-
-    // Load webhook config as soon as the instance name is available
-    effect(() => {
-      if (this.name() && !this.webhookConfig()) {
-        void this.loadWebhookConfig();
-      }
-    });
   }
 
   formatMs(ms: number): string {
@@ -530,131 +744,9 @@ export class InstanceDetailComponent {
     const m = Math.floor(s / 60);
     const h = Math.floor(m / 60);
     const d = Math.floor(h / 24);
-    if (d > 0) {
-      return `${d}d ${h % 24}h`;
-    }
-    if (h > 0) {
-      return `${h}h ${m % 60}m`;
-    }
-    if (m > 0) {
-      return `${m}m ${s % 60}s`;
-    }
+    if (d > 0) return `${d}d ${h % 24}h`;
+    if (h > 0) return `${h}h ${m % 60}m`;
+    if (m > 0) return `${m}m`;
     return `${s}s`;
-  }
-
-  async loadWebhookConfig(): Promise<void> {
-    const n = this.name();
-    if (!n) return;
-    this.webhookLoading.set(true);
-    try {
-      const res = await firstValueFrom(
-        this.http.get<StatusResponse>(
-          `/api/instances/${encodeURIComponent(n)}/status`,
-        ),
-      );
-      const wh = res.webhook ?? { url: null, headers: {}, enabled: false, events: [] };
-      this.webhookConfig.set(wh);
-      this.whUrl.set(wh.url ?? '');
-      this.whHeadersJson.set(JSON.stringify(wh.headers ?? {}, null, 2));
-      this.whEnabled.set(wh.enabled);
-      this.whEvents.set([...wh.events]);
-    } catch {
-      this.webhookConfig.set(null);
-    } finally {
-      this.webhookLoading.set(false);
-    }
-  }
-
-  toggleEvent(event: string): void {
-    const current = this.whEvents();
-    if (current.includes(event)) {
-      this.whEvents.set(current.filter((e) => e !== event));
-    } else {
-      this.whEvents.set([...current, event]);
-    }
-  }
-
-  async saveWebhook(): Promise<void> {
-    const n = this.name();
-    if (!n) return;
-
-    const raw = this.whHeadersJson().trim();
-    let headers: Record<string, string>;
-    try {
-      const parsed = JSON.parse(raw === '' ? '{}' : raw) as unknown;
-      if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
-        this.alerts
-          .open('Headers devem ser um objeto JSON.', { label: 'Erro', appearance: 'negative', autoClose: 4000 })
-          .subscribe();
-        return;
-      }
-      headers = parsed as Record<string, string>;
-    } catch {
-      this.alerts
-        .open('Headers devem ser um JSON válido.', { label: 'Erro', appearance: 'negative', autoClose: 4000 })
-        .subscribe();
-      return;
-    }
-
-    this.webhookSaving.set(true);
-    try {
-      const body: Record<string, unknown> = {
-        enabled: this.whEnabled(),
-        events: this.whEvents(),
-        webhookHeaders: headers,
-      };
-      const url = this.whUrl().trim();
-      if (url) body['webhookUrl'] = url;
-
-      const res = await firstValueFrom(
-        this.http.patch<WebhookResponse>(
-          `/api/instances/${encodeURIComponent(n)}/webhook`,
-          body,
-        ),
-      );
-      this.webhookConfig.set(res.webhook);
-      this.alerts
-        .open('Configurações de webhook salvas.', { label: 'Feito', appearance: 'positive', autoClose: 3000 })
-        .subscribe();
-    } catch {
-      this.alerts
-        .open('Falha ao salvar webhook.', { label: 'Erro', appearance: 'negative', autoClose: 4000 })
-        .subscribe();
-    } finally {
-      this.webhookSaving.set(false);
-    }
-  }
-
-  confirmDelete(): void {
-    const n = this.name();
-    if (!n) return;
-    this.confirm
-      .withConfirm({
-        label: 'Excluir instância',
-        size: 's',
-        data: {
-          content: 'Isso irá excluir permanentemente a instância.',
-          yes: 'Confirmar',
-          no: 'Cancelar',
-          appearance: 'negative',
-        },
-      })
-      .subscribe((ok) => {
-        if (!ok) return;
-        void firstValueFrom(
-          this.http.delete(`/api/instances/${encodeURIComponent(n)}`),
-        )
-          .then(() => {
-            this.alerts
-              .open('Instância removida.', {
-                label: 'Feito',
-                appearance: 'positive',
-                autoClose: 3000,
-              })
-              .subscribe();
-            void this.router.navigate(['/dashboard']);
-          })
-          .catch(() => void 0);
-      });
   }
 }

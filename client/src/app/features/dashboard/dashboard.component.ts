@@ -12,6 +12,7 @@ import { TuiDialogService } from '@taiga-ui/core';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { CreateInstanceDialogComponent } from './create-instance-dialog.component';
 import { HeaderActionsService } from '../../shared/header-actions.service';
+import { getAvatarColor } from '../../shared/avatar-colors';
 
 export interface InstanceRow {
   name: string;
@@ -25,6 +26,9 @@ interface InstancesListResponse {
   total: number;
   instances: InstanceRow[];
   message: string;
+  page: number;
+  limit: number;
+  totalPages: number;
 }
 
 @Component({
@@ -72,30 +76,55 @@ interface InstancesListResponse {
     @else {
       <div class="instance-grid">
         @for (inst of data.instances; track inst.name) {
-          <div class="instance-card">
-            <div class="card-header">
-              <span class="instance-name">{{ inst.name }}</span>
-              <div class="badge-row">
-                <span class="status-badge" [class.live]="inst.connected">
-                  {{ inst.connected ? '● Conectado' : 'Desconectado' }}
-                </span>
-                <span class="webhook-badge" [class.active]="inst.webhookEnabled">
-                  {{ inst.webhookEnabled ? '⚡ Webhook' : 'Webhook off' }}
-                </span>
+          @let avatar = avatarStyle(inst.name);
+          <a [routerLink]="['/instances', inst.name]"
+             class="instance-card"
+             [class.is-online]="inst.connected"
+             [attr.aria-label]="'Abrir instância ' + inst.name">
+            <span class="card-glow" aria-hidden="true"></span>
+
+            <div class="card-top">
+              <div class="card-avatar"
+                   [style.background]="avatar.bg"
+                   [style.color]="avatar.text"
+                   aria-hidden="true">{{ initials(inst.name) }}</div>
+              <div class="card-identity">
+                <span class="card-name">{{ inst.name }}</span>
+                @if (inst.phoneNumber) {
+                  <span class="card-phone">{{ formatPhone(inst.phoneNumber) }}</span>
+                } @else {
+                  <span class="card-phone card-phone--muted">Sem número</span>
+                }
               </div>
+              <span class="status-pill" [class.status-pill--on]="inst.connected">
+                <span class="status-dot" [class.status-dot--pulse]="inst.connected" aria-hidden="true"></span>
+                {{ inst.connected ? 'Online' : 'Offline' }}
+              </span>
             </div>
-            <div class="card-body">
-              @if (inst.phoneNumber) {
-                <span class="phone-number">{{ formatPhone(inst.phoneNumber) }}</span>
-              }
-              <span class="last-active">{{ formatLastActive(inst.startTime) }}</span>
+
+            <div class="card-meta">
+              <span class="meta-item">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9"/>
+                  <path stroke-linecap="round" d="M12 7v5l3 2"/>
+                </svg>
+                {{ inst.connected ? formatLastActive(inst.startTime) : 'Inativa' }}
+              </span>
+              <span class="meta-sep" aria-hidden="true"></span>
+              <span class="meta-item">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.69a4.5 4.5 0 011.24 7.24l-4.5 4.5a4.5 4.5 0 01-6.36-6.36l1.76-1.76m13.35-.62l1.76-1.76a4.5 4.5 0 00-6.36-6.36l-4.5 4.5a4.5 4.5 0 001.24 7.24"/>
+                </svg>
+                {{ inst.webhookEnabled ? 'Webhook ativo' : 'Webhook inativo' }}
+              </span>
             </div>
-            <div class="card-footer">
-              <a [routerLink]="['/instances', inst.name]" class="detail-link" (click)="$event.stopPropagation()">
-                Ver detalhes →
-              </a>
-            </div>
-          </div>
+
+            <span class="card-arrow" aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
+                <path d="M7 4l6 6-6 6" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </a>
         }
       </div>
     }
@@ -150,99 +179,182 @@ interface InstancesListResponse {
 
       /* ── Instance card ───────────────────────────────────── */
       .instance-card {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 0.875rem;
+        padding: 1.125rem 1.25rem 1rem;
         background: var(--color-surface-container-lowest);
         border: 1px solid var(--color-outline-variant);
         border-radius: var(--radius-xl);
-        padding: 1.25rem;
-        display: flex;
-        flex-direction: column;
-        gap: 0.75rem;
-        transition: box-shadow var(--duration-fast) var(--ease-default), transform var(--duration-fast) var(--ease-default);
+        text-decoration: none;
+        color: inherit;
+        font-family: var(--font-sans);
+        overflow: hidden;
+        isolation: isolate;
+        transition:
+          border-color var(--duration-fast) var(--ease-default),
+          transform var(--duration-fast) var(--ease-default),
+          box-shadow var(--duration-fast) var(--ease-default);
       }
       .instance-card:hover {
-        box-shadow: var(--shadow-md);
         transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+        border-color: var(--color-outline);
       }
-      .card-header {
+      .instance-card.is-online:hover {
+        border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-outline-variant));
+      }
+      .instance-card:focus-visible {
+        outline: 2px solid var(--color-primary);
+        outline-offset: 2px;
+      }
+
+      /* Subtle ambient glow behind connected cards (top-left) */
+      .card-glow {
+        position: absolute;
+        inset: -40% 40% 40% -40%;
+        z-index: -1;
+        background: radial-gradient(
+          circle at 30% 30%,
+          color-mix(in srgb, var(--color-primary) 10%, transparent) 0%,
+          transparent 60%
+        );
+        opacity: 0;
+        transition: opacity var(--duration-normal) var(--ease-default);
+        pointer-events: none;
+      }
+      .instance-card.is-online .card-glow { opacity: 1; }
+
+      /* Top row */
+      .card-top {
         display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 0.5rem;
+        align-items: center;
+        gap: 0.75rem;
       }
-      .instance-name {
+      .card-avatar {
+        width: 38px;
+        height: 38px;
+        flex-shrink: 0;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.875rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+      }
+      .card-identity {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.125rem;
+      }
+      .card-name {
         font-size: 0.9375rem;
         font-weight: 600;
         color: var(--color-on-surface);
-        font-family: var(--font-sans);
+        line-height: 1.2;
+        white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        white-space: nowrap;
       }
-      .status-badge {
-        font-size: 0.6875rem;
-        font-weight: 500;
-        padding: 0.2rem 0.6rem;
-        border-radius: var(--radius-full);
-        white-space: nowrap;
-        flex-shrink: 0;
-        background: var(--color-error-container);
-        color: var(--color-on-error-container);
-        font-family: var(--font-sans);
-      }
-      .status-badge.live {
-        background: var(--color-primary-container);
-        color: var(--color-on-primary-container);
-      }
-      .badge-row {
-        display: flex;
-        align-items: center;
-        gap: 0.375rem;
-        flex-shrink: 0;
-      }
-      .webhook-badge {
-        font-size: 0.625rem;
-        font-weight: 500;
-        padding: 0.15rem 0.5rem;
-        border-radius: var(--radius-full);
-        white-space: nowrap;
-        font-family: var(--font-sans);
-        background: var(--color-surface-container);
-        color: var(--color-on-surface-variant);
-      }
-      .webhook-badge.active {
-        background: var(--color-secondary-container);
-        color: var(--color-on-secondary-container);
-      }
-      .card-body {
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem;
-      }
-      .phone-number {
-        font-size: 0.75rem;
-        font-weight: 500;
-        color: var(--color-on-surface);
-        font-family: var(--font-sans);
-      }
-      .last-active {
+      .card-phone {
         font-size: 0.75rem;
         font-weight: 400;
         color: var(--color-on-surface-variant);
-        font-family: var(--font-sans);
+        font-feature-settings: "tnum";
       }
-      .card-footer {
-        padding-top: 0.5rem;
-        border-top: 1px solid var(--color-outline-variant);
+      .card-phone--muted { font-style: italic; opacity: 0.7; }
+
+      /* Status pill */
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        padding: 0.25rem 0.5rem 0.25rem 0.4375rem;
+        border-radius: var(--radius-full);
+        font-size: 0.6875rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        background: var(--color-surface-container);
+        color: var(--color-on-surface-variant);
+        flex-shrink: 0;
+        align-self: flex-start;
       }
-      .detail-link {
-        font-size: 0.8125rem;
+      .status-pill--on {
+        background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+        color: color-mix(in srgb, var(--color-primary) 85%, var(--color-on-surface));
+      }
+      .status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--color-on-surface-variant);
+        flex-shrink: 0;
+      }
+      .status-pill--on .status-dot { background: var(--color-success); }
+      .status-dot--pulse {
+        box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-success) 55%, transparent);
+        animation: pulse 1.8s var(--ease-default) infinite;
+      }
+      @keyframes pulse {
+        0%   { box-shadow: 0 0 0 0   color-mix(in srgb, var(--color-success) 50%, transparent); }
+        70%  { box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-success)  0%, transparent); }
+        100% { box-shadow: 0 0 0 0   color-mix(in srgb, var(--color-success)  0%, transparent); }
+      }
+
+      /* Meta row */
+      .card-meta {
+        display: flex;
+        align-items: center;
+        gap: 0.625rem;
+        padding-top: 0.625rem;
+        border-top: 1px dashed var(--color-outline-variant);
+      }
+      .meta-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        font-size: 0.6875rem;
         font-weight: 500;
-        color: var(--color-secondary);
-        text-decoration: none;
-        font-family: var(--font-sans);
-        transition: color var(--duration-fast) var(--ease-default);
+        color: var(--color-on-surface-variant);
+        white-space: nowrap;
       }
-      .detail-link:hover { color: var(--color-primary); }
+      .meta-item svg { flex-shrink: 0; opacity: 0.7; }
+      .meta-sep {
+        width: 1px;
+        height: 12px;
+        background: var(--color-outline-variant);
+        flex-shrink: 0;
+      }
+
+      /* Arrow indicator (bottom-right) */
+      .card-arrow {
+        position: absolute;
+        right: 0.875rem;
+        bottom: 0.875rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        border-radius: var(--radius-full);
+        color: var(--color-on-surface-variant);
+        opacity: 0;
+        transform: translateX(-4px);
+        transition:
+          opacity var(--duration-fast) var(--ease-default),
+          transform var(--duration-fast) var(--ease-default),
+          color var(--duration-fast) var(--ease-default);
+      }
+      .instance-card:hover .card-arrow {
+        opacity: 1;
+        transform: translateX(0);
+        color: var(--color-primary);
+      }
 
       /* ── Skeleton loading ────────────────────────────────── */
       .skeleton-card {
@@ -352,7 +464,7 @@ export class DashboardComponent {
   readonly ResourceStatus = ResourceStatus;
 
   readonly instancesRes = httpResource<InstancesListResponse>(() => '/api/instances', {
-    defaultValue: { total: 0, instances: [], message: '' },
+    defaultValue: { total: 0, instances: [], message: '', page: 1, limit: 20, totalPages: 0 },
   });
 
   constructor() {
@@ -406,6 +518,17 @@ export class DashboardComponent {
       return `+${digits.slice(0,2)} ${digits.slice(2,4)} ${digits.slice(4,8)}-${digits.slice(8)}`;
     }
     return `+${digits}`;
+  }
+
+  initials(name: string): string {
+    const cleaned = (name ?? '').replace(/[^a-z0-9]/gi, ' ').trim();
+    if (!cleaned) return '?';
+    const parts = cleaned.split(/\s+/);
+    return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? parts[0]?.[1] ?? '')).toUpperCase();
+  }
+
+  avatarStyle(name: string): { bg: string; text: string } {
+    return getAvatarColor(name);
   }
 
   formatLastActive(startTime: number): string {

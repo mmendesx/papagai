@@ -12,13 +12,17 @@ jest.mock('bcrypt', () => ({
 }));
 
 function uniqueViolationError(): QueryFailedError {
-  const driverError = Object.assign(new Error('duplicate key'), { code: '23505' });
+  const driverError = Object.assign(new Error('duplicate key'), {
+    code: '23505',
+  });
   return new QueryFailedError('INSERT INTO users', [], driverError);
 }
 
 describe('AuthService', () => {
   let service: AuthService;
-  let usersRepo: jest.Mocked<Pick<Repository<User>, 'findOne' | 'create' | 'save'>>;
+  let usersRepo: jest.Mocked<
+    Pick<Repository<User>, 'findOne' | 'create' | 'save'>
+  >;
 
   beforeEach(async () => {
     usersRepo = {
@@ -67,6 +71,6 @@ describe('AuthService', () => {
         password: 'password123',
         appKey: 'test-app-key',
       }),
-    ).rejects.toMatchObject({ message: 'Email already registered' });
+    ).rejects.toMatchObject({ message: 'E-mail já cadastrado' });
   });
 });

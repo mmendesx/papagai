@@ -75,6 +75,40 @@ Como funciona:
 
 ---
 
+## Banco de dados
+
+Em **desenvolvimento**, o TypeORM usa `synchronize: true` — o schema é ajustado automaticamente ao iniciar a aplicação. Não execute migrations manualmente neste modo.
+
+Em **produção**, `synchronize` está desativado e o schema é controlado exclusivamente por migrations. Antes de iniciar a aplicação em produção, aplique as migrations pendentes:
+
+```bash
+npm run migration:run
+```
+
+### Scripts de migration disponíveis
+
+| Script | O que faz |
+|--------|-----------|
+| `npm run migration:generate <Nome>` | Compara as entidades com o banco e gera uma migration com as diferenças |
+| `npm run migration:create <Nome>` | Cria um arquivo de migration vazio para SQL escrito à mão |
+| `npm run migration:run` | Aplica todas as migrations pendentes |
+| `npm run migration:revert` | Reverte a última migration aplicada |
+| `npm run migration:show` | Lista as migrations aplicadas e pendentes |
+
+O CLI do TypeORM pode ser invocado diretamente quando necessário:
+
+```bash
+node --loader ts-node/esm ./node_modules/typeorm/cli.js -d src/typeorm.datasource.ts
+```
+
+Para resetar um banco de dados de desenvolvimento existente (apaga volumes e recria a stack):
+
+```bash
+make down/v && make dev
+```
+
+---
+
 ## Variáveis de Ambiente
 
 Os valores padrão de dev estão pré-definidos em `docker-compose.dev.yml` e em `.env.example`. Em produção, **`APP_KEY` e `JWT_SECRET` devem ser definidos** — o compose de produção falha intencionalmente sem eles.
@@ -136,6 +170,12 @@ npm run test:e2e
 ```bash
 npm run test:cov
 ```
+
+---
+
+## Segurança
+
+As CVEs conhecidas nas dependências transitivas são remediadas via `overrides` no `package.json` do backend e do cliente — consulte [`docs/dependency-overrides.md`](docs/dependency-overrides.md) para a lista completa com as versões forçadas e os motivos. Alguns riscos residuais foram aceitos temporariamente por exigirem um upgrade de versão maior (Angular 21 ou Taiga UI 5.x) e estão rastreados nos respectivos projetos de upgrade.
 
 ---
 

@@ -1,16 +1,31 @@
+jest.mock('dns/promises', () => ({
+  lookup: jest.fn().mockResolvedValue([{ address: '203.0.113.1', family: 4 }]),
+}));
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
 import { of, throwError } from 'rxjs';
 import { WebhookService } from './webhook.service';
-import { Instance, WebhookData } from '../whatsapp/interfaces/whatsapp.interface';
+import {
+  Instance,
+  WebhookData,
+} from '../whatsapp/interfaces/whatsapp.interface';
 
 function buildInstance(overrides: Partial<Instance> = {}): Instance {
   return {
+    userId: 'user-test-123',
     name: 'test-instance',
     webhookUrl: 'https://example.com/webhook',
     webhookHeaders: {},
     webhookEnabled: true,
-    webhookEvents: ['message', 'message_update', 'qr', 'connected', 'disconnected'],
+    webhookEvents: [
+      'message',
+      'message_update',
+      'qr',
+      'connected',
+      'disconnected',
+    ],
     connected: true,
     qr: null,
     socket: {} as any,
@@ -40,6 +55,10 @@ describe('WebhookService', () => {
         {
           provide: HttpService,
           useValue: { post: httpPost },
+        },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue(false) },
         },
       ],
     }).compile();
@@ -71,7 +90,10 @@ describe('WebhookService', () => {
 
     it('includes X-Papagai-Event header set to the event name', async () => {
       const instance = buildInstance({ webhookEvents: ['message.received'] });
-      const data: WebhookData = { ...minimalWebhookData, event: 'message.received' };
+      const data: WebhookData = {
+        ...minimalWebhookData,
+        event: 'message.received',
+      };
       httpPost.mockReturnValue(of({ data: 'ok', status: 200 }));
 
       await service.sendWebhook(instance, data);
@@ -100,9 +122,13 @@ describe('WebhookService', () => {
   describe('Scenario 21 — Webhook failure is silent', () => {
     it('does not re-throw when the HTTP call fails with an Error', async () => {
       const instance = buildInstance();
-      httpPost.mockReturnValue(throwError(() => new Error('Connection refused')));
+      httpPost.mockReturnValue(
+        throwError(() => new Error('Connection refused')),
+      );
 
-      await expect(service.sendWebhook(instance, minimalWebhookData)).resolves.toBeUndefined();
+      await expect(
+        service.sendWebhook(instance, minimalWebhookData),
+      ).resolves.toBeUndefined();
     });
 
     it('does not re-throw when the HTTP call throws synchronously', async () => {
@@ -111,7 +137,9 @@ describe('WebhookService', () => {
         throw new Error('Unexpected sync error');
       });
 
-      await expect(service.sendWebhook(instance, minimalWebhookData)).resolves.toBeUndefined();
+      await expect(
+        service.sendWebhook(instance, minimalWebhookData),
+      ).resolves.toBeUndefined();
     });
   });
 
@@ -127,7 +155,9 @@ describe('WebhookService', () => {
     it('resolves without throwing when webhookEnabled is false', async () => {
       const instance = buildInstance({ webhookEnabled: false });
 
-      await expect(service.sendWebhook(instance, minimalWebhookData)).resolves.toBeUndefined();
+      await expect(
+        service.sendWebhook(instance, minimalWebhookData),
+      ).resolves.toBeUndefined();
     });
   });
 
@@ -144,7 +174,9 @@ describe('WebhookService', () => {
     it('resolves without throwing when event is filtered out', async () => {
       const instance = buildInstance({ webhookEvents: [] });
 
-      await expect(service.sendWebhook(instance, minimalWebhookData)).resolves.toBeUndefined();
+      await expect(
+        service.sendWebhook(instance, minimalWebhookData),
+      ).resolves.toBeUndefined();
     });
   });
 
@@ -160,7 +192,9 @@ describe('WebhookService', () => {
     it('resolves without throwing when webhookUrl is null', async () => {
       const instance = buildInstance({ webhookUrl: null });
 
-      await expect(service.sendWebhook(instance, minimalWebhookData)).resolves.toBeUndefined();
+      await expect(
+        service.sendWebhook(instance, minimalWebhookData),
+      ).resolves.toBeUndefined();
     });
   });
 });

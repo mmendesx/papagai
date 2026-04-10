@@ -7,18 +7,30 @@ import {
   Body,
   Param,
   Query,
+  Req,
   HttpException,
   HttpStatus,
   UseGuards,
+  ParseIntPipe,
+  DefaultValuePipe,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
+import type { JwtPayload } from '../auth/guards/jwt-auth.guard.js';
 import * as QRCode from 'qrcode';
 import { InstancesService } from './instances.service.js';
 import { CreateInstanceDto } from './dto/create-instance.dto.js';
 import { UpdateWebhookDto } from './dto/update-webhook.dto.js';
 import { MetaMessageDto } from './dto/send-message.dto.js';
+import { PaginateQueryDto } from './dto/paginate-query.dto.js';
 
-export const ALLOWED_WEBHOOK_EVENTS = ['message', 'message_update', 'qr', 'connected', 'disconnected'] as const;
+export const ALLOWED_WEBHOOK_EVENTS = [
+  'message',
+  'message_update',
+  'qr',
+  'connected',
+  'disconnected',
+] as const;
 
 @Controller('api/instances')
 @UseGuards(JwtAuthGuard)
@@ -26,9 +38,15 @@ export class InstancesController {
   constructor(private readonly instancesService: InstancesService) {}
 
   @Post('create')
-  async createInstance(@Body() dto: CreateInstanceDto) {
+  async createInstance(@Req() req: Request, @Body() dto: CreateInstanceDto) {
+    const userId = (req['user'] as JwtPayload).sub;
     if (dto.webhookEvents) {
-      const invalid = dto.webhookEvents.filter((e) => !ALLOWED_WEBHOOK_EVENTS.includes(e as (typeof ALLOWED_WEBHOOK_EVENTS)[number]));
+      const invalid = dto.webhookEvents.filter(
+        (e) =>
+          !ALLOWED_WEBHOOK_EVENTS.includes(
+            e as (typeof ALLOWED_WEBHOOK_EVENTS)[number],
+          ),
+      );
       if (invalid.length > 0) {
         throw new HttpException(
           `Invalid webhook event(s): ${invalid.join(', ')}. Allowed: ${ALLOWED_WEBHOOK_EVENTS.join(', ')}`,
@@ -37,21 +55,36 @@ export class InstancesController {
       }
     }
     try {
-      await this.instancesService.createInstance(dto.name, dto.webhook, dto.webhookHeaders, dto.webhookEnabled, dto.webhookEvents);
+      await this.instancesService.createInstance(
+        userId,
+        dto.name,
+        dto.webhook,
+        dto.webhookHeaders,
+        dto.webhookEnabled,
+        dto.webhookEvents,
+      );
       return {
         success: true,
         instance: dto.name,
         message: `🦜 Papagai ${dto.name} criado com sucesso! Escaneie o QR code para começar.`,
       };
     } catch (error) {
-      throw new HttpException(error instanceof Error ? error.message : String(error), HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        error instanceof Error ? error.message : String(error),
+        HttpStatus.BAD_REQUEST,
+      );
     }
   }
 
   @Post(':name/messages')
-  async sendMessage(@Param('name') name: string, @Body() dto: MetaMessageDto) {
+  async sendMessage(
+    @Req() req: Request,
+    @Param('name') name: string,
+    @Body() dto: MetaMessageDto,
+  ) {
+    const userId = (req['user'] as JwtPayload).sub;
     try {
-      const result = await this.instancesService.sendMessage(name, dto);
+      const result = await this.instancesService.sendMessage(userId, name, dto);
       const messageId = result?.key?.id ?? result?.messages?.[0]?.id ?? '';
       return {
         messaging_product: 'whatsapp',
@@ -59,19 +92,29 @@ export class InstancesController {
         messages: [{ id: messageId }],
       };
     } catch (error) {
-      throw new HttpException(error instanceof Error ? error.message : String(error), HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        error instanceof Error ? error.message : String(error),
+        HttpStatus.BAD_REQUEST,
+      );
     }
   }
 
   @Get(':name/qr')
-  async getQR(@Param('name') name: string) {
-    const instance = this.instancesService.getInstance(name);
+  async getQR(@Req() req: Request, @Param('name') name: string) {
+    const userId = (req['user'] as JwtPayload).sub;
+    const instance = this.instancesService.getInstance(userId, name);
     if (!instance) {
-      throw new HttpException(`Papagai ${name} não encontrado`, HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        `Papagai ${name} não encontrado`,
+        HttpStatus.NOT_FOUND,
+      );
     }
-    const qr = this.instancesService.getQR(name);
+    const qr = this.instancesService.getQR(userId, name);
     if (qr) {
-      const qrImageData = await QRCode.toDataURL(qr, { width: 300, margin: 2 }).catch(() => null);
+      const qrImageData = await QRCode.toDataURL(qr, {
+        width: 300,
+        margin: 2,
+      }).catch(() => null);
       return {
         qr,
         qrImageData,
@@ -95,29 +138,124 @@ export class InstancesController {
   }
 
   @Get(':name/contact/:number')
-  async getContact(@Param('name') name: string, @Param('number') number: string) {
+  async getContact(
+    @Req() req: Request,
+    @Param('name') name: string,
+    @Param('number') number: string,
+  ) {
+    const userId = (req['user'] as JwtPayload).sub;
     try {
-      return await this.instancesService.getContactInfo(name, number);
+      return await this.instancesService.getContactInfo(userId, name, number);
     } catch (error) {
-      throw new HttpException(error instanceof Error ? error.message : String(error), HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        error instanceof Error ? error.message : String(error),
+        HttpStatus.BAD_REQUEST,
+      );
     }
   }
 
   @Get(':name/chats')
-  async getChats(@Param('name') name: string, @Query('include_messages') includeMessages?: string) {
+  async getChats(
+    @Req() req: Request,
+    @Param('name') name: string,
+    @Query('include_messages') includeMessages?: string,
+  ) {
+    const userId = (req['user'] as JwtPayload).sub;
     try {
-      const chats = await this.instancesService.getChats(name, includeMessages === 'true');
+      const chats = await this.instancesService.getChats(
+        userId,
+        name,
+        includeMessages === 'true',
+      );
       return { instance: name, total: chats.length, chats };
     } catch (error) {
-      throw new HttpException(error instanceof Error ? error.message : String(error), HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        error instanceof Error ? error.message : String(error),
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  @Post(':name/chats/:chatId/read')
+  markChatRead(
+    @Req() req: Request,
+    @Param('name') name: string,
+    @Param('chatId') chatId: string,
+  ) {
+    const userId = (req['user'] as JwtPayload).sub;
+    const normalised = chatId.includes('@') ? chatId : `${chatId}@s.whatsapp.net`;
+    this.instancesService.markChatRead(userId, name, normalised);
+    return { ok: true };
+  }
+
+  @Get(':name/chats/:chatId/messages')
+  async getChatMessages(
+    @Req() req: Request,
+    @Param('name') name: string,
+    @Param('chatId') rawChatId: string,
+    @Query('limit', new DefaultValuePipe(100), new ParseIntPipe({ optional: false }))
+    limit: number,
+  ) {
+    const userId = (req['user'] as JwtPayload).sub;
+
+    // Validate chatId format: digits-only or a full JID (any suffix)
+    const CHAT_ID_RE = /^[0-9]+(@[\w.-]+)?$/;
+    if (!CHAT_ID_RE.test(rawChatId)) {
+      throw new HttpException(
+        `chatId "${rawChatId}" is invalid. Expected digits or a full JID (e.g. 5511999999999 or 5511999999999@s.whatsapp.net)`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    // Clamp limit
+    const clampedLimit = Math.min(Math.max(limit, 1), 500);
+
+    // Normalise: append @s.whatsapp.net only when caller passes bare digits
+    const chatId = rawChatId.includes('@')
+      ? rawChatId
+      : `${rawChatId}@s.whatsapp.net`;
+
+    try {
+      const messages = this.instancesService.getChatMessages(
+        userId,
+        name,
+        chatId,
+        clampedLimit,
+      );
+      return { instance: name, chatId, total: messages.length, messages };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new HttpException(
+        msg,
+        msg.includes('não encontrado') ? HttpStatus.NOT_FOUND : HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  @Get(':name/metrics')
+  async getMetrics(@Req() req: Request, @Param('name') name: string) {
+    const userId = (req['user'] as JwtPayload).sub;
+    try {
+      const metrics = this.instancesService.getMetrics(userId, name);
+      return { instance: name, metrics };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new HttpException(
+        msg,
+        msg.includes('não encontrado') ? HttpStatus.NOT_FOUND : HttpStatus.BAD_REQUEST,
+      );
     }
   }
 
   @Get(':name/status')
-  async getStatus(@Param('name') name: string) {
-    const instance = this.instancesService.getInstance(name);
+  async getStatus(@Req() req: Request, @Param('name') name: string) {
+    const userId = (req['user'] as JwtPayload).sub;
+    const instance = this.instancesService.getInstance(userId, name);
     if (!instance) {
-      throw new HttpException(`Papagai ${name} não encontrado`, HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        `Papagai ${name} não encontrado`,
+        HttpStatus.NOT_FOUND,
+      );
     }
     return {
       name: instance.name,
@@ -135,19 +273,30 @@ export class InstancesController {
   }
 
   @Get()
-  async listInstances() {
-    const instances = this.instancesService.getInstances();
-    return {
-      total: instances.length,
-      instances,
-      message: `🦜 Você tem ${instances.length} papagai${instances.length === 1 ? '' : 's'}`,
-    };
+  async listInstances(@Req() req: Request, @Query() query: PaginateQueryDto) {
+    const userId = (req['user'] as any).sub;
+    const page = query.page ?? 1;
+    const limit = Math.min(query.limit ?? 20, 100);
+    const { instances, total } = this.instancesService.getInstances(userId, {
+      page,
+      limit,
+    });
+    const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
+    const message = `🦜 Você tem ${total} ${total === 1 ? 'papagai' : 'papagais'}`;
+    return { instances, total, page, limit, totalPages, message };
   }
 
   @Patch(':name/webhook')
-  async updateWebhook(@Param('name') name: string, @Body() dto: UpdateWebhookDto) {
+  async updateWebhook(
+    @Req() req: Request,
+    @Param('name') name: string,
+    @Body() dto: UpdateWebhookDto,
+  ) {
+    const userId = (req['user'] as JwtPayload).sub;
     if (dto.events) {
-      const invalid = dto.events.filter(e => !ALLOWED_WEBHOOK_EVENTS.includes(e as any));
+      const invalid = dto.events.filter(
+        (e) => !ALLOWED_WEBHOOK_EVENTS.includes(e as any),
+      );
       if (invalid.length > 0) {
         throw new HttpException(
           `Invalid webhook event(s): ${invalid.join(', ')}. Allowed: ${ALLOWED_WEBHOOK_EVENTS.join(', ')}`,
@@ -157,12 +306,16 @@ export class InstancesController {
     }
 
     try {
-      const instance = await this.instancesService.updateWebhookConfig(name, {
-        webhookUrl: dto.webhookUrl,
-        webhookHeaders: dto.webhookHeaders,
-        webhookEnabled: dto.enabled,
-        webhookEvents: dto.events,
-      });
+      const instance = await this.instancesService.updateWebhookConfig(
+        userId,
+        name,
+        {
+          webhookUrl: dto.webhookUrl,
+          webhookHeaders: dto.webhookHeaders,
+          webhookEnabled: dto.enabled,
+          webhookEvents: dto.events,
+        },
+      );
       return {
         instance: name,
         webhook: {
@@ -184,11 +337,21 @@ export class InstancesController {
   }
 
   @Delete(':name')
-  async disconnectInstance(@Param('name') name: string) {
-    const success = await this.instancesService.disconnectInstance(name);
+  async disconnectInstance(@Req() req: Request, @Param('name') name: string) {
+    const userId = (req['user'] as JwtPayload).sub;
+    const success = await this.instancesService.disconnectInstance(
+      userId,
+      name,
+    );
     if (success) {
-      return { message: `🦜 Papagai ${name} foi dormir. Até logo!`, instance: name };
+      return {
+        message: `🦜 Papagai ${name} foi dormir. Até logo!`,
+        instance: name,
+      };
     }
-    throw new HttpException(`Papagai ${name} não encontrado`, HttpStatus.NOT_FOUND);
+    throw new HttpException(
+      `Papagai ${name} não encontrado`,
+      HttpStatus.NOT_FOUND,
+    );
   }
 }

@@ -28,7 +28,10 @@ describe('HttpExceptionFilter', () => {
   describe('Scenario 28: HttpException returns structured error response', () => {
     it('sets the HTTP status code on the response to match the exception status', () => {
       const { mockHost, status, json } = buildMockHost('/api/test', 'GET');
-      const exception = new HttpException('Bad Request', HttpStatus.BAD_REQUEST);
+      const exception = new HttpException(
+        'Bad Request',
+        HttpStatus.BAD_REQUEST,
+      );
 
       filter.catch(exception, mockHost as any);
 
@@ -73,7 +76,10 @@ describe('HttpExceptionFilter', () => {
 
     it('sets timestamp to a valid ISO date string', () => {
       const { mockHost, json } = buildMockHost('/api/test', 'GET');
-      const exception = new HttpException('Error', HttpStatus.INTERNAL_SERVER_ERROR);
+      const exception = new HttpException(
+        'Error',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
 
       const before = Date.now();
       filter.catch(exception, mockHost as any);
@@ -91,7 +97,10 @@ describe('HttpExceptionFilter', () => {
   describe('message extraction', () => {
     it('extracts message from a string exception response', () => {
       const { mockHost, json } = buildMockHost('/api/test', 'DELETE');
-      const exception = new HttpException('Unauthorized access', HttpStatus.UNAUTHORIZED);
+      const exception = new HttpException(
+        'Unauthorized access',
+        HttpStatus.UNAUTHORIZED,
+      );
 
       filter.catch(exception, mockHost as any);
 
@@ -128,7 +137,10 @@ describe('HttpExceptionFilter', () => {
 
     it('falls back to exception.name as error when the response has no error field', () => {
       const { mockHost, json } = buildMockHost('/api/test', 'GET');
-      const exception = new HttpException('Simple string response', HttpStatus.BAD_GATEWAY);
+      const exception = new HttpException(
+        'Simple string response',
+        HttpStatus.BAD_GATEWAY,
+      );
 
       filter.catch(exception, mockHost as any);
 
@@ -141,7 +153,10 @@ describe('HttpExceptionFilter', () => {
     it('handles a 400 with an array of validation messages in the message field', () => {
       const { mockHost, status, json } = buildMockHost('/api/messages', 'POST');
       const exception = new HttpException(
-        { message: ['name should not be empty', 'phone must be a phone number'], error: 'Bad Request' },
+        {
+          message: ['name should not be empty', 'phone must be a phone number'],
+          error: 'Bad Request',
+        },
         HttpStatus.BAD_REQUEST,
       );
 
@@ -150,7 +165,10 @@ describe('HttpExceptionFilter', () => {
       expect(status).toHaveBeenCalledWith(400);
       const body = json.mock.calls[0][0];
       expect(body.statusCode).toBe(400);
-      expect(body.message).toEqual(['name should not be empty', 'phone must be a phone number']);
+      expect(body.message).toEqual([
+        'name should not be empty',
+        'phone must be a phone number',
+      ]);
       expect(body.error).toBe('Bad Request');
       expect(body.path).toBe('/api/messages');
     });
@@ -160,7 +178,11 @@ describe('HttpExceptionFilter', () => {
     it('includes string code from exception response body when present', () => {
       const { mockHost, json } = buildMockHost('/api/auth/register', 'POST');
       const exception = new HttpException(
-        { message: 'Invalid application key', error: 'Forbidden', code: 'INVALID_APP_KEY' },
+        {
+          message: 'Invalid application key',
+          error: 'Forbidden',
+          code: 'INVALID_APP_KEY',
+        },
         HttpStatus.FORBIDDEN,
       );
 

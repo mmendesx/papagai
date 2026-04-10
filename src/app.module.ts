@@ -8,6 +8,7 @@ import { InstancesModule } from './instances/instances.module.js';
 import { WebhookModule } from './webhook/webhook.module.js';
 import { MediaModule } from './media/media.module.js';
 import { AuthModule } from './auth/auth.module.js';
+import { HealthModule } from './health/health.module.js';
 import configuration from './config/configuration.js';
 import { InstanceConfig } from './instances/entities/instance-config.entity.js';
 import { User } from './auth/entities/user.entity.js';
@@ -29,11 +30,14 @@ import { User } from './auth/entities/user.entity.js';
         password: config.get('db.pass'),
         database: config.get('db.name'),
         entities: [InstanceConfig, User],
-        synchronize: true,
+        synchronize: config.get<string>('nodeEnv') === 'development',
+        migrationsRun: false,
+        migrations: [join(__dirname, 'migrations', '*.js')],
       }),
     }),
     ScheduleModule.forRoot(),
     AuthModule,
+    HealthModule,
     InstancesModule,
     WebhookModule,
     MediaModule,

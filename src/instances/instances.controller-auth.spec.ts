@@ -47,6 +47,8 @@ describe('InstancesController JWT', () => {
   });
 
   it('GET /api/instances without Authorization returns 401', () => {
-    return request(app.getHttpServer() as App).get('/api/instances').expect(401);
+    return request(app.getHttpServer() as App)
+      .get('/api/instances')
+      .expect(401);
   });
 });

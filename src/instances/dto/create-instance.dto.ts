@@ -7,12 +7,16 @@ import {
   IsArray,
   MaxLength,
   MinLength,
+  Matches,
 } from 'class-validator';
 
 export class CreateInstanceDto {
   @IsString()
-  @MinLength(3)
-  @MaxLength(30)
+  @Matches(/^[a-zA-Z0-9_-]+$/, {
+    message: 'Nome da instância inválido: use apenas letras, números, _ e -',
+  })
+  @MinLength(1)
+  @MaxLength(64)
   name: string;
 
   @IsOptional()

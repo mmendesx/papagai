@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;700;900&family=Figtree:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Geist:wght@400;700;900&family=Figtree:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -62,23 +62,23 @@
 
   /* ── MD3 Color palette ───────────────────────────────── */
 
-  /* Primary (green) */
-  --color-primary:              #006a2d;
-  --color-primary-container:    #6bff8f;
-  --color-on-primary:           #ceffd0;
-  --color-on-primary-container: #005f28;
+  /* Primary (electric blue) — brand identity */
+  --color-primary:              #2563eb;
+  --color-primary-container:    #dbeafe;
+  --color-on-primary:           #ffffff;
+  --color-on-primary-container: #1e3a8a;
 
-  /* Secondary (blue) */
-  --color-secondary:              #006286;
-  --color-secondary-container:    #9bdaff;
-  --color-on-secondary:           #e7f5ff;
-  --color-on-secondary-container: #004d6a;
+  /* Secondary (tangerine) — parrot beak accent */
+  --color-secondary:              #ea580c;
+  --color-secondary-container:    #ffedd5;
+  --color-on-secondary:           #ffffff;
+  --color-on-secondary-container: #9a3412;
 
-  /* Tertiary (purple) */
-  --color-tertiary:              #8126cf;
-  --color-tertiary-container:    #ce9bff;
-  --color-on-tertiary:           #fbefff;
-  --color-on-tertiary-container: #4a0080;
+  /* Tertiary (cyan) — parrot wing accent */
+  --color-tertiary:              #0891b2;
+  --color-tertiary-container:    #cffafe;
+  --color-on-tertiary:           #ffffff;
+  --color-on-tertiary-container: #164e63;
 
   /* Error (red) */
   --color-error:              #b31b25;
@@ -86,29 +86,30 @@
   --color-on-error:           #ffefee;
   --color-on-error-container: #570008;
 
-  /* Surface scale */
-  --color-surface:                   #f5f7f9;
+  /* Surface scale — neutral gray (no green tint) */
+  --color-surface:                   #f7f7f9;
   --color-surface-container-lowest:  #ffffff;
-  --color-surface-container-low:     #eef1f3;
-  --color-surface-container:         #e5e9eb;
-  --color-surface-container-high:    #dfe3e6;
-  --color-surface-container-highest: #d9dde0;
+  --color-surface-container-low:     #f1f1f4;
+  --color-surface-container:         #e9e9ed;
+  --color-surface-container-high:    #e1e1e6;
+  --color-surface-container-highest: #d8d8de;
 
   /* Text */
-  --color-on-surface:         #2c2f31;
-  --color-on-surface-variant: #595c5e;
+  --color-on-surface:         #27272a;
+  --color-on-surface-variant: #52525b;
 
   /* Borders */
-  --color-outline:         #747779;
-  --color-outline-variant: #abadaf;
+  --color-outline:         #71717a;
+  --color-outline-variant: #d4d4d8;
 
   /* Semantic aliases */
-  --color-success-bg: #f4f6ef;
-  --color-warning-bg: #fdf3ee;
+  --color-success-bg: #f0fdf4;
+  --color-warning-bg: #fefce8;
   --color-error-bg:   #fef2f2;
-  --color-info-bg:    #f0f6fb;
-  --color-success:    #065f46;
-  --color-warning:    #92400e;
+  --color-info-bg:    #eff6ff;
+  --color-success:         #16a34a;
+  --color-success-strong:  #15803d;
+  --color-warning:         #b45309;
 
   /* Method badge colors */
   --color-method-patch: #d97757;
@@ -138,11 +139,12 @@
   --tui-text-primary:              var(--color-on-surface);
   --tui-text-secondary:            var(--color-on-surface-variant);
   --tui-border-normal:             var(--color-outline-variant);
-  --tui-border-focus:              var(--color-secondary);
+  --tui-border-focus:              var(--color-primary);
 
   /* ── Fonts ───────────────────────────────────────────── */
   --font-sans: 'Figtree', sans-serif;
   --font-display: 'Geist', sans-serif;
+  --font-brand: 'Space Grotesk', sans-serif;
 
   /* ── Taiga UI font overrides ─────────────────────────── */
   --tui-font-text: 'Figtree', sans-serif;
@@ -227,44 +229,44 @@ html {
 
 /* Selection color */
 ::selection {
-  background: rgba(0, 106, 45, 0.15);
+  background: rgba(37, 99, 235, 0.22);
   color: inherit;
 }
 
 [data-theme="dark"] {
-  /* ── Surface scale ───────────────────────────────── */
-  --color-surface:                   #0f1412;
-  --color-surface-container-lowest:  #141a17;
-  --color-surface-container-low:     #1c2420;
-  --color-surface-container:         #232c28;
-  --color-surface-container-high:    #2b3530;
-  --color-surface-container-highest: #343f3a;
+  /* ── Surface scale (neutral dark) ─────────────────── */
+  --color-surface:                   #0e0e11;
+  --color-surface-container-lowest:  #18181b;
+  --color-surface-container-low:     #1f1f23;
+  --color-surface-container:         #26262b;
+  --color-surface-container-high:    #2f2f35;
+  --color-surface-container-highest: #38383f;
 
   /* ── Text ────────────────────────────────────────── */
-  --color-on-surface:         #e1e4e6;
-  --color-on-surface-variant: #9ca3a8;
+  --color-on-surface:         #e4e4e7;
+  --color-on-surface-variant: #a1a1aa;
 
   /* ── Borders ─────────────────────────────────────── */
-  --color-outline:         #5a6065;
-  --color-outline-variant: #2e3538;
+  --color-outline:         #52525b;
+  --color-outline-variant: #3f3f46;
 
-  /* ── Primary (green) ─────────────────────────────── */
-  --color-primary:              #4cdb80;
-  --color-primary-container:    #004d20;
-  --color-on-primary:           #001a0c;
-  --color-on-primary-container: #5bef74;
+  /* ── Primary (electric blue) ─────────────────────── */
+  --color-primary:              #60a5fa;
+  --color-primary-container:    #1e3a8a;
+  --color-on-primary:           #0b1020;
+  --color-on-primary-container: #bfdbfe;
 
-  /* ── Secondary (blue) ───────────────────────────── */
-  --color-secondary:              #5bc8f5;
-  --color-secondary-container:    #004d6a;
-  --color-on-secondary:           #001e2b;
-  --color-on-secondary-container: #4dbde8;
+  /* ── Secondary (tangerine) ──────────────────────── */
+  --color-secondary:              #fb923c;
+  --color-secondary-container:    #7c2d12;
+  --color-on-secondary:           #431407;
+  --color-on-secondary-container: #fed7aa;
 
-  /* ── Tertiary (purple) ───────────────────────────── */
-  --color-tertiary:              #cc9bff;
-  --color-tertiary-container:    #5a0099;
-  --color-on-tertiary:           #1a0033;
-  --color-on-tertiary-container: #c08aff;
+  /* ── Tertiary (cyan) ─────────────────────────────── */
+  --color-tertiary:              #22d3ee;
+  --color-tertiary-container:    #164e63;
+  --color-on-tertiary:           #083344;
+  --color-on-tertiary-container: #a5f3fc;
 
   /* ── Error ───────────────────────────────────────── */
   --color-error:              #ff6b6b;
@@ -273,12 +275,13 @@ html {
   --color-on-error-container: #ff8a80;
 
   /* ── Semantic backgrounds ────────────────────────── */
-  --color-success-bg: #0d1f0d;
-  --color-warning-bg: #1f1208;
+  --color-success-bg: #052e16;
+  --color-warning-bg: #1c1917;
   --color-error-bg:   #1f0808;
-  --color-info-bg:    #081520;
-  --color-success:    #52c77d;
-  --color-warning:    #f6a53c;
+  --color-info-bg:    #0c1220;
+  --color-success:         #4ade80;
+  --color-success-strong:  #22c55e;
+  --color-warning:         #fbbf24;
 
   /* ── Method badge ────────────────────────────────── */
   --color-method-patch: #f09070;
@@ -310,5 +313,5 @@ html {
   --tui-text-primary:              var(--color-on-surface);
   --tui-text-secondary:            var(--color-on-surface-variant);
   --tui-border-normal:             var(--color-outline-variant);
-  --tui-border-focus:              var(--color-secondary);
+  --tui-border-focus:              var(--color-primary);
 }

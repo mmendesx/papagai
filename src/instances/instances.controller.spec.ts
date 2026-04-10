@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { JwtModule, JwtService } from '@nestjs/jwt';
 import request from 'supertest';
 import { App } from 'supertest/types';
@@ -25,6 +25,8 @@ const mockService = {
   sendMessage: jest.fn(),
   getContactInfo: jest.fn(),
   getChats: jest.fn(),
+  getChatMessages: jest.fn(),
+  getMetrics: jest.fn(),
   updateWebhookConfig: jest.fn(),
 };
 
@@ -48,10 +50,18 @@ describe('InstancesController', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.useGlobalPipes(
+      new ValidationPipe({ transform: true, whitelist: true }),
+    );
     await app.init();
 
     const jwtService = moduleFixture.get(JwtService);
-    token = jwtService.sign({ sub: 'test', email: 'test@test.com', name: 'Test', role: 'admin' });
+    token = jwtService.sign({
+      sub: 'test',
+      email: 'test@test.com',
+      name: 'Test',
+      role: 'admin',
+    });
   });
 
   afterAll(async () => {
@@ -138,15 +148,18 @@ describe('InstancesController', () => {
 
   describe('GET /api/instances', () => {
     it('list items include webhook object', async () => {
-      mockService.getInstances.mockReturnValue([
-        {
-          name: 'alpha',
-          connected: true,
-          startTime: 1000,
-          webhookEnabled: mockWebhook.enabled,
-          webhook: mockWebhook,
-        },
-      ]);
+      mockService.getInstances.mockReturnValue({
+        instances: [
+          {
+            name: 'alpha',
+            connected: true,
+            startTime: 1000,
+            webhookEnabled: mockWebhook.enabled,
+            webhook: mockWebhook,
+          },
+        ],
+        total: 1,
+      });
 
       const res = await request(app.getHttpServer() as App)
         .get('/api/instances')
@@ -156,6 +169,240 @@ describe('InstancesController', () => {
       expect(res.body.instances).toHaveLength(1);
       expect(res.body.instances[0].webhook).toEqual(mockWebhook);
       expect(res.body.instances[0].webhookEnabled).toBe(true);
+    });
+
+    it('uses default page=1 and limit=20 when no query params provided', async () => {
+      mockService.getInstances.mockReturnValue({ instances: [], total: 0 });
+
+      const res = await request(app.getHttpServer() as App)
+        .get('/api/instances')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(mockService.getInstances).toHaveBeenCalledWith('test', {
+        page: 1,
+        limit: 20,
+      });
+      expect(res.body.page).toBe(1);
+      expect(res.body.limit).toBe(20);
+    });
+
+    it('clamps limit=200 to 100', async () => {
+      mockService.getInstances.mockReturnValue({ instances: [], total: 0 });
+
+      const res = await request(app.getHttpServer() as App)
+        .get('/api/instances?page=1&limit=200')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(mockService.getInstances).toHaveBeenCalledWith('test', {
+        page: 1,
+        limit: 100,
+      });
+      expect(res.body.limit).toBe(100);
+    });
+
+    it('returns 400 when page=0', async () => {
+      await request(app.getHttpServer() as App)
+        .get('/api/instances?page=0')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(400);
+    });
+
+    it('returns 400 when page=1.5 (decimal)', async () => {
+      await request(app.getHttpServer() as App)
+        .get('/api/instances?page=1.5')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(400);
+    });
+
+    it('returns 400 when limit=0', async () => {
+      await request(app.getHttpServer() as App)
+        .get('/api/instances?limit=0')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(400);
+    });
+
+    it('returns 400 when limit=-3', async () => {
+      await request(app.getHttpServer() as App)
+        .get('/api/instances?limit=-3')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(400);
+    });
+
+    it('returns empty instances with correct total when page is beyond data', async () => {
+      mockService.getInstances.mockReturnValue({ instances: [], total: 3 });
+
+      const res = await request(app.getHttpServer() as App)
+        .get('/api/instances?page=5&limit=20')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(res.body.instances).toHaveLength(0);
+      expect(res.body.total).toBe(3);
+      expect(res.body.totalPages).toBe(1);
+    });
+
+    it('returns singular message when total=1', async () => {
+      mockService.getInstances.mockReturnValue({
+        instances: [{ name: 'solo' }],
+        total: 1,
+      });
+
+      const res = await request(app.getHttpServer() as App)
+        .get('/api/instances')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(res.body.message).toContain('papagai');
+      expect(res.body.message).not.toContain('papagais');
+    });
+
+    it('returns totalPages=0 when total=0', async () => {
+      mockService.getInstances.mockReturnValue({ instances: [], total: 0 });
+
+      const res = await request(app.getHttpServer() as App)
+        .get('/api/instances')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(res.body.totalPages).toBe(0);
+    });
+  });
+
+  describe('GET /api/instances/:name/chats/:chatId/messages', () => {
+    it('returns 200 with messages array for a valid chatId (bare digits)', async () => {
+      const mockMessages = [
+        {
+          id: 'msg-1',
+          chatId: '5511999999999@s.whatsapp.net',
+          fromMe: false,
+          sender: 'Alice',
+          type: 'text',
+          body: 'Hello',
+          timestamp: 1700000000000,
+        },
+      ];
+      mockService.getChatMessages.mockReturnValue(mockMessages);
+
+      const res = await request(app.getHttpServer() as App)
+        .get('/api/instances/alpha/chats/5511999999999/messages')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(res.body.instance).toBe('alpha');
+      expect(res.body.chatId).toBe('5511999999999@s.whatsapp.net');
+      expect(res.body.messages).toHaveLength(1);
+      expect(res.body.messages[0].body).toBe('Hello');
+    });
+
+    it('returns 200 with messages array for a valid full JID chatId', async () => {
+      mockService.getChatMessages.mockReturnValue([]);
+
+      const res = await request(app.getHttpServer() as App)
+        .get('/api/instances/alpha/chats/5511999999999@s.whatsapp.net/messages')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(res.body.chatId).toBe('5511999999999@s.whatsapp.net');
+      expect(res.body.messages).toEqual([]);
+    });
+
+    it('returns 400 when chatId contains non-numeric characters', async () => {
+      const res = await request(app.getHttpServer() as App)
+        .get('/api/instances/alpha/chats/invalid-chat-id/messages')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(400);
+
+      expect(res.body.message).toContain('invalid');
+    });
+
+    it('returns 401 when no auth token is provided', async () => {
+      await request(app.getHttpServer() as App)
+        .get('/api/instances/alpha/chats/5511999999999/messages')
+        .expect(401);
+    });
+
+    it('uses default limit of 100 when not specified', async () => {
+      mockService.getChatMessages.mockReturnValue([]);
+
+      await request(app.getHttpServer() as App)
+        .get('/api/instances/alpha/chats/5511999999999/messages')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(mockService.getChatMessages).toHaveBeenCalledWith(
+        'test',
+        'alpha',
+        '5511999999999@s.whatsapp.net',
+        100,
+      );
+    });
+
+    it('clamps limit to 500 when limit=9999 is provided', async () => {
+      mockService.getChatMessages.mockReturnValue([]);
+
+      await request(app.getHttpServer() as App)
+        .get('/api/instances/alpha/chats/5511999999999/messages?limit=9999')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(mockService.getChatMessages).toHaveBeenCalledWith(
+        'test',
+        'alpha',
+        '5511999999999@s.whatsapp.net',
+        500,
+      );
+    });
+
+    it('returns 404 when instance is not found', async () => {
+      mockService.getChatMessages.mockImplementation(() => {
+        throw new Error('Papagai ghost não encontrado');
+      });
+
+      await request(app.getHttpServer() as App)
+        .get('/api/instances/ghost/chats/5511999999999/messages')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(404);
+    });
+  });
+
+  describe('GET /api/instances/:name/metrics', () => {
+    it('returns 200 with metrics object', async () => {
+      mockService.getMetrics.mockReturnValue({
+        messagesSent: 10,
+        messagesReceived: 25,
+        activeConversations: 5,
+        webhookEnabled: true,
+      });
+
+      const res = await request(app.getHttpServer() as App)
+        .get('/api/instances/alpha/metrics')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(res.body.instance).toBe('alpha');
+      expect(res.body.metrics.messagesSent).toBe(10);
+      expect(res.body.metrics.messagesReceived).toBe(25);
+      expect(res.body.metrics.activeConversations).toBe(5);
+      expect(res.body.metrics.webhookEnabled).toBe(true);
+    });
+
+    it('returns 401 when no auth token is provided', async () => {
+      await request(app.getHttpServer() as App)
+        .get('/api/instances/alpha/metrics')
+        .expect(401);
+    });
+
+    it('returns 404 when instance is not found', async () => {
+      mockService.getMetrics.mockImplementation(() => {
+        throw new Error('Papagai ghost não encontrado');
+      });
+
+      await request(app.getHttpServer() as App)
+        .get('/api/instances/ghost/metrics')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(404);
     });
   });
 
@@ -185,6 +432,7 @@ describe('InstancesController', () => {
         .expect(201);
 
       expect(mockService.createInstance).toHaveBeenCalledWith(
+        'test',
         'abc',
         'https://example.com/h',
         undefined,
