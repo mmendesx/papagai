@@ -145,7 +145,16 @@ A referência interativa completa está disponível no app em **`/docs`** após 
 | Webhooks | `PATCH /api/instances/:name/webhook` |
 | Contatos & Conversas | `GET /api/instances/:name/contact/:number` · `GET /api/instances/:name/chats` |
 
-Todas as rotas de instância exigem o cabeçalho `Authorization: Bearer <token>` obtido no endpoint de login.
+As rotas protegidas aceitam **JWT** (`Authorization: Bearer <token>`) ou **API Key** (`X-Api-Key: <key>`).
+
+### Escopo de API Keys
+
+- **Chave de conta (`ppg_acct_...`)**: criada em `POST /api/auth/apikeys`; pode acessar rotas de conta e rotas de instâncias do mesmo usuário.
+- **Chave de instância (`ppg_inst_...`)**: criada em `POST /api/instances/:name/apikeys`; só pode acessar rotas da instância correspondente (`:name`).
+- Chaves de instância são bloqueadas em rotas de conta (ex.: `GET /api/instances`, `POST /api/auth/apikeys`) com **403 Forbidden**.
+- Em chaves de conta, você pode enviar `permissions` ao criar a chave para limitar os grupos de endpoints permitidos.
+- Em chaves de conta, você também pode enviar `permissionsTemplate` para usar templates padrão: `read_only`, `operator`, `instance_manager`, `account_admin`.
+- Se `permissions` for omitido, a chave de conta mantém acesso total (comportamento legado).
 
 ---
 

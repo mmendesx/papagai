@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Redis } from 'ioredis';
+import { Observable, Subject } from 'rxjs';
 
 export const REDIS_CLIENT = 'REDIS_CLIENT';
 
@@ -31,6 +32,15 @@ export interface StoredMessage {
   body: string | null;
   timestamp: number;
   status?: 'pending' | 'sent' | 'delivered' | 'read' | 'failed';
+}
+
+export interface ChatRealtimeEvent {
+  type: 'chat_updated' | 'chat_read' | 'history_synced';
+  chatId?: string;
+  timestamp: number;
+  source?: 'incoming' | 'outgoing' | 'read' | 'sync';
+  chat?: ChatSummary;
+  message?: StoredMessage;
 }
 
 interface InstanceStore {
@@ -114,6 +124,8 @@ export function extractPreview(msg: any): {
 export class ChatStoreService {
   private readonly logger = new Logger(ChatStoreService.name);
   private readonly stores: Map<string, InstanceStore> = new Map();
+  private readonly eventsByInstance: Map<string, Subject<ChatRealtimeEvent>> =
+    new Map();
 
   constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
 
@@ -183,6 +195,10 @@ export class ChatStoreService {
 
   // ── Public API ────────────────────────────────────────────────────────────
 
+  observeEvents(userId: string, instanceName: string): Observable<ChatRealtimeEvent> {
+    return this.getEventsSubject(instanceKey(userId, instanceName)).asObservable();
+  }
+
   recordIncoming(userId: string, instanceName: string, msg: any): void {
     const key = instanceKey(userId, instanceName);
     const store = this.getOrCreate(key);
@@ -226,6 +242,15 @@ export class ChatStoreService {
     };
     store.chats.set(chatId, chat);
     store.counters.received += 1;
+
+    this.emitEvent(userId, instanceName, {
+      type: 'chat_updated',
+      chatId,
+      timestamp,
+      source: 'incoming',
+      chat: { ...chat },
+      message: { ...storedMsg },
+    });
 
     this.persistAsync(userId, instanceName, store, chatId, storedMsg);
   }
@@ -275,6 +300,15 @@ export class ChatStoreService {
     };
     store.chats.set(chatId, chat);
     store.counters.sent += 1;
+
+    this.emitEvent(userId, instanceName, {
+      type: 'chat_updated',
+      chatId,
+      timestamp,
+      source: 'outgoing',
+      chat: { ...chat },
+      message: { ...storedMsg },
+    });
 
     this.persistAsync(userId, instanceName, store, chatId, storedMsg);
   }
@@ -398,6 +432,11 @@ export class ChatStoreService {
       this.logger.log(
         `History sync for "${key}": ${chatCount} chats, ${msgCount} messages ingested`,
       );
+      this.emitEvent(userId, instanceName, {
+        type: 'history_synced',
+        timestamp: Date.now(),
+        source: 'sync',
+      });
       // Persist all chats + messages to Redis in background
       this.persistBulkAsync(userId, instanceName, store);
     }
@@ -409,12 +448,24 @@ export class ChatStoreService {
     const chat = store.chats.get(chatId);
     if (!chat) return;
     chat.unreadCount = 0;
+    this.emitEvent(userId, instanceName, {
+      type: 'chat_read',
+      chatId,
+      timestamp: Date.now(),
+      source: 'read',
+      chat: { ...chat },
+    });
     this.persistChatAsync(userId, instanceName, chatId, chat);
   }
 
   clearInstance(userId: string, instanceName: string): void {
     const key = instanceKey(userId, instanceName);
     this.stores.delete(key);
+    const events = this.eventsByInstance.get(key);
+    if (events) {
+      events.complete();
+      this.eventsByInstance.delete(key);
+    }
     this.logger.log(`Cleared in-memory store for "${key}"`);
     // Redis keys for this instance are cleared by WhatsappService.purgeInstance / disconnectInstance
     // which already calls redis.del on `papagai:${userId}:${instanceName}:*`
@@ -434,6 +485,23 @@ export class ChatStoreService {
       this.stores.set(key, store);
     }
     return store;
+  }
+
+  private getEventsSubject(key: string): Subject<ChatRealtimeEvent> {
+    let subject = this.eventsByInstance.get(key);
+    if (!subject) {
+      subject = new Subject<ChatRealtimeEvent>();
+      this.eventsByInstance.set(key, subject);
+    }
+    return subject;
+  }
+
+  private emitEvent(
+    userId: string,
+    instanceName: string,
+    event: ChatRealtimeEvent,
+  ): void {
+    this.getEventsSubject(instanceKey(userId, instanceName)).next(event);
   }
 
   private pushMessage(

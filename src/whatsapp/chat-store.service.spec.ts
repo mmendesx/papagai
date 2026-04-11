@@ -131,6 +131,50 @@ describe('ChatStoreService', () => {
     });
   });
 
+  describe('realtime events', () => {
+    it('emits chat_updated when a message is recorded', (done) => {
+      const redis = makeMockRedis();
+      const svc = new ChatStoreService(redis);
+
+      const sub = svc.observeEvents(USER, INSTANCE).subscribe((event) => {
+        try {
+          expect(event.type).toBe('chat_updated');
+          expect(event.chatId).toBe('5511999999999@s.whatsapp.net');
+          expect(event.source).toBe('incoming');
+          sub.unsubscribe();
+          done();
+        } catch (error) {
+          sub.unsubscribe();
+          done(error);
+        }
+      });
+
+      svc.recordIncoming(USER, INSTANCE, makeMsg());
+    });
+
+    it('emits chat_read when a chat is marked as read', (done) => {
+      const redis = makeMockRedis();
+      const svc = new ChatStoreService(redis);
+
+      svc.recordIncoming(USER, INSTANCE, makeMsg());
+
+      const sub = svc.observeEvents(USER, INSTANCE).subscribe((event) => {
+        try {
+          expect(event.type).toBe('chat_read');
+          expect(event.chatId).toBe('5511999999999@s.whatsapp.net');
+          expect(event.source).toBe('read');
+          sub.unsubscribe();
+          done();
+        } catch (error) {
+          sub.unsubscribe();
+          done(error);
+        }
+      });
+
+      svc.markRead(USER, INSTANCE, '5511999999999@s.whatsapp.net');
+    });
+  });
+
   describe('deduplication', () => {
     it('recording the same msg.key.id twice stores only once', () => {
       const redis = makeMockRedis();

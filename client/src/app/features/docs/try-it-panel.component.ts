@@ -11,8 +11,10 @@ import { FormsModule } from '@angular/forms';
 import { TuiButton } from '@taiga-ui/core';
 import { TuiTextfield } from '@taiga-ui/core/components/textfield';
 import { finalize } from 'rxjs/operators';
-import { DOCS_TRY_IT } from '../../core/http/docs-try-it.context';
-import type { EndpointDef } from './api-endpoints';
+import { DOCS_TRY_IT, DocsTryItAuthMode } from '../../core/http/docs-try-it.context';
+import type { EndpointAuthType, EndpointDef } from './api-endpoints';
+
+const TOKEN_KEY = 'papagai_access_token';
 
 @Component({
   selector: 'app-try-it-panel',
@@ -46,6 +48,43 @@ import type { EndpointDef } from './api-endpoints';
               </tui-textfield>
             }
           </div>
+        }
+        <div class="auth-controls">
+          <label class="auth-label" for="try-auth-mode-{{ endpoint().id }}">Autenticação</label>
+          <select
+            class="auth-select"
+            id="try-auth-mode-{{ endpoint().id }}"
+            [ngModel]="authMode()"
+            (ngModelChange)="setAuthMode($event)"
+          >
+            <option value="none">Sem autenticação</option>
+            <option value="bearer">Bearer token</option>
+            <option value="apiKey">API key (X-Api-Key)</option>
+          </select>
+        </div>
+        @if (authMode() === 'bearer') {
+          <tui-textfield>
+            <label tuiLabel>Bearer token</label>
+            <input
+              tuiTextfield
+              type="text"
+              [ngModel]="bearerToken()"
+              (ngModelChange)="bearerToken.set($event)"
+              autocomplete="off"
+            />
+          </tui-textfield>
+        }
+        @if (authMode() === 'apiKey') {
+          <tui-textfield>
+            <label tuiLabel>X-Api-Key</label>
+            <input
+              tuiTextfield
+              type="text"
+              [ngModel]="apiKeyValue()"
+              (ngModelChange)="apiKeyValue.set($event)"
+              autocomplete="off"
+            />
+          </tui-textfield>
         }
         @if (showBody()) {
           <label class="body-label">Corpo JSON</label>
@@ -109,6 +148,25 @@ import type { EndpointDef } from './api-endpoints';
         flex-direction: column;
         gap: 0.5rem;
       }
+      .auth-controls {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+      .auth-label {
+        font: var(--tui-font-text-s);
+        font-weight: 600;
+      }
+      .auth-select {
+        width: 100%;
+        box-sizing: border-box;
+        border: 1px solid var(--tui-border-normal);
+        border-radius: var(--radius-md);
+        background: var(--tui-background-elevation-1);
+        color: var(--tui-text-primary);
+        padding: 0.5rem 0.75rem;
+        font: var(--tui-font-text-m);
+      }
       .body-label {
         font: var(--tui-font-text-s);
         font-weight: 600;
@@ -164,6 +222,9 @@ export class TryItPanelComponent {
 
   readonly expanded = signal(false);
   readonly paramValues = signal<Record<string, string>>({});
+  readonly authMode = signal<DocsTryItAuthMode>('none');
+  readonly bearerToken = signal('');
+  readonly apiKeyValue = signal('');
   readonly bodyText = signal('');
   readonly loading = signal(false);
   readonly result = signal<{ status: number; ms: number; body: string } | null>(null);
@@ -180,6 +241,9 @@ export class TryItPanelComponent {
         init[p.name] = p.placeholder;
       }
       this.paramValues.set(init);
+      this.authMode.set(this.defaultAuthMode(ep.auth));
+      this.bearerToken.set(localStorage.getItem(TOKEN_KEY) ?? '');
+      this.apiKeyValue.set('');
       this.bodyText.set(ep.tryBody ?? '{}');
       this.result.set(null);
     });
@@ -197,6 +261,14 @@ export class TryItPanelComponent {
 
   setParam(name: string, value: string): void {
     this.paramValues.update((v) => ({ ...v, [name]: value }));
+  }
+
+  setAuthMode(mode: string): void {
+    if (mode === 'bearer' || mode === 'apiKey' || mode === 'none') {
+      this.authMode.set(mode);
+      return;
+    }
+    this.authMode.set('none');
   }
 
   resolvedPath(): string {
@@ -235,7 +307,11 @@ export class TryItPanelComponent {
       }
     }
 
-    const ctx = new HttpContext().set(DOCS_TRY_IT, true);
+    const ctx = new HttpContext().set(DOCS_TRY_IT, {
+      mode: this.authMode(),
+      bearerToken: this.bearerToken().trim(),
+      apiKey: this.apiKeyValue().trim(),
+    });
 
     this.http
       .request(ep.method, url, {
@@ -271,5 +347,15 @@ export class TryItPanelComponent {
           }
         },
       });
+  }
+
+  private defaultAuthMode(auth: EndpointAuthType): DocsTryItAuthMode {
+    if (auth === 'none') {
+      return 'none';
+    }
+    if (auth === 'apiKey') {
+      return 'apiKey';
+    }
+    return 'bearer';
   }
 }

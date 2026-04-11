@@ -19,6 +19,7 @@
     "@angular/platform-browser": "^19.2.0",
     "@angular/platform-browser-dynamic": "^19.2.0",
     "@angular/router": "^19.2.0",
+    "@microsoft/fetch-event-source": "^2.0.1",
     "@taiga-ui/cdk": "^4.48.0",
     "@taiga-ui/core": "^4.48.0",
     "@taiga-ui/icons": "^4.48.0",

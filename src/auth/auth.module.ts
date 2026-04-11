@@ -6,15 +6,20 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { User } from './entities/user.entity.js';
+import { ApiKey } from './entities/api-key.entity.js';
+import { InstanceConfig } from '../instances/entities/instance-config.entity.js';
 import { AuthService } from './auth.service.js';
 import { AuthController } from './auth.controller.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { AuthThrottlerGuard } from './guards/auth-throttler.guard.js';
+import { ApiKeyService } from './api-key.service.js';
+import { ApiKeyAuthGuard } from './guards/api-key-auth.guard.js';
+import { AnyAuthGuard } from './guards/any-auth.guard.js';
 
 @Module({
   imports: [
     ConfigModule,
-    TypeOrmModule.forFeature([User]),
+    TypeOrmModule.forFeature([User, ApiKey, InstanceConfig]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -29,21 +34,29 @@ import { AuthThrottlerGuard } from './guards/auth-throttler.guard.js';
     ThrottlerModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        throttlers: [
+      useFactory: (config: ConfigService) => {
+        const throttlers = [
           {
             ttl: config.getOrThrow<number>('authThrottleTtl') * 1000,
             limit: config.getOrThrow<number>('authThrottleLimit'),
           },
-        ],
-        storage: new ThrottlerStorageRedisService(
-          config.getOrThrow<string>('redisUrl'),
-        ),
-      }),
+        ];
+
+        if (config.get<string>('nodeEnv') === 'test') {
+          return { throttlers };
+        }
+
+        return {
+          throttlers,
+          storage: new ThrottlerStorageRedisService(
+            config.getOrThrow<string>('redisUrl'),
+          ),
+        };
+      },
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtAuthGuard, AuthThrottlerGuard],
-  exports: [AuthService, JwtAuthGuard, JwtModule],
+  providers: [AuthService, JwtAuthGuard, AuthThrottlerGuard, ApiKeyService, ApiKeyAuthGuard, AnyAuthGuard],
+  exports: [AuthService, JwtAuthGuard, JwtModule, ApiKeyService, ApiKeyAuthGuard, AnyAuthGuard],
 })
 export class AuthModule {}

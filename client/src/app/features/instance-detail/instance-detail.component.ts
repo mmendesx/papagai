@@ -8,6 +8,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { animate, query, stagger, style, transition, trigger } from '@angular/animations';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom, timer } from 'rxjs';
@@ -66,6 +67,30 @@ const EMPTY_METRICS: InstanceMetrics = {
   standalone: true,
   imports: [RouterLink, InstanceTabsComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  animations: [
+    trigger('fadeInUp', [
+      transition(':enter', [
+        style({ opacity: 0, transform: 'translateY(12px)' }),
+        animate('300ms cubic-bezier(0, 0, 0.2, 1)', style({ opacity: 1, transform: 'translateY(0)' })),
+      ]),
+    ]),
+    trigger('slideInRight', [
+      transition(':enter', [
+        query(':enter', [
+          style({ opacity: 0, transform: 'translateX(12px)' }),
+          stagger('50ms', [
+            animate('280ms cubic-bezier(0, 0, 0.2, 1)', style({ opacity: 1, transform: 'translateX(0)' })),
+          ]),
+        ], { optional: true }),
+      ]),
+    ]),
+    trigger('scaleIn', [
+      transition(':enter', [
+        style({ opacity: 0, transform: 'scale(0.92)' }),
+        animate('350ms cubic-bezier(0, 0, 0.2, 1)', style({ opacity: 1, transform: 'scale(1)' })),
+      ]),
+    ]),
+  ],
   template: `
     @if (qrData(); as q) {
       @if (q.status === 'connected') {
@@ -79,7 +104,7 @@ const EMPTY_METRICS: InstanceMetrics = {
         }
 
         <!-- Main content area -->
-        <div class="page-content">
+        <div class="page-content" @fadeInUp>
 
           <!-- Inline connection meta row -->
           <div class="conn-meta-row" aria-label="Status da conexão">
@@ -98,7 +123,7 @@ const EMPTY_METRICS: InstanceMetrics = {
           <!-- RESUMO section -->
           <section class="content-section" aria-label="Resumo da instância">
             <h2 class="section-label" aria-label="Seção: Resumo">RESUMO</h2>
-            <div class="metrics-grid">
+            <div class="metrics-grid" @slideInRight>
 
               <!-- Mensagens Enviadas -->
               <div class="metric-card">
@@ -243,7 +268,7 @@ const EMPTY_METRICS: InstanceMetrics = {
 
         <!-- QR scan state: centered -->
         <div class="qr-layout">
-          <div class="qr-card">
+          <div class="qr-card" @scaleIn>
             <div class="qr-status-header">
               <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
                 <circle cx="11" cy="11" r="11" fill="var(--color-warning-bg)"/>
@@ -619,6 +644,65 @@ const EMPTY_METRICS: InstanceMetrics = {
         box-shadow: var(--shadow-lg);
         padding: 1rem;
         background: white;
+      }
+
+      /* ── Mobile ────────────────────────────────────────────── */
+      @media (max-width: 540px) {
+        .page-content {
+          padding: 0.875rem 0.875rem 2rem;
+          gap: 1.25rem;
+        }
+
+        .conn-meta-row {
+          flex-wrap: wrap;
+          row-gap: 0.2rem;
+        }
+
+        .metrics-grid {
+          grid-template-columns: repeat(2, 1fr);
+          gap: 0.5rem;
+        }
+
+        .metric-card {
+          padding: 0.75rem 0.875rem 0.625rem;
+        }
+
+        .metric-value {
+          font-size: 1.5rem;
+          min-height: 1.75rem;
+        }
+
+        .metric-label {
+          font-size: 0.625rem;
+        }
+
+        .metric-trend {
+          font-size: 0.625rem;
+        }
+
+        .nav-grid {
+          grid-template-columns: 1fr;
+          gap: 0.5rem;
+        }
+
+        .nav-tile {
+          min-height: 60px;
+          padding: 0.75rem 1rem;
+          gap: 0.75rem;
+        }
+
+        .nav-tile-icon {
+          width: 32px;
+          height: 32px;
+        }
+
+        .nav-tile-title {
+          font-size: 0.875rem;
+        }
+
+        .activity-empty {
+          padding: 1.5rem 1rem;
+        }
       }
 
       /* ── Loading / other states ────────────────────────────── */

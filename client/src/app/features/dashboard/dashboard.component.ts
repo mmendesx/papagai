@@ -6,8 +6,9 @@ import {
   inject,
   Injector,
 } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { ResourceStatus } from '@angular/core';
+import { animate, query, stagger, style, transition, trigger } from '@angular/animations';
 import { TuiDialogService } from '@taiga-ui/core';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { CreateInstanceDialogComponent } from './create-instance-dialog.component';
@@ -34,8 +35,26 @@ interface InstancesListResponse {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [RouterLink],
+  imports: [],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  animations: [
+    trigger('staggerCards', [
+      transition(':enter', [
+        query(':enter', [
+          style({ opacity: 0, transform: 'translateY(16px)' }),
+          stagger('60ms', [
+            animate('350ms cubic-bezier(0, 0, 0.2, 1)', style({ opacity: 1, transform: 'translateY(0)' })),
+          ]),
+        ], { optional: true }),
+      ]),
+    ]),
+    trigger('fadeInUp', [
+      transition(':enter', [
+        style({ opacity: 0, transform: 'translateY(12px)' }),
+        animate('300ms cubic-bezier(0, 0, 0.2, 1)', style({ opacity: 1, transform: 'translateY(0)' })),
+      ]),
+    ]),
+  ],
   template: `
     @let data = instancesRes.value();
 
@@ -54,7 +73,7 @@ interface InstancesListResponse {
 
     <!-- Error state -->
     @else if (instancesRes.status() === ResourceStatus.Error) {
-      <div class="status-message">
+      <div class="status-message" @fadeInUp>
         <p class="error-text">Falha ao carregar instâncias</p>
         <button (click)="reload()" class="gradient-btn" type="button">Tentar novamente</button>
       </div>
@@ -62,7 +81,7 @@ interface InstancesListResponse {
 
     <!-- Empty state -->
     @else if (!instancesRes.isLoading() && data.instances.length === 0) {
-      <div class="empty-state">
+      <div class="empty-state" @fadeInUp>
         <div class="empty-icon" aria-hidden="true">
           <img src="/parrot.png" alt="" width="72" height="72" />
         </div>
@@ -74,13 +93,17 @@ interface InstancesListResponse {
 
     <!-- Populated state -->
     @else {
-      <div class="instance-grid">
+      <div class="instance-grid" @staggerCards>
         @for (inst of data.instances; track inst.name) {
           @let avatar = avatarStyle(inst.name);
-          <a [routerLink]="['/instances', inst.name]"
-             class="instance-card"
-             [class.is-online]="inst.connected"
-             [attr.aria-label]="'Abrir instância ' + inst.name">
+          <div class="instance-card"
+               role="link"
+               tabindex="0"
+               [class.is-online]="inst.connected"
+               [attr.aria-label]="'Abrir instância ' + inst.name"
+               (click)="navigateToInstance(inst.name)"
+               (keydown.enter)="navigateToInstance(inst.name)"
+               (keydown.space)="$event.preventDefault(); navigateToInstance(inst.name)">
             <span class="card-glow" aria-hidden="true"></span>
 
             <div class="card-top">
@@ -108,23 +131,33 @@ interface InstancesListResponse {
                   <circle cx="12" cy="12" r="9"/>
                   <path stroke-linecap="round" d="M12 7v5l3 2"/>
                 </svg>
-                {{ inst.connected ? formatLastActive(inst.startTime) : 'Inativa' }}
+                {{ inst.connected
+                    ? (isConnecting(inst.startTime) ? 'Conectando...' : formatUptime(inst.startTime))
+                    : offlineLabel(inst.startTime) }}
               </span>
               <span class="meta-sep" aria-hidden="true"></span>
-              <span class="meta-item">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.69a4.5 4.5 0 011.24 7.24l-4.5 4.5a4.5 4.5 0 01-6.36-6.36l1.76-1.76m13.35-.62l1.76-1.76a4.5 4.5 0 00-6.36-6.36l-4.5 4.5a4.5 4.5 0 001.24 7.24"/>
-                </svg>
+              <span class="webhook-badge"
+                    [class.webhook-badge--on]="inst.webhookEnabled"
+                    [class.webhook-badge--off]="!inst.webhookEnabled">
+                <span class="webhook-dot" aria-hidden="true"></span>
                 {{ inst.webhookEnabled ? 'Webhook ativo' : 'Webhook inativo' }}
               </span>
             </div>
 
-            <span class="card-arrow" aria-hidden="true">
-              <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
-                <path d="M7 4l6 6-6 6" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </span>
-          </a>
+            <div class="card-footer" role="group" aria-label="Ações rápidas">
+              <button class="footer-btn" type="button"
+                      (click)="openInstance($event, inst.name)">Abrir</button>
+              <button class="footer-btn footer-btn--icon" type="button"
+                      (click)="openSettings($event, inst.name)"
+                      title="Configurações"
+                      aria-label="Configurações da instância">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
         }
       </div>
     }
@@ -187,8 +220,7 @@ interface InstancesListResponse {
         background: var(--color-surface-container-lowest);
         border: 1px solid var(--color-outline-variant);
         border-radius: var(--radius-xl);
-        text-decoration: none;
-        color: inherit;
+        cursor: pointer;
         font-family: var(--font-sans);
         overflow: hidden;
         isolation: isolate;
@@ -331,29 +363,62 @@ interface InstancesListResponse {
         flex-shrink: 0;
       }
 
-      /* Arrow indicator (bottom-right) */
-      .card-arrow {
-        position: absolute;
-        right: 0.875rem;
-        bottom: 0.875rem;
+      /* Webhook badge */
+      .webhook-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.1875rem 0.4375rem;
+        border-radius: var(--radius-full);
+        font-size: 0.6875rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+      .webhook-badge--on {
+        background: color-mix(in srgb, var(--color-success) 12%, transparent);
+        color: color-mix(in srgb, var(--color-success) 80%, var(--color-on-surface));
+      }
+      .webhook-badge--off {
+        background: var(--color-surface-container);
+        color: var(--color-on-surface-variant);
+        opacity: 0.8;
+      }
+      .webhook-dot {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: currentColor;
+        flex-shrink: 0;
+      }
+
+      /* Card footer CTA strip */
+      .card-footer {
         display: flex;
+        gap: 0.5rem;
+        padding-top: 0.625rem;
+        border-top: 1px dashed var(--color-outline-variant);
+        justify-content: flex-end;
+      }
+      .footer-btn {
+        background: transparent;
+        border: 1px solid var(--color-outline-variant);
+        border-radius: var(--radius-md);
+        padding: 0.3125rem 0.625rem;
+        font-size: 0.6875rem;
+        font-weight: 500;
+        color: var(--color-on-surface-variant);
+        cursor: pointer;
+        font-family: var(--font-sans);
+        transition: background var(--duration-fast) var(--ease-default);
+      }
+      .footer-btn:hover {
+        background: var(--color-surface-container);
+      }
+      .footer-btn--icon {
+        display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 22px;
-        height: 22px;
-        border-radius: var(--radius-full);
-        color: var(--color-on-surface-variant);
-        opacity: 0;
-        transform: translateX(-4px);
-        transition:
-          opacity var(--duration-fast) var(--ease-default),
-          transform var(--duration-fast) var(--ease-default),
-          color var(--duration-fast) var(--ease-default);
-      }
-      .instance-card:hover .card-arrow {
-        opacity: 1;
-        transform: translateX(0);
-        color: var(--color-primary);
+        padding: 0.3125rem 0.4375rem;
       }
 
       /* ── Skeleton loading ────────────────────────────────── */
@@ -487,6 +552,29 @@ export class DashboardComponent {
 
   reload(): void {
     this.instancesRes.reload();
+  }
+
+  navigateToInstance(name: string): void {
+    void this.router.navigate(['/instances', name]);
+  }
+
+  isConnecting(startTime: number): boolean {
+    return Date.now() - startTime < 300_000;
+  }
+
+  offlineLabel(startTime: number): string {
+    if (!startTime) return 'Nunca conectada';
+    return 'Offline há ' + this.formatUptime(startTime);
+  }
+
+  openInstance(event: Event, name: string): void {
+    event.stopPropagation();
+    void this.router.navigate(['/instances', name]);
+  }
+
+  openSettings(event: Event, name: string): void {
+    event.stopPropagation();
+    void this.router.navigate(['/instances', name, 'settings']);
   }
 
   formatUptime(startTime: number): string {

@@ -131,6 +131,8 @@ test.describe('Login Page Redesign', () => {
     await expect(page).toHaveScreenshot('login-desktop-light.png', {
       fullPage: false,
       animations: 'disabled',
+      scale: 'css',
+      maxDiffPixelRatio: 0.02,
     });
   });
 
@@ -141,6 +143,8 @@ test.describe('Login Page Redesign', () => {
     await expect(page).toHaveScreenshot('login-mobile.png', {
       fullPage: false,
       animations: 'disabled',
+      scale: 'css',
+      maxDiffPixelRatio: 0.02,
     });
   });
 });

@@ -1,6 +1,8 @@
 import { httpResource } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { timer } from 'rxjs';
 import { getAvatarColor } from '../../shared/avatar-colors';
 
 interface ChatsResponse {
@@ -111,6 +113,15 @@ export class ChatsComponent {
     const n = this.instanceName();
     return n ? `/api/instances/${encodeURIComponent(n)}/chats?include_messages=false` : undefined;
   }, { defaultValue: { instance: '', total: 0, chats: [] } });
+
+  private readonly refreshIntervalMs = 30000;
+
+  private readonly refreshPoller = timer(0, this.refreshIntervalMs)
+    .pipe(takeUntilDestroyed())
+    .subscribe(() => {
+      if (!this.instanceName()) return;
+      this.chatsRes.reload();
+    });
 
   chatInitials(chat: any): string {
     const name = chat.name || chat.id || '';

@@ -15,7 +15,7 @@ export async function createTestApp(): Promise<{
   dataSource: DataSource;
 }> {
   process.env.DB_NAME = 'papagai_test';
-  process.env.NODE_ENV = 'development';
+  process.env.NODE_ENV = 'test';
   process.env.JWT_SECRET = 'e2e-integration-secret';
   process.env.APP_KEY = 'ci-app-key';
   process.env.REDIS_URL = 'redis://localhost:6379';

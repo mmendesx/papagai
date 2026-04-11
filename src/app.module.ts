@@ -12,6 +12,7 @@ import { HealthModule } from './health/health.module.js';
 import configuration from './config/configuration.js';
 import { InstanceConfig } from './instances/entities/instance-config.entity.js';
 import { User } from './auth/entities/user.entity.js';
+import { ApiKey } from './auth/entities/api-key.entity.js';
 
 @Module({
   imports: [
@@ -29,7 +30,7 @@ import { User } from './auth/entities/user.entity.js';
         username: config.get('db.user'),
         password: config.get('db.pass'),
         database: config.get('db.name'),
-        entities: [InstanceConfig, User],
+        entities: [InstanceConfig, User, ApiKey],
         synchronize: config.get<string>('nodeEnv') === 'development',
         migrationsRun: false,
         migrations: [join(__dirname, 'migrations', '*.js')],
@@ -43,7 +44,7 @@ import { User } from './auth/entities/user.entity.js';
     MediaModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'client', 'dist', 'client', 'browser'),
-      exclude: ['/api{/*path}', '/media{/*path}'],
+      exclude: ['/api{/*path}', '/media{/*path}', '/uploads{/*path}'],
     }),
   ],
 })

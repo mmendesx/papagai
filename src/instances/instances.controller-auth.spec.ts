@@ -5,10 +5,16 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { InstancesController } from './instances.controller.js';
 import { InstancesService } from './instances.service.js';
+import { ApiKeyService } from '../auth/api-key.service.js';
+import { AnyAuthGuard } from '../auth/guards/any-auth.guard.js';
+import { ApiKeyAuthGuard } from '../auth/guards/api-key-auth.guard.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 
 describe('InstancesController JWT', () => {
   let app: INestApplication;
+  const apiKeyGuardMock = {
+    canActivate: jest.fn().mockResolvedValue(true),
+  };
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -21,6 +27,23 @@ describe('InstancesController JWT', () => {
       controllers: [InstancesController],
       providers: [
         JwtAuthGuard,
+        AnyAuthGuard,
+        {
+          provide: ApiKeyAuthGuard,
+          useValue: apiKeyGuardMock,
+        },
+        {
+          provide: ApiKeyService,
+          useValue: {
+            createAccountKey: jest.fn(),
+            listAccountKeys: jest.fn(),
+            revokeKey: jest.fn(),
+            createInstanceKey: jest.fn(),
+            listInstanceKeys: jest.fn(),
+            validateKey: jest.fn(),
+            instanceMatchesKey: jest.fn(),
+          },
+        },
         {
           provide: InstancesService,
           useValue: {
@@ -49,6 +72,9 @@ describe('InstancesController JWT', () => {
   it('GET /api/instances without Authorization returns 401', () => {
     return request(app.getHttpServer() as App)
       .get('/api/instances')
-      .expect(401);
+      .expect(401)
+      .then(() => {
+        expect(apiKeyGuardMock.canActivate).not.toHaveBeenCalled();
+      });
   });
 });

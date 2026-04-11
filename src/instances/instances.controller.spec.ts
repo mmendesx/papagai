@@ -5,6 +5,9 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { InstancesController } from './instances.controller.js';
 import { InstancesService } from './instances.service.js';
+import { ApiKeyService } from '../auth/api-key.service.js';
+import { AnyAuthGuard } from '../auth/guards/any-auth.guard.js';
+import { ApiKeyAuthGuard } from '../auth/guards/api-key-auth.guard.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 
 const TEST_SECRET = 'instances-controller-auth-spec';
@@ -25,9 +28,20 @@ const mockService = {
   sendMessage: jest.fn(),
   getContactInfo: jest.fn(),
   getChats: jest.fn(),
+  streamChatEvents: jest.fn(),
   getChatMessages: jest.fn(),
   getMetrics: jest.fn(),
   updateWebhookConfig: jest.fn(),
+};
+
+const mockApiKeyService = {
+  createAccountKey: jest.fn(),
+  listAccountKeys: jest.fn(),
+  revokeKey: jest.fn(),
+  createInstanceKey: jest.fn(),
+  listInstanceKeys: jest.fn(),
+  validateKey: jest.fn(),
+  instanceMatchesKey: jest.fn(),
 };
 
 describe('InstancesController', () => {
@@ -45,6 +59,14 @@ describe('InstancesController', () => {
       controllers: [InstancesController],
       providers: [
         JwtAuthGuard,
+        AnyAuthGuard,
+        {
+          provide: ApiKeyAuthGuard,
+          useValue: {
+            canActivate: jest.fn().mockResolvedValue(true),
+          },
+        },
+        { provide: ApiKeyService, useValue: mockApiKeyService },
         { provide: InstancesService, useValue: mockService },
       ],
     }).compile();

@@ -14,6 +14,7 @@ import { TuiAlertService } from '@taiga-ui/core';
 import { TuiError } from '@taiga-ui/core/components/error';
 import { TuiLink } from '@taiga-ui/core/components/link';
 import { TuiTextfield } from '@taiga-ui/core/components/textfield';
+import { animate, keyframes, state, style, transition, trigger } from '@angular/animations';
 import { AuthService } from '../../core/auth/auth.service';
 
 type RegisterField = 'name' | 'email' | 'password' | 'appKey';
@@ -23,41 +24,70 @@ type RegisterField = 'name' | 'email' | 'password' | 'appKey';
   standalone: true,
   imports: [ReactiveFormsModule, RouterLink, TuiLink, TuiError, ...TuiTextfield],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  animations: [
+    trigger('fadeInUp', [
+      transition(':enter', [
+        style({ opacity: 0, transform: 'translateY(20px)' }),
+        animate('350ms cubic-bezier(0, 0, 0.2, 1)', style({ opacity: 1, transform: 'translateY(0)' })),
+      ]),
+    ]),
+    trigger('scaleIn', [
+      transition(':enter', [
+        style({ opacity: 0, transform: 'scale(0.85)' }),
+        animate('400ms cubic-bezier(0.34, 1.56, 0.64, 1)', style({ opacity: 1, transform: 'scale(1)' })),
+      ]),
+    ]),
+    trigger('shake', [
+      state('idle', style({ transform: 'translateX(0)' })),
+      state('shaking', style({ transform: 'translateX(0)' })),
+      transition('idle => shaking', animate('300ms', keyframes([
+        style({ transform: 'translateX(0)', offset: 0 }),
+        style({ transform: 'translateX(-8px)', offset: 0.2 }),
+        style({ transform: 'translateX(8px)', offset: 0.4 }),
+        style({ transform: 'translateX(-5px)', offset: 0.6 }),
+        style({ transform: 'translateX(5px)', offset: 0.8 }),
+        style({ transform: 'translateX(0)', offset: 1 }),
+      ]))),
+      transition('shaking => idle', animate('0ms')),
+    ]),
+  ],
   template: `
     <div class="auth-layout">
       <!-- Brand panel (left) -->
       <div class="brand-panel" aria-hidden="true">
         <div class="brand-inner">
-          <div class="brand-logo">
-            <img src="/parrot.png" alt="" />
+          <div class="brand-identity">
+            <div class="brand-logo" [@scaleIn]>
+              <img src="/parrot.png" alt="" />
+            </div>
+            <div class="brand-wordmark" [@fadeInUp]>Papagai</div>
           </div>
-          <div class="brand-wordmark">PAPAGAI</div>
-          <h2 class="brand-headline">Sua empresa no WhatsApp, no controle.</h2>
-          <p class="brand-tagline">Conecte sistemas, gerencie múltiplos números e automatize conversas com uma API production-grade.</p>
+          <h2 class="brand-headline" [@fadeInUp]>Sua empresa no WhatsApp, no controle.</h2>
+          <p class="brand-tagline" [@fadeInUp]>Conecte sistemas, gerencie múltiplos números e automatize conversas com uma API production-grade.</p>
 
           <div class="feature-grid">
-            <div class="feature-card">
+            <div class="feature-card" [style.animation-delay]="'350ms'">
               <span class="feature-icon" aria-hidden="true">📱</span>
               <div class="feature-text">
                 <strong class="feature-title">Multi-instância</strong>
                 <span class="feature-desc">Gerencie vários números de WhatsApp em um só lugar.</span>
               </div>
             </div>
-            <div class="feature-card">
+            <div class="feature-card" [style.animation-delay]="'450ms'">
               <span class="feature-icon" aria-hidden="true">⚡</span>
               <div class="feature-text">
                 <strong class="feature-title">API Completa</strong>
                 <span class="feature-desc">Envie texto, mídia e mensagens interativas via REST.</span>
               </div>
             </div>
-            <div class="feature-card">
+            <div class="feature-card" [style.animation-delay]="'550ms'">
               <span class="feature-icon" aria-hidden="true">🔔</span>
               <div class="feature-text">
                 <strong class="feature-title">Webhooks em Tempo Real</strong>
                 <span class="feature-desc">Receba eventos instantâneos para cada mensagem e status.</span>
               </div>
             </div>
-            <div class="feature-card">
+            <div class="feature-card" [style.animation-delay]="'650ms'">
               <span class="feature-icon" aria-hidden="true">🔄</span>
               <div class="feature-text">
                 <strong class="feature-title">Reconexão Automática</strong>
@@ -70,12 +100,12 @@ type RegisterField = 'name' | 'email' | 'password' | 'appKey';
 
       <!-- Form panel (right) -->
       <div class="form-panel">
-        <div class="form-inner">
+        <div class="form-inner" [@fadeInUp]>
           <h1 class="form-title">Criar conta</h1>
           <p class="form-subtitle">Comece agora. Leva menos de um minuto.</p>
 
           <form [formGroup]="form" (ngSubmit)="onSubmit()" class="auth-form">
-            <div class="field-group">
+            <div class="field-group" [@shake]="shakeName() ? 'shaking' : 'idle'">
               <tui-textfield>
                 <label tuiLabel>Nome</label>
                 <input
@@ -89,7 +119,7 @@ type RegisterField = 'name' | 'email' | 'password' | 'appKey';
               <tui-error [error]="fieldError('name')" />
             </div>
 
-            <div class="field-group">
+            <div class="field-group" [@shake]="shakeEmail() ? 'shaking' : 'idle'">
               <tui-textfield>
                 <label tuiLabel>E-mail</label>
                 <input tuiTextfield type="email" formControlName="email" autocomplete="email" />
@@ -97,7 +127,7 @@ type RegisterField = 'name' | 'email' | 'password' | 'appKey';
               <tui-error [error]="fieldError('email')" />
             </div>
 
-            <div class="field-group">
+            <div class="field-group" [@shake]="shakePassword() ? 'shaking' : 'idle'">
               <tui-textfield>
                 <label tuiLabel>Senha</label>
                 <input tuiTextfield type="password" formControlName="password" autocomplete="new-password" />
@@ -105,7 +135,7 @@ type RegisterField = 'name' | 'email' | 'password' | 'appKey';
               <tui-error [error]="fieldError('password')" />
             </div>
 
-            <div class="field-group">
+            <div class="field-group" [@shake]="shakeAppKey() ? 'shaking' : 'idle'">
               <tui-textfield>
                 <label tuiLabel>Chave de aplicação</label>
                 <input tuiTextfield type="password" formControlName="appKey" autocomplete="off" />
@@ -130,16 +160,6 @@ type RegisterField = 'name' | 'email' | 'password' | 'appKey';
     :host { display: block; height: 100vh; }
 
     /* ── Keyframes ─────────────────────────────────────── */
-    @keyframes fadeInUp {
-      from { opacity: 0; transform: translateY(24px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-
-    @keyframes scaleIn {
-      from { opacity: 0; transform: scale(0.85); }
-      to   { opacity: 1; transform: scale(1); }
-    }
-
     @keyframes floatOrb {
       0%   { transform: translateY(0)     scale(1); }
       50%  { transform: translateY(-40px) scale(1.08); }
@@ -150,6 +170,11 @@ type RegisterField = 'name' | 'email' | 'password' | 'appKey';
       0%   { transform: translateY(0)    scale(1); }
       50%  { transform: translateY(32px) scale(0.94); }
       100% { transform: translateY(0)    scale(1); }
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
 
     /* ── Layout ────────────────────────────────────────── */
@@ -213,34 +238,33 @@ type RegisterField = 'name' | 'email' | 'password' | 'appKey';
       width: 100%;
     }
 
+    /* ── Brand identity (logo + wordmark inline) ──────── */
+    .brand-identity {
+      display: flex;
+      align-items: center;
+      gap: var(--space-4);
+      margin-bottom: var(--space-6);
+    }
+
     /* ── Logo ──────────────────────────────────────────── */
     .brand-logo {
-      width: 88px;
-      height: 88px;
-      background: rgba(255,255,255,0.12);
-      border-radius: var(--radius-xl);
+      width: 72px;
+      height: 72px;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin-bottom: var(--space-6);
-      padding: 12px;
-      backdrop-filter: blur(4px);
-      box-shadow: 0 0 32px rgba(96,165,250,0.35);
-      opacity: 0;
-      animation: scaleIn 400ms var(--ease-spring) 0ms forwards;
+      flex-shrink: 0;
     }
     .brand-logo img { width: 100%; height: 100%; display: block; object-fit: contain; }
 
     /* ── Wordmark ──────────────────────────────────────── */
     .brand-wordmark {
-      font-family: var(--font-brand);
-      font-size: 2rem;
-      font-weight: 700;
-      letter-spacing: 0.12em;
+      font-family: var(--font-title);
+      font-size: 3rem;
+      font-weight: 400;
+      letter-spacing: 0.01em;
       color: #ffffff;
-      margin-bottom: var(--space-4);
-      opacity: 0;
-      animation: fadeInUp 350ms var(--ease-out) 80ms forwards;
+      margin-bottom: 0;
     }
 
     /* ── Headline ──────────────────────────────────────── */
@@ -251,8 +275,6 @@ type RegisterField = 'name' | 'email' | 'password' | 'appKey';
       color: #fff;
       line-height: 1.15;
       margin: 0 0 var(--space-3);
-      opacity: 0;
-      animation: fadeInUp 350ms var(--ease-out) 160ms forwards;
     }
 
     /* ── Tagline ───────────────────────────────────────── */
@@ -263,8 +285,6 @@ type RegisterField = 'name' | 'email' | 'password' | 'appKey';
       color: rgba(255,255,255,0.72);
       margin: 0 0 var(--space-8);
       line-height: 1.5;
-      opacity: 0;
-      animation: fadeInUp 350ms var(--ease-out) 240ms forwards;
     }
 
     /* ── Feature grid ──────────────────────────────────── */
@@ -283,11 +303,8 @@ type RegisterField = 'name' | 'email' | 'password' | 'appKey';
       align-items: flex-start;
       gap: var(--space-3);
       opacity: 0;
+      animation: fadeInUp 300ms var(--ease-out) both;
     }
-    .feature-card:nth-child(1) { animation: fadeInUp 300ms var(--ease-out) 350ms forwards; }
-    .feature-card:nth-child(2) { animation: fadeInUp 300ms var(--ease-out) 450ms forwards; }
-    .feature-card:nth-child(3) { animation: fadeInUp 300ms var(--ease-out) 550ms forwards; }
-    .feature-card:nth-child(4) { animation: fadeInUp 300ms var(--ease-out) 650ms forwards; }
 
     .feature-icon {
       font-size: 1.25rem;
@@ -333,8 +350,6 @@ type RegisterField = 'name' | 'email' | 'password' | 'appKey';
     .form-inner {
       width: 100%;
       max-width: 360px;
-      opacity: 0;
-      animation: fadeInUp 450ms var(--ease-out) 300ms forwards;
     }
 
     .form-title {
@@ -432,21 +447,18 @@ type RegisterField = 'name' | 'email' | 'password' | 'appKey';
         max-width: 100%;
       }
 
-      .brand-logo {
-        width: 40px;
-        height: 40px;
+      .brand-identity {
         margin-bottom: 0;
-        box-shadow: none;
-        padding: 6px;
-        animation: none;
-        opacity: 1;
+      }
+
+      .brand-logo {
+        width: 36px;
+        height: 36px;
       }
 
       .brand-wordmark {
-        font-size: 1.25rem;
+        font-size: 1.75rem;
         margin-bottom: 0;
-        animation: none;
-        opacity: 1;
       }
 
       .brand-tagline,
@@ -471,12 +483,7 @@ type RegisterField = 'name' | 'email' | 'password' | 'appKey';
         animation-play-state: paused;
       }
 
-      .brand-logo,
-      .brand-wordmark,
-      .brand-headline,
-      .brand-tagline,
-      .feature-card,
-      .form-inner {
+      .feature-card {
         animation: none;
         opacity: 1;
         transform: none;
@@ -501,6 +508,10 @@ export class RegisterComponent implements AfterViewInit {
 
   readonly submitting = signal(false);
   readonly submitted = signal(false);
+  readonly shakeName = signal(false);
+  readonly shakeEmail = signal(false);
+  readonly shakePassword = signal(false);
+  readonly shakeAppKey = signal(false);
 
   ngAfterViewInit(): void {
     setTimeout(() => this.nameInputRef?.nativeElement.focus(), 850);
@@ -534,9 +545,19 @@ export class RegisterComponent implements AfterViewInit {
   async onSubmit(): Promise<void> {
     this.submitted.set(true);
     this.form.markAllAsTouched();
+
     if (this.form.invalid) {
+      const shakeAndReset = (sig: ReturnType<typeof signal<boolean>>) => {
+        sig.set(true);
+        setTimeout(() => sig.set(false), 400);
+      };
+      if (this.form.get('name')?.invalid) shakeAndReset(this.shakeName);
+      if (this.form.get('email')?.invalid) shakeAndReset(this.shakeEmail);
+      if (this.form.get('password')?.invalid) shakeAndReset(this.shakePassword);
+      if (this.form.get('appKey')?.invalid) shakeAndReset(this.shakeAppKey);
       return;
     }
+
     this.submitting.set(true);
     const v = this.form.getRawValue();
     try {

@@ -2,11 +2,13 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { WhatsappService } from '../whatsapp/whatsapp.service.js';
 import { Instance } from '../whatsapp/interfaces/whatsapp.interface.js';
+import { ChatRealtimeEvent } from '../whatsapp/chat-store.service.js';
 import { toMessageContent } from '../whatsapp/utils/transformer.js';
 import {
   validateOrThrow,
   WebhookUrlInvalidError,
 } from '../webhook/webhook-url-validator.js';
+import { Observable } from 'rxjs';
 
 @Injectable()
 export class InstancesService {
@@ -100,6 +102,14 @@ export class InstancesService {
       chatId,
       limit,
     );
+  }
+
+  streamChatEvents(
+    userId: string,
+    instanceName: string,
+  ): Observable<ChatRealtimeEvent> {
+    this.logger.log(`${userId}:${instanceName} abrindo stream de eventos`);
+    return this.whatsappService.streamChatEvents(userId, instanceName);
   }
 
   markChatRead(userId: string, instanceName: string, chatId: string): void {

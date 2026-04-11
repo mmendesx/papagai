@@ -22,7 +22,7 @@ import {
   ContactInfo,
 } from './interfaces/whatsapp.interface.js';
 import { WebhookService } from '../webhook/webhook.service.js';
-import { ChatStoreService } from './chat-store.service.js';
+import { ChatRealtimeEvent, ChatStoreService } from './chat-store.service.js';
 import { phoneNumberToJid } from './utils/jid.js';
 import { downloadMedia } from './utils/media-downloader.js';
 import {
@@ -32,6 +32,7 @@ import {
 } from './utils/reconnection-manager.js';
 import { WebhookEnricher } from './utils/webhook-enricher.js';
 import { resolveJid } from './utils/jid-resolver.js';
+import { Observable } from 'rxjs';
 
 @Injectable()
 export class WhatsappService implements OnModuleDestroy, OnModuleInit {
@@ -503,6 +504,17 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
       throw new Error(`Papagai ${instanceName} não encontrado`);
     }
     return this.chatStore.getMessages(userId, instanceName, chatId, limit);
+  }
+
+  streamChatEvents(
+    userId: string,
+    instanceName: string,
+  ): Observable<ChatRealtimeEvent> {
+    const key = this.instanceKey(userId, instanceName);
+    if (!this.instances.has(key)) {
+      throw new Error(`Papagai ${instanceName} não encontrado`);
+    }
+    return this.chatStore.observeEvents(userId, instanceName);
   }
 
   markChatRead(userId: string, instanceName: string, chatId: string): void {

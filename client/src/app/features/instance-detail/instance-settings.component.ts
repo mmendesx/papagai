@@ -8,6 +8,15 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import {
+  animate,
+  query,
+  stagger,
+  state,
+  style,
+  transition,
+  trigger,
+} from '@angular/animations';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -54,6 +63,33 @@ type WebhookResponse = {
     ...TuiTextfield,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  animations: [
+    trigger('fadeInUp', [
+      transition(':enter', [
+        style({ opacity: 0, transform: 'translateY(12px)' }),
+        animate('300ms ease-out', style({ opacity: 1, transform: 'translateY(0)' }))
+      ])
+    ]),
+    trigger('expandCollapse', [
+      state('open', style({ height: '*', opacity: 1, overflow: 'hidden' })),
+      state('closed', style({ height: '0px', opacity: 0, overflow: 'hidden' })),
+      transition('open <=> closed', animate('250ms cubic-bezier(0, 0, 0.2, 1)')),
+    ]),
+    trigger('staggerSections', [
+      transition(':enter', [
+        query(':enter', [
+          style({ opacity: 0, transform: 'translateY(12px)' }),
+          stagger('80ms', [animate('300ms ease-out', style({ opacity: 1, transform: 'translateY(0)' }))])
+        ], { optional: true })
+      ])
+    ]),
+    trigger('slideInRight', [
+      transition(':enter', [
+        style({ opacity: 0, transform: 'translateX(16px)' }),
+        animate('250ms cubic-bezier(0, 0, 0.2, 1)', style({ opacity: 1, transform: 'translateX(0)' }))
+      ])
+    ]),
+  ],
   template: `
     <!-- Unified tab bar -->
     @if (name(); as n) {
@@ -63,10 +99,10 @@ type WebhookResponse = {
       />
     }
 
-    <div class="settings-body">
+    <div class="settings-body" [@staggerSections]>
 
       <!-- Webhook section -->
-      <section class="settings-section" aria-labelledby="webhook-heading">
+      <section class="settings-section" aria-labelledby="webhook-heading" [@fadeInUp]>
         <div class="section-header">
           <h2 class="section-heading" id="webhook-heading">Webhook</h2>
           <span class="webhook-badge" [class.webhook-badge--active]="whEnabled()">
@@ -77,68 +113,69 @@ type WebhookResponse = {
 
         @if (webhookLoading()) {
           <p class="loading-text">Carregando configurações…</p>
-        } @else {
-          <form class="webhook-form" (ngSubmit)="saveWebhook()" aria-label="Formulário de webhook">
-            <label class="toggle-row">
-              <input tuiSwitch type="checkbox"
-                [ngModel]="whEnabled()"
-                (ngModelChange)="whEnabled.set($event)"
-                [ngModelOptions]="{ standalone: true }"
-                id="webhook-enabled" />
-              <span class="toggle-label" id="webhook-enabled-label">Ativar webhook</span>
-            </label>
-
-            <div class="field-group">
-              <tui-textfield>
-                <label tuiLabel>URL</label>
-                <input tuiTextfield type="url"
-                  [ngModel]="whUrl()"
-                  (ngModelChange)="whUrl.set($event)"
-                  [ngModelOptions]="{ standalone: true }"
-                  autocomplete="off"
-                  placeholder="https://example.com/webhook" />
-              </tui-textfield>
-            </div>
-
-            <div class="field-group">
-              <tui-textfield>
-                <label tuiLabel>Cabeçalhos (JSON)</label>
-                <input tuiTextfield type="text"
-                  [ngModel]="whHeadersJson()"
-                  (ngModelChange)="whHeadersJson.set($event)"
-                  [ngModelOptions]="{ standalone: true }"
-                  autocomplete="off"
-                  placeholder="{}" />
-              </tui-textfield>
-            </div>
-
-            <fieldset class="events-fieldset">
-              <legend class="events-legend">Eventos</legend>
-              <div class="events-grid">
-                @for (ev of availableEvents; track ev) {
-                  <label class="event-row">
-                    <input tuiCheckbox type="checkbox"
-                      [ngModel]="whEvents().includes(ev)"
-                      (ngModelChange)="toggleEvent(ev)"
-                      [ngModelOptions]="{ standalone: true }" />
-                    <span class="event-label">{{ translateEvent(ev) }}</span>
-                  </label>
-                }
-              </div>
-            </fieldset>
-
-            <div class="form-footer">
-              <button tuiButton type="submit" size="s" appearance="primary"
-                      [disabled]="webhookSaving()">
-                {{ webhookSaving() ? 'Salvando…' : 'Salvar configurações' }}
-              </button>
-            </div>
-          </form>
         }
+
+        <form class="webhook-form" (ngSubmit)="saveWebhook()" aria-label="Formulário de webhook"
+              [@expandCollapse]="webhookLoading() ? 'closed' : 'open'">
+          <label class="toggle-row">
+            <input tuiSwitch type="checkbox"
+              [ngModel]="whEnabled()"
+              (ngModelChange)="whEnabled.set($event)"
+              [ngModelOptions]="{ standalone: true }"
+              id="webhook-enabled" />
+            <span class="toggle-label" id="webhook-enabled-label">Ativar webhook</span>
+          </label>
+
+          <div class="field-group">
+            <tui-textfield>
+              <label tuiLabel>URL</label>
+              <input tuiTextfield type="url"
+                [ngModel]="whUrl()"
+                (ngModelChange)="whUrl.set($event)"
+                [ngModelOptions]="{ standalone: true }"
+                autocomplete="off"
+                placeholder="https://example.com/webhook" />
+            </tui-textfield>
+          </div>
+
+          <div class="field-group">
+            <tui-textfield>
+              <label tuiLabel>Cabeçalhos (JSON)</label>
+              <input tuiTextfield type="text"
+                [ngModel]="whHeadersJson()"
+                (ngModelChange)="whHeadersJson.set($event)"
+                [ngModelOptions]="{ standalone: true }"
+                autocomplete="off"
+                placeholder="{}" />
+            </tui-textfield>
+          </div>
+
+          <fieldset class="events-fieldset">
+            <legend class="events-legend">Eventos</legend>
+            <div class="events-grid">
+              @for (ev of availableEvents; track ev) {
+                <label class="event-row">
+                  <input tuiCheckbox type="checkbox"
+                    [ngModel]="whEvents().includes(ev)"
+                    (ngModelChange)="toggleEvent(ev)"
+                    [ngModelOptions]="{ standalone: true }" />
+                  <span class="event-label">{{ translateEvent(ev) }}</span>
+                </label>
+              }
+            </div>
+          </fieldset>
+
+          <div class="form-footer">
+            <button tuiButton type="submit" size="s" appearance="primary"
+                    [disabled]="webhookSaving()">
+              {{ webhookSaving() ? 'Salvando…' : 'Salvar configurações' }}
+            </button>
+          </div>
+        </form>
       </section>
 
       <!-- Danger zone -->
-      <section class="settings-section danger-section" aria-labelledby="danger-heading">
+      <section class="settings-section danger-section" aria-labelledby="danger-heading" [@fadeInUp]>
         <div class="section-header">
           <h2 class="section-heading danger-heading" id="danger-heading">Zona de risco</h2>
         </div>

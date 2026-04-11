@@ -4,12 +4,32 @@ import {
   input,
 } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
+import { animate, style, transition, trigger } from '@angular/animations';
 
 @Component({
   selector: 'app-instance-tabs',
   standalone: true,
   imports: [RouterLink, RouterLinkActive],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  animations: [
+    trigger('tabEntry', [
+      transition(':enter', [
+        style({ opacity: 0, transform: 'translateY(-4px)' }),
+        animate('200ms cubic-bezier(0, 0, 0.2, 1)', style({ opacity: 1, transform: 'translateY(0)' }))
+      ])
+    ]),
+    trigger('chipPulse', [
+      transition('offline => online', [
+        style({ transform: 'scale(1)' }),
+        animate('300ms cubic-bezier(0.34, 1.56, 0.64, 1)', style({ transform: 'scale(1.08)' })),
+        animate('150ms ease-out', style({ transform: 'scale(1)' }))
+      ]),
+      transition('online => offline', [
+        animate('200ms ease-in', style({ opacity: 0.6 })),
+        animate('100ms ease-out', style({ opacity: 1 }))
+      ])
+    ]),
+  ],
   styles: [`
     :host {
       display: block;
@@ -164,7 +184,7 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
     }
   `],
   template: `
-    <nav class="tabs-bar" aria-label="Navegação da instância">
+    <nav class="tabs-bar" aria-label="Navegação da instância" [@tabEntry]>
       <!-- Back to instances list -->
       <a
         routerLink="/dashboard"
@@ -217,6 +237,7 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
           class="conn-chip"
           [class.conn-chip--off]="!connected()"
           [attr.aria-label]="'Status da conexão: ' + (connected() ? 'conectado' : 'desconectado')"
+          [@chipPulse]="connected() ? 'online' : 'offline'"
         >
           <span class="conn-dot" aria-hidden="true"></span>
           <span class="conn-label">{{ connected() ? 'Conectado' : 'Desconectado' }}</span>
