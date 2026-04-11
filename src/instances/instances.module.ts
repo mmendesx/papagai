@@ -5,6 +5,7 @@ import { AuthModule } from '../auth/auth.module.js';
 import { InstancesService } from './instances.service.js';
 import { InstancesController } from './instances.controller.js';
 import { InstanceConfig } from './entities/instance-config.entity.js';
+import { UploadCleanupService } from './upload-cleanup.service.js';
 
 @Module({
   imports: [
@@ -13,7 +14,7 @@ import { InstanceConfig } from './entities/instance-config.entity.js';
     AuthModule,
   ],
   controllers: [InstancesController],
-  providers: [InstancesService],
+  providers: [InstancesService, UploadCleanupService],
   exports: [InstancesService],
 })
 export class InstancesModule {}

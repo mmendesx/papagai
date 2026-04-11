@@ -23,7 +23,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
-import { mkdirSync } from 'fs';
+import { mkdirSync, unlinkSync } from 'fs';
 import { randomUUID } from 'crypto';
 import type { Request } from 'express';
 import { Observable, interval, map, merge } from 'rxjs';
@@ -495,8 +495,11 @@ export class InstancesController {
     FileInterceptor('file', {
       storage: diskStorage({
         destination: (req, _file, cb) => {
-          const instanceName = (req.params as Record<string, string>).name;
-          const dir = join(process.cwd(), 'uploads', instanceName);
+          const rawName = (req.params as Record<string, string>).name ?? '';
+          if (!/^[a-zA-Z0-9_-]+$/.test(rawName)) {
+            return cb(new BadRequestException('Invalid instance name'), false as any);
+          }
+          const dir = join(process.cwd(), 'uploads', rawName);
           mkdirSync(dir, { recursive: true });
           cb(null, dir);
         },
@@ -537,11 +540,12 @@ export class InstancesController {
     const userId = (req['user'] as JwtPayload).sub;
     const instance = this.instancesService.getInstance(userId, name);
     if (!instance) {
+      try { unlinkSync(file.path); } catch { /* best-effort cleanup */ }
       throw new HttpException(`Instance ${name} not found`, HttpStatus.NOT_FOUND);
     }
 
     const baseUrl = process.env.BASE_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
-    const url = `${baseUrl}/uploads/${name}/${file.filename}`;
+    const url = `${baseUrl}/uploads/${encodeURIComponent(name)}/${file.filename}`;
     return { url };
   }
 

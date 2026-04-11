@@ -2174,6 +2174,11 @@ export class InstanceChatsComponent {
     this.selectedId.set(chat.id);
     this.composerText.set('');
     this.localMessages.set([]);
+    this.clearAttachment();
+    this.closeEmojiPicker();
+    this.closeInteractiveDialog();
+    this.closeReactionPicker();
+    this.localReactions.set(new Map());
 
     // Clear unread locally for instant feedback
     if ((chat.unreadCount ?? 0) > 0) {

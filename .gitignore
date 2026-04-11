@@ -9,6 +9,7 @@ build/
 # Arquivos do Papagai (root only — do not use `instances/` or it ignores src/instances/)
 /instances/
 /media/
+/uploads/
 *.log
 *.pid
 

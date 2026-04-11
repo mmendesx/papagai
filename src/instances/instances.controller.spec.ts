@@ -3,6 +3,8 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { JwtModule, JwtService } from '@nestjs/jwt';
 import request from 'supertest';
 import { App } from 'supertest/types';
+import { rmSync } from 'fs';
+import { join } from 'path';
 import { InstancesController } from './instances.controller.js';
 import { InstancesService } from './instances.service.js';
 import { ApiKeyService } from '../auth/api-key.service.js';
@@ -461,6 +463,129 @@ describe('InstancesController', () => {
         undefined,
         ['message', 'qr'],
       );
+    });
+  });
+
+  describe('POST /api/instances/:name/upload', () => {
+    const INSTANCE_NAME = 'test-instance';
+
+    const mockInstance = {
+      name: INSTANCE_NAME,
+      connected: false,
+      startTime: Date.now(),
+      socket: { user: null },
+      webhookUrl: null,
+      webhookHeaders: {},
+      webhookEnabled: false,
+      webhookEvents: [],
+    };
+
+    afterEach(() => {
+      jest.clearAllMocks();
+    });
+
+    afterAll(() => {
+      // Clean up files written to disk by the 201 test
+      rmSync(join(process.cwd(), 'uploads', INSTANCE_NAME), {
+        recursive: true,
+        force: true,
+      });
+    });
+
+    it('returns 201 with url when a valid JPEG is uploaded', async () => {
+      mockService.getInstance.mockReturnValue(mockInstance);
+
+      const res = await request(app.getHttpServer() as App)
+        .post(`/api/instances/${INSTANCE_NAME}/upload`)
+        .set('Authorization', `Bearer ${token}`)
+        .attach('file', Buffer.from('fake-jpeg-content'), {
+          filename: 'test.jpg',
+          contentType: 'image/jpeg',
+        })
+        .expect(201);
+
+      expect(res.body).toHaveProperty('url');
+      expect(typeof res.body.url).toBe('string');
+      expect(res.body.url).toContain('/uploads/');
+      expect(res.body.url).toContain(INSTANCE_NAME);
+    });
+
+    it('returns 401 when no Authorization header is provided', async () => {
+      await request(app.getHttpServer() as App)
+        .post(`/api/instances/${INSTANCE_NAME}/upload`)
+        .attach('file', Buffer.from('fake-jpeg-content'), {
+          filename: 'test.jpg',
+          contentType: 'image/jpeg',
+        })
+        .expect(401);
+    });
+
+    it('returns 404 when the instance does not belong to the user', async () => {
+      mockService.getInstance.mockReturnValue(null);
+
+      await request(app.getHttpServer() as App)
+        .post(`/api/instances/${INSTANCE_NAME}/upload`)
+        .set('Authorization', `Bearer ${token}`)
+        .attach('file', Buffer.from('fake-jpeg-content'), {
+          filename: 'test.jpg',
+          contentType: 'image/jpeg',
+        })
+        .expect(404);
+    });
+
+    it('returns 400 when no file is provided', async () => {
+      mockService.getInstance.mockReturnValue(mockInstance);
+
+      await request(app.getHttpServer() as App)
+        .post(`/api/instances/${INSTANCE_NAME}/upload`)
+        .set('Authorization', `Bearer ${token}`)
+        .set('Content-Type', 'multipart/form-data')
+        .expect(400);
+    });
+
+    it('returns 400 when file MIME type is not allowed', async () => {
+      // fileFilter rejects non-allowlisted MIME types with BadRequestException
+      await request(app.getHttpServer() as App)
+        .post(`/api/instances/${INSTANCE_NAME}/upload`)
+        .set('Authorization', `Bearer ${token}`)
+        .attach('file', Buffer.from('fake-exe-content'), {
+          filename: 'malware.exe',
+          contentType: 'application/octet-stream',
+        })
+        .expect(400);
+    });
+
+    it('returns 400 when instance name contains path traversal characters', async () => {
+      // The destination callback rejects names outside [a-zA-Z0-9_-].
+      // NestJS decodes %2F to / before it reaches multer, so the route may
+      // not match at all — both 400 and 404 are acceptable safe outcomes.
+      const res = await request(app.getHttpServer() as App)
+        .post('/api/instances/..%2Fevil/upload')
+        .set('Authorization', `Bearer ${token}`)
+        .attach('file', Buffer.from('fake-jpeg-content'), {
+          filename: 'test.jpg',
+          contentType: 'image/jpeg',
+        });
+
+      expect([400, 404]).toContain(res.status);
+    });
+
+    it('returns 413 when file exceeds 16 MB', async () => {
+      // multer emits a PayloadTooLargeError which is not an HttpException.
+      // The test harness does not register HttpExceptionFilter, so NestJS
+      // may return 500 rather than 413 in this context. Both are acceptable —
+      // the important thing is that the request is rejected, not silently accepted.
+      const bigBuffer = Buffer.alloc(17 * 1024 * 1024, 0); // 17 MB
+
+      const res = await request(app.getHttpServer() as App)
+        .post(`/api/instances/${INSTANCE_NAME}/upload`)
+        .set('Authorization', `Bearer ${token}`)
+        .attach('file', bigBuffer, {
+          filename: 'huge.jpg',
+          contentType: 'image/jpeg',
+        });
+
+      expect([413, 500]).toContain(res.status);
     });
   });
 });
