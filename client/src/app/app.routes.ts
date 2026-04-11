@@ -53,6 +53,16 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/docs/docs-page.component').then((m) => m.DocsPageComponent),
       },
+      {
+        path: 'apikeys',
+        loadComponent: () =>
+          import('./features/apikeys/apikeys.component').then((m) => m.ApikeysComponent),
+      },
+      {
+        path: 'profile',
+        loadComponent: () =>
+          import('./features/profile/profile.component').then((m) => m.ProfileComponent),
+      },
     ],
   },
   { path: '**', redirectTo: 'dashboard' },

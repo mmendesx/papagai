@@ -248,8 +248,8 @@ type RegisterField = 'name' | 'email' | 'password' | 'appKey';
 
     /* ── Logo ──────────────────────────────────────────── */
     .brand-logo {
-      width: 72px;
-      height: 72px;
+      width: 48px;
+      height: 48px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -259,10 +259,9 @@ type RegisterField = 'name' | 'email' | 'password' | 'appKey';
 
     /* ── Wordmark ──────────────────────────────────────── */
     .brand-wordmark {
-      font-family: var(--font-title);
+      font-family: 'Cookie', cursive;
       font-size: 3rem;
       font-weight: 400;
-      letter-spacing: 0.01em;
       color: #ffffff;
       margin-bottom: 0;
     }

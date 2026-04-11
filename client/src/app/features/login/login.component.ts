@@ -60,7 +60,7 @@ type LoginField = 'email' | 'password';
             <div class="brand-logo" [@scaleIn]>
               <img src="/parrot.png" alt="" />
             </div>
-            <div class="brand-wordmark" [@fadeInUp]>PAPAGAI</div>
+            <div class="brand-wordmark" [@fadeInUp]>Papagai</div>
           </div>
           <h2 class="brand-headline" [@fadeInUp]>Sua empresa no WhatsApp, no controle.</h2>
           <p class="brand-tagline" [@fadeInUp]>Conecte sistemas, gerencie múltiplos números e automatize conversas com uma API production-grade.</p>
@@ -232,8 +232,8 @@ type LoginField = 'email' | 'password';
 
     /* ── Logo ──────────────────────────────────────────── */
     .brand-logo {
-      width: 72px;
-      height: 72px;
+      width: 48px;
+      height: 48px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -262,10 +262,9 @@ type LoginField = 'email' | 'password';
 
     /* ── Wordmark ──────────────────────────────────────── */
     .brand-wordmark {
-      font-family: var(--font-title);
+      font-family: 'Cookie', cursive;
       font-size: 3rem;
       font-weight: 400;
-      letter-spacing: 0.01em;
       color: #ffffff;
       margin-bottom: 0;
     }

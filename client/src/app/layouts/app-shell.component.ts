@@ -1,27 +1,24 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, NavigationStart, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { DOCUMENT } from '@angular/common';
 import { filter, map, startWith } from 'rxjs/operators';
 import { AuthService } from '../core/auth/auth.service';
-import { API_ENDPOINT_GROUPS, EndpointGroup } from '../features/docs/api-endpoints';
-import { DocsNavigationService } from '../features/docs/docs-navigation.service';
 import { getAvatarColor } from '../shared/avatar-colors';
 import { HeaderActionsService } from '../shared/header-actions.service';
+import { ThemeService } from '../core/theme/theme.service';
 import {
   LucideAngularModule,
   LayoutGrid,
   FileText,
-  ChevronDown,
-  ChevronLeft,
   LogOut,
   Menu,
   PanelLeftOpen,
   PanelLeftClose,
   Sun,
   Moon,
+  Key,
+  User,
 } from 'lucide-angular';
-import { ThemeService } from '../core/theme/theme.service';
 
 @Component({
   selector: 'app-shell',
@@ -52,16 +49,12 @@ import { ThemeService } from '../core/theme/theme.service';
       display: flex;
       align-items: center;
       gap: 0.625rem;
-      font-weight: 900;
-      font-size: 0.9rem;
-      letter-spacing: 0.12em;
       color: var(--color-on-surface);
-      font-family: 'Geist', sans-serif;
       flex-shrink: 0;
     }
     .brand-icon {
-      width: 22px;
-      height: 38px;
+      width: 16px;
+      height: 28px;
       flex-shrink: 0;
       display: flex;
       align-items: center;
@@ -75,9 +68,8 @@ import { ThemeService } from '../core/theme/theme.service';
       filter: drop-shadow(0 1px 2px color-mix(in srgb, var(--color-on-surface) 14%, transparent));
     }
     .brand-name {
-      font-size: 0.8125rem;
-      font-weight: 700;
-      letter-spacing: 0.1em;
+      font-size: 1.375rem;
+      font-weight: 400;
       color: var(--color-on-surface);
       font-family: var(--font-brand);
       white-space: nowrap;
@@ -454,7 +446,7 @@ import { ThemeService } from '../core/theme/theme.service';
         <div class="brand-icon">
           <img src="/parrot.png" alt="" aria-hidden="true" />
         </div>
-        <span class="brand-name">PAPAGAI</span>
+        <span class="brand-name">Papagai</span>
       </div>
 
       <nav class="nav-section">
@@ -463,28 +455,21 @@ import { ThemeService } from '../core/theme/theme.service';
           <span>Instâncias</span>
         </a>
 
-        <button type="button" class="nav-item-toggle" title="API Docs" [class.active]="isDocsActive()" (click)="toggleDocsSubmenu()">
+        <a routerLink="/docs" routerLinkActive="active" class="nav-item" title="API Docs" (click)="closeSidebar()">
           <lucide-icon [img]="icons.FileText" [size]="20" class="nav-icon" aria-hidden="true" />
           <span>API Docs</span>
-          <lucide-icon [img]="icons.ChevronDown" [size]="14" class="toggle-chevron" [class.open]="docsSubmenuOpen()" aria-hidden="true" />
-        </button>
-
-        <div class="submenu" [class.open]="docsSubmenuOpen()">
-          @for (group of endpointGroups; track group.id) {
-            <div class="submenu-group-title">{{ group.title }}</div>
-            @for (endpoint of group.endpoints; track endpoint.id) {
-              <button type="button" class="submenu-item" (click)="navigateToEndpoint(endpoint.id)">
-                <span class="method-badge badge-{{ endpoint.method.toLowerCase() }}" [attr.aria-label]="endpoint.method">
-                  {{ endpoint.method }}
-                </span>
-                <span class="submenu-label">{{ endpoint.title }}</span>
-              </button>
-            }
-          }
-        </div>
+        </a>
       </nav>
 
       <div class="sidebar-footer">
+        <a routerLink="/apikeys" routerLinkActive="active" class="nav-item" title="API Keys" (click)="closeSidebar()">
+          <lucide-icon [img]="icons.Key" [size]="20" class="nav-icon" aria-hidden="true" />
+          <span>API Keys</span>
+        </a>
+        <a routerLink="/profile" routerLinkActive="active" class="nav-item" title="Perfil" (click)="closeSidebar()">
+          <lucide-icon [img]="icons.User" [size]="20" class="nav-icon" aria-hidden="true" />
+          <span>Perfil</span>
+        </a>
         <div class="user-footer-row">
           <div class="avatar" aria-hidden="true"
                [style.background]="getAvatarStyle(user()?.name ?? '').bg"
@@ -551,27 +536,14 @@ import { ThemeService } from '../core/theme/theme.service';
 export class AppShellComponent {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
-  private readonly document = inject(DOCUMENT);
-  private readonly docsNav = inject(DocsNavigationService);
   readonly headerActions = inject(HeaderActionsService);
   readonly theme = inject(ThemeService);
 
-  readonly icons = { LayoutGrid, FileText, ChevronDown, ChevronLeft, LogOut, Menu, PanelLeftOpen, PanelLeftClose, Sun, Moon };
+  readonly icons = { LayoutGrid, FileText, LogOut, Menu, PanelLeftOpen, PanelLeftClose, Sun, Moon, Key, User };
 
   readonly user = this.auth.currentUser;
   readonly sidebarOpen = signal(false);
   readonly sidebarCollapsed = signal(false);
-  readonly docsSubmenuOpen = signal(this.router.url.startsWith('/docs'));
-
-  readonly endpointGroups: EndpointGroup[] = API_ENDPOINT_GROUPS;
-  readonly isDocsActive = toSignal(
-    this.router.events.pipe(
-      filter(e => e instanceof NavigationEnd),
-      startWith(null),
-      map(() => this.router.url.startsWith('/docs'))
-    ),
-    { initialValue: this.router.url.startsWith('/docs') }
-  );
 
   readonly currentUrl = toSignal(
     this.router.events.pipe(
@@ -590,6 +562,8 @@ export class AppShellComponent {
     }
     if (url.startsWith('/docs')) return 'API Docs';
     if (url.startsWith('/dashboard')) return 'Instâncias';
+    if (url.startsWith('/apikeys')) return 'API Keys';
+    if (url.startsWith('/profile')) return 'Perfil';
     return 'Papagai';
   });
 
@@ -615,11 +589,6 @@ export class AppShellComponent {
   toggleSidebar(): void { this.sidebarOpen.update(v => !v); }
   closeSidebar(): void { this.sidebarOpen.set(false); }
   toggleCollapse(): void { this.sidebarCollapsed.update(v => !v); }
-  toggleDocsSubmenu(): void {
-    const willOpen = !this.docsSubmenuOpen();
-    this.docsSubmenuOpen.set(willOpen);
-    if (willOpen) this.router.navigate(['/docs']);
-  }
 
   readonly initials = computed(() => {
     const name = this.user()?.name ?? '';
@@ -632,12 +601,5 @@ export class AppShellComponent {
 
   logout(): void {
     this.auth.logout();
-  }
-
-  navigateToEndpoint(id: string): void {
-    this.docsNav.navigate(id);
-    setTimeout(() => {
-      this.document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 50);
   }
 }

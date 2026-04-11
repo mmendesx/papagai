@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Geist:wght@400;700;900&family=Figtree:wght@400;500;600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -144,7 +142,7 @@
   /* ── Fonts ───────────────────────────────────────────── */
   --font-sans: 'Figtree', sans-serif;
   --font-display: 'Geist', sans-serif;
-  --font-brand: 'Space Grotesk', sans-serif;
+  --font-brand: 'Cookie', cursive;
 
   /* ── Taiga UI font overrides ─────────────────────────── */
   --tui-font-text: 'Figtree', sans-serif;

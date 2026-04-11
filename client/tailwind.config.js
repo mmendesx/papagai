@@ -6,7 +6,9 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Lexend', 'sans-serif'],
+        sans: ['Figtree', 'sans-serif'],
+        display: ['Geist', 'sans-serif'],
+        brand: ['Cookie', 'cursive'],
       },
       colors: {
         papagai: {
