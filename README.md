@@ -24,7 +24,7 @@ Papagai é um gateway WhatsApp multi-dispositivo self-hosted que expõe uma API 
 | Camada | Tecnologia |
 |--------|-----------|
 | Backend | NestJS 11, TypeScript 5.7, Node 22 |
-| Banco de dados | PostgreSQL 16 + TypeORM |
+| Banco de dados | PostgreSQL 16 + Prisma |
 | Cache / estado de sessão | Redis 7 |
 | WhatsApp | `@whiskeysockets/baileys` (fork whaileys) |
 | Frontend | Angular 19, Taiga UI, Tailwind CSS |
@@ -77,29 +77,20 @@ Como funciona:
 
 ## Banco de dados
 
-Em **desenvolvimento**, o TypeORM usa `synchronize: true` — o schema é ajustado automaticamente ao iniciar a aplicação. Não execute migrations manualmente neste modo.
-
-Em **produção**, `synchronize` está desativado e o schema é controlado exclusivamente por migrations. Antes de iniciar a aplicação em produção, aplique as migrations pendentes:
+O schema é gerenciado pelo **Prisma** (`prisma/schema.prisma`). Em produção, as migrations são controladas exclusivamente por arquivos versionados. Antes de iniciar a aplicação em produção, aplique as migrations pendentes:
 
 ```bash
-npm run migration:run
+npm run prisma:migrate:deploy
 ```
 
-### Scripts de migration disponíveis
+### Scripts Prisma disponíveis
 
 | Script | O que faz |
 |--------|-----------|
-| `npm run migration:generate <Nome>` | Compara as entidades com o banco e gera uma migration com as diferenças |
-| `npm run migration:create <Nome>` | Cria um arquivo de migration vazio para SQL escrito à mão |
-| `npm run migration:run` | Aplica todas as migrations pendentes |
-| `npm run migration:revert` | Reverte a última migration aplicada |
-| `npm run migration:show` | Lista as migrations aplicadas e pendentes |
-
-O CLI do TypeORM pode ser invocado diretamente quando necessário:
-
-```bash
-node --loader ts-node/esm ./node_modules/typeorm/cli.js -d src/typeorm.datasource.ts
-```
+| `npm run prisma:generate` | Regenera o Prisma Client a partir do schema |
+| `npm run prisma:migrate` | Cria e aplica uma nova migration em desenvolvimento |
+| `npm run prisma:migrate:deploy` | Aplica migrations pendentes em produção (sem prompt) |
+| `npm run prisma:studio` | Abre o Prisma Studio para inspecionar o banco visualmente |
 
 Para resetar um banco de dados de desenvolvimento existente (apaga volumes e recria a stack):
 
@@ -119,6 +110,7 @@ Os valores padrão de dev estão pré-definidos em `docker-compose.dev.yml` e em
 | `NODE_ENV` | `development` | Ambiente de execução |
 | `APP_KEY` | `dev-app-key` | Segredo da aplicação — **altere em produção** |
 | `JWT_SECRET` | `dev-jwt-secret` | Segredo de assinatura JWT — **altere em produção** |
+| `DATABASE_URL` | `postgresql://papagai:papagai@db:5432/papagai` | URL de conexão do PostgreSQL (usada pelo Prisma) |
 | `DB_HOST` | `localhost` | Host do PostgreSQL |
 | `DB_PORT` | `5432` | Porta do PostgreSQL |
 | `DB_USER` | `papagai` | Usuário do PostgreSQL |
