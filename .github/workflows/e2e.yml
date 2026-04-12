@@ -38,11 +38,7 @@ jobs:
       - run: npm ci
       - name: Run e2e tests
         env:
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_USER: papagai
-          DB_PASS: papagai
-          DB_NAME: papagai_test
+          DATABASE_URL: postgresql://papagai:papagai@localhost:5432/papagai_test
           NODE_ENV: development
           JWT_SECRET: e2e-integration-secret
           APP_KEY: ci-app-key
