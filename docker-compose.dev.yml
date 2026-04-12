@@ -62,6 +62,7 @@ services:
       DB_USER: papagai
       DB_PASS: papagai
       DB_NAME: papagai
+      DATABASE_URL: postgresql://papagai:papagai@db:5432/papagai
       REDIS_URL: redis://redis:6379
       MEDIA_DIR: /app/media
       INSTANCES_DIR: /app/instances

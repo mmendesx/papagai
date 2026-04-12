@@ -18,13 +18,12 @@ jest.mock('./utils/redis-auth-state', () => ({
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { getRepositoryToken } from '@nestjs/typeorm';
 import { Boom } from '@hapi/boom';
 import { WhatsappService } from './whatsapp.service';
 import { WebhookService } from '../webhook/webhook.service';
 import { ChatStoreService } from './chat-store.service';
 import { Instance } from './interfaces/whatsapp.interface';
-import { InstanceConfig } from '../instances/entities/instance-config.entity';
+import { PrismaService } from '../prisma/prisma.service';
 
 const { DisconnectReason } = jest.requireMock('@whiskeysockets/baileys');
 
@@ -131,12 +130,14 @@ describe('WhatsappService', () => {
           useValue: mockChatStore,
         },
         {
-          provide: getRepositoryToken(InstanceConfig),
+          provide: PrismaService,
           useValue: {
-            find: jest.fn().mockResolvedValue([]),
-            upsert: jest.fn().mockResolvedValue(undefined),
-            delete: jest.fn().mockResolvedValue(undefined),
-            update: jest.fn().mockResolvedValue(undefined),
+            instanceConfig: {
+              findMany: jest.fn().mockResolvedValue([]),
+              upsert: jest.fn().mockResolvedValue(undefined),
+              delete: jest.fn().mockResolvedValue(undefined),
+              update: jest.fn().mockResolvedValue(undefined),
+            },
           },
         },
       ],
@@ -445,20 +446,25 @@ describe('WhatsappService', () => {
       expect(instance.webhookEvents).toEqual(['message']);
     });
 
-    it('calls instanceConfigRepo.update with correct fields', async () => {
+    it('calls prisma.instanceConfig.update with correct fields', async () => {
       const instance = buildMockInstance({ name: 'testPapagai' });
       (service as any).instances.set(`${TEST_USER_ID}:testPapagai`, instance);
 
-      const mockRepo = (service as any).instanceConfigRepo;
+      const mockInstanceConfig = (service as any).prisma.instanceConfig;
 
       await service.updateWebhookConfig(TEST_USER_ID, 'testPapagai', {
         webhookUrl: 'https://updated.url/hook',
         webhookEnabled: false,
       });
 
-      expect(mockRepo.update).toHaveBeenCalledWith(
-        { userId: TEST_USER_ID, name: 'testPapagai' },
-        { webhookUrl: 'https://updated.url/hook', webhookEnabled: false },
+      expect(mockInstanceConfig.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { userId_name: { userId: TEST_USER_ID, name: 'testPapagai' } },
+          data: expect.objectContaining({
+            webhookUrl: 'https://updated.url/hook',
+            webhookEnabled: false,
+          }),
+        }),
       );
     });
   });

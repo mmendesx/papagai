@@ -1,8 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
-import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { Redis } from 'ioredis';
+import { PrismaService } from '../prisma/prisma.service.js';
 
 @Injectable()
 export class HealthService implements OnModuleDestroy {
@@ -10,7 +9,7 @@ export class HealthService implements OnModuleDestroy {
   private readonly redis: Redis;
 
   constructor(
-    @InjectDataSource() private readonly dataSource: DataSource,
+    private readonly prisma: PrismaService,
     configService: ConfigService,
   ) {
     this.redis = new Redis(configService.get<string>('redisUrl') ?? 'redis://localhost:6379');
@@ -27,7 +26,7 @@ export class HealthService implements OnModuleDestroy {
       });
 
     const [dbResult, redisResult] = await Promise.allSettled([
-      withTimeout(this.dataSource.query('SELECT 1'), 1500),
+      withTimeout(this.prisma.$queryRaw`SELECT 1`, 1500),
       withTimeout(this.redis.ping(), 1500),
     ]);
 

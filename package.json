@@ -36,11 +36,10 @@
         "test:cov": "jest --coverage",
         "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
         "test:e2e": "DB_NAME=papagai_test jest --config ./test/jest-e2e.json --runInBand",
-        "migration:generate": "node --loader ts-node/esm ./node_modules/typeorm/cli.js -d src/typeorm.datasource.ts migration:generate",
-        "migration:create": "node --loader ts-node/esm ./node_modules/typeorm/cli.js migration:create",
-        "migration:run": "node --loader ts-node/esm ./node_modules/typeorm/cli.js -d src/typeorm.datasource.ts migration:run",
-        "migration:revert": "node --loader ts-node/esm ./node_modules/typeorm/cli.js -d src/typeorm.datasource.ts migration:revert",
-        "migration:show": "node --loader ts-node/esm ./node_modules/typeorm/cli.js -d src/typeorm.datasource.ts migration:show",
+        "prisma:generate": "prisma generate",
+        "prisma:migrate": "prisma migrate dev",
+        "prisma:migrate:deploy": "prisma migrate deploy",
+        "prisma:studio": "prisma studio",
         "plan-review": "node -r ts-node/register scripts/plan-review/cli.ts",
         "test:plan-review": "jest --config test/plan-review/jest-plan-review.json --forceExit",
         "test:playwright": "playwright test"
@@ -58,19 +57,18 @@
         "@nestjs/serve-static": "^5.0.4",
         "@nestjs/swagger": "^11.2.7",
         "@nestjs/throttler": "^6.5.0",
-        "@nestjs/typeorm": "^11.0.0",
-        "@whiskeysockets/baileys": "npm:whaileys@6.4.9",
-        "axios": "^1.7.2",
+        "@prisma/client": "^6.0.0",
+        "@whiskeysockets/baileys": "npm:whaileys@6.4.10",
+        "axios": "^1.15.0",
         "bcrypt": "^6.0.0",
         "class-transformer": "^0.5.1",
         "class-validator": "^0.14.1",
         "ioredis": "^5.4.0",
-        "multer": "^1.4.5-lts.1",
+        "multer": "^2.1.1",
         "pg": "^8.13.0",
         "qrcode": "^1.5.4",
         "reflect-metadata": "^0.2.2",
         "rxjs": "^7.8.1",
-        "typeorm": "^0.3.20",
         "uuid": "^10.0.0"
     },
     "devDependencies": {
@@ -83,9 +81,9 @@
         "@types/bcrypt": "^6.0.0",
         "@types/express": "^5.0.0",
         "@types/jest": "^30.0.0",
-        "@types/multer": "^1.4.12",
+        "@types/multer": "^2.1.0",
         "@types/node": "^22.19.17",
-        "@types/pg": "^8.11.0",
+        "prisma": "^6.0.0",
         "@types/qrcode": "^1.5.5",
         "@types/supertest": "^6.0.2",
         "@types/uuid": "^10.0.0",
@@ -110,7 +108,9 @@
         "picomatch": "4.0.4",
         "music-metadata": "11.12.3",
         "lodash": "4.18.1",
-        "axios": "^1.7.2"
+        "axios": "^1.15.0",
+        "glob": "^13.0.0",
+        "inflight": "^1.0.6"
     },
     "jest": {
         "moduleFileExtensions": [
@@ -124,6 +124,7 @@
             "^.+\\.(t|j)s$": "ts-jest"
         },
         "moduleNameMapper": {
+            "^@prisma/client$": "<rootDir>/__stubs__/prisma-client",
             "^(\\.{1,2}/.*)\\.js$": "$1"
         },
         "collectCoverageFrom": [

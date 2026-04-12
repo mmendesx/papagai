@@ -13,7 +13,7 @@ import { ApiKeyService } from './api-key.service.js';
 import { CreateApiKeyDto } from './dto/create-api-key.dto.js';
 import { ApiKeyResponseDto } from './dto/api-key-response.dto.js';
 import { ApiKeyTemplateListResponseDto } from './dto/api-key-template-response.dto.js';
-import { listAccountApiKeyPermissionTemplates, resolvePermissionsTemplate } from './api-key-permissions.js';
+import { AccountApiKeyPermission, listAccountApiKeyPermissionTemplates, resolvePermissionsTemplate } from './api-key-permissions.js';
 
 @ApiTags('Auth')
 @Controller('api/auth')
@@ -92,7 +92,7 @@ export class AuthController {
       enabled: result.enabled,
       createdAt: result.createdAt,
       lastUsedAt: result.lastUsedAt ?? undefined,
-      permissions: result.permissions ?? undefined,
+      permissions: (result.permissions as AccountApiKeyPermission[]) ?? undefined,
     };
   }
 
@@ -126,7 +126,7 @@ export class AuthController {
       enabled: k.enabled,
       createdAt: k.createdAt,
       lastUsedAt: k.lastUsedAt ?? undefined,
-      permissions: k.permissions ?? undefined,
+      permissions: (k.permissions as AccountApiKeyPermission[]) ?? undefined,
     }));
   }
 

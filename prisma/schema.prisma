@@ -1,0 +1,55 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String           @db.VarChar(255)
+  email        String           @unique @db.VarChar(255)
+  passwordHash String           @map("password_hash") @db.VarChar(255)
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  apiKeys      ApiKey[]
+  instances    InstanceConfig[]
+
+  @@map("users")
+}
+
+model ApiKey {
+  id          String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String          @map("user_id") @db.Uuid
+  instanceId  Int?            @map("instance_id")
+  name        String          @db.VarChar(255)
+  prefix      String          @db.VarChar(16)
+  keyHash     String          @unique @map("key_hash") @db.VarChar(64)
+  enabled     Boolean         @default(true)
+  expiresAt   DateTime?       @map("expires_at") @db.Timestamptz(6)
+  lastUsedAt  DateTime?       @map("last_used_at") @db.Timestamptz(6)
+  permissions String[] @default([])
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  instance    InstanceConfig? @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@map("api_keys")
+}
+
+model InstanceConfig {
+  id             Int      @id @default(autoincrement())
+  userId         String   @map("user_id") @db.Uuid
+  name           String
+  webhookUrl     String?  @map("webhook_url") @db.VarChar(2048)
+  webhookHeaders Json     @default("{}") @map("webhook_headers")
+  webhookEnabled Boolean  @default(false) @map("webhook_enabled")
+  webhookEvents  String[] @default(["message", "message_update", "qr", "connected", "disconnected"]) @map("webhook_events")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  apiKeys        ApiKey[]
+
+  @@unique([userId, name])
+  @@map("instances")
+}

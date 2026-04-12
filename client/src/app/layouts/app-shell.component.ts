@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { NgxFlickeringGridComponent } from '@omnedia/ngx-flickering-grid';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, NavigationStart, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, map, startWith } from 'rxjs/operators';
@@ -23,7 +24,7 @@ import {
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, RouterOutlet, LucideAngularModule],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, LucideAngularModule, NgxFlickeringGridComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: [`
     :host { display: flex; height: 100vh; overflow: hidden; }
@@ -314,7 +315,7 @@ import {
     .icon-btn:not(:disabled):hover { background: var(--color-surface-container-low); color: var(--color-primary); }
 
     /* Main content */
-    .main { flex: 1; overflow-y: auto; background: var(--tui-background-base); display: flex; flex-direction: column; }
+    .main { flex: 1; background: var(--tui-background-base); display: flex; flex-direction: column; position: relative; }
 
     /* Header */
     .page-header-bar {
@@ -435,6 +436,26 @@ import {
       }
       .main { width: 100%; }
     }
+
+    .shell-flicker {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+    }
+
+    .main-inner {
+      position: relative;
+      z-index: 1;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow-y: auto;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      om-flickering-grid { display: none; }
+    }
   `],
   template: `
     @if (sidebarOpen()) {
@@ -486,50 +507,60 @@ import {
     </aside>
 
     <main class="main">
-      <div class="page-header-bar">
-        <!-- Content section: toggle + page title -->
-        <div class="header-content-section">
-          <!-- Desktop only: sidebar collapse/expand toggle -->
-          <button type="button" class="btn-collapse-desktop" (click)="toggleCollapse()"
-                  [title]="sidebarCollapsed() ? 'Expandir menu' : 'Recolher menu'"
-                  [attr.aria-label]="sidebarCollapsed() ? 'Expandir menu lateral' : 'Recolher menu lateral'">
-            @if (sidebarCollapsed()) {
-              <lucide-icon [img]="icons.PanelLeftOpen" [size]="18" aria-hidden="true" />
-            } @else {
-              <lucide-icon [img]="icons.PanelLeftClose" [size]="18" aria-hidden="true" />
-            }
-          </button>
-          <!-- Mobile only: hamburger that opens the drawer -->
-          <button type="button" class="btn-hamburger-mobile" (click)="toggleSidebar()"
-                  aria-label="Abrir menu de navegação">
-            <lucide-icon [img]="icons.Menu" [size]="18" aria-hidden="true" />
-          </button>
-          <h1 class="page-header-title">{{ pageTitle() }}</h1>
-          @if (headerActions.actions().length) {
-            <div class="header-actions">
-              @for (action of headerActions.actions(); track action.id) {
-                <button
-                  type="button"
-                  [class]="actionClass(action.variant)"
-                  [disabled]="action.disabled?.() ?? false"
-                  (click)="action.onClick()"
-                >{{ action.label }}</button>
+      <om-flickering-grid
+        styleClass="shell-flicker"
+        [squareSize]="4"
+        [gridGap]="6"
+        [flickerChance]="0.3"
+        [color]="flickerColor()"
+        [maxOpacity]="0.25"
+      />
+      <div class="main-inner">
+        <div class="page-header-bar">
+            <!-- Content section: toggle + page title -->
+            <div class="header-content-section">
+              <!-- Desktop only: sidebar collapse/expand toggle -->
+              <button type="button" class="btn-collapse-desktop" (click)="toggleCollapse()"
+                      [title]="sidebarCollapsed() ? 'Expandir menu' : 'Recolher menu'"
+                      [attr.aria-label]="sidebarCollapsed() ? 'Expandir menu lateral' : 'Recolher menu lateral'">
+                @if (sidebarCollapsed()) {
+                  <lucide-icon [img]="icons.PanelLeftOpen" [size]="18" aria-hidden="true" />
+                } @else {
+                  <lucide-icon [img]="icons.PanelLeftClose" [size]="18" aria-hidden="true" />
+                }
+              </button>
+              <!-- Mobile only: hamburger that opens the drawer -->
+              <button type="button" class="btn-hamburger-mobile" (click)="toggleSidebar()"
+                      aria-label="Abrir menu de navegação">
+                <lucide-icon [img]="icons.Menu" [size]="18" aria-hidden="true" />
+              </button>
+              <h1 class="page-header-title">{{ pageTitle() }}</h1>
+              @if (headerActions.actions().length) {
+                <div class="header-actions">
+                  @for (action of headerActions.actions(); track action.id) {
+                    <button
+                      type="button"
+                      [class]="actionClass(action.variant)"
+                      [disabled]="action.disabled?.() ?? false"
+                      (click)="action.onClick()"
+                    >{{ action.label }}</button>
+                  }
+                </div>
               }
+              <button type="button" class="theme-toggle-btn"
+                      (click)="theme.toggle()"
+                      [attr.aria-label]="theme.isDark() ? 'Mudar para tema claro' : 'Mudar para tema escuro'"
+                      [title]="theme.isDark() ? 'Tema claro' : 'Tema escuro'">
+                @if (theme.isDark()) {
+                  <lucide-icon [img]="icons.Sun" [size]="18" aria-hidden="true" />
+                } @else {
+                  <lucide-icon [img]="icons.Moon" [size]="18" aria-hidden="true" />
+                }
+              </button>
             </div>
-          }
-          <button type="button" class="theme-toggle-btn"
-                  (click)="theme.toggle()"
-                  [attr.aria-label]="theme.isDark() ? 'Mudar para tema claro' : 'Mudar para tema escuro'"
-                  [title]="theme.isDark() ? 'Tema claro' : 'Tema escuro'">
-            @if (theme.isDark()) {
-              <lucide-icon [img]="icons.Sun" [size]="18" aria-hidden="true" />
-            } @else {
-              <lucide-icon [img]="icons.Moon" [size]="18" aria-hidden="true" />
-            }
-          </button>
-        </div>
+          </div>
+          <router-outlet />
       </div>
-      <router-outlet />
     </main>
   `
 })
@@ -544,6 +575,10 @@ export class AppShellComponent {
   readonly user = this.auth.currentUser;
   readonly sidebarOpen = signal(false);
   readonly sidebarCollapsed = signal(false);
+
+  protected readonly flickerColor = computed(() =>
+    this.theme.isDark() ? '#93c5fd' : '#2563eb'
+  );
 
   readonly currentUrl = toSignal(
     this.router.events.pipe(

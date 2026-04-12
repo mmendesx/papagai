@@ -5,9 +5,7 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { InstanceConfig } from '../instances/entities/instance-config.entity.js';
+import { PrismaService } from '../prisma/prisma.service.js';
 import { Redis } from 'ioredis';
 import { useRedisAuthState } from './utils/redis-auth-state.js';
 import makeWASocket, {
@@ -48,8 +46,7 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
     private configService: ConfigService,
     private webhookService: WebhookService,
     private chatStore: ChatStoreService,
-    @InjectRepository(InstanceConfig)
-    private instanceConfigRepo: Repository<InstanceConfig>,
+    private readonly prisma: PrismaService,
   ) {
     this.redis = new Redis(
       this.configService.get<string>('redisUrl') || 'redis://localhost:6379',
@@ -84,7 +81,7 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
   }
 
   async onModuleInit(): Promise<void> {
-    const configs = await this.instanceConfigRepo.find();
+    const configs = await this.prisma.instanceConfig.findMany();
     if (configs.length === 0) return;
 
     this.logger.log(`Restoring ${configs.length} instance(s) from database...`);
@@ -100,7 +97,7 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
           config.userId,
           config.name,
           config.webhookUrl ?? undefined,
-          config.webhookHeaders,
+          (config.webhookHeaders ?? undefined) as Record<string, string> | undefined,
           config.webhookEnabled,
           config.webhookEvents,
         );
@@ -216,8 +213,9 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
         ),
       );
 
-    await this.instanceConfigRepo.upsert(
-      {
+    await this.prisma.instanceConfig.upsert({
+      where: { userId_name: { userId, name: instanceName } },
+      create: {
         userId,
         name: instanceName,
         webhookUrl: webhookUrl ?? null,
@@ -225,8 +223,13 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
         webhookEnabled: resolvedWebhookEnabled,
         webhookEvents: resolvedWebhookEvents,
       },
-      ['userId', 'name'],
-    );
+      update: {
+        webhookUrl: webhookUrl ?? null,
+        webhookHeaders: webhookHeaders ?? {},
+        webhookEnabled: resolvedWebhookEnabled,
+        webhookEvents: resolvedWebhookEvents,
+      },
+    });
 
     this.logger.log(`Instance "${compositeKey}" created`);
     return instance;
@@ -394,7 +397,9 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
     if (redisKeys.length > 0) {
       await this.redis.del(...redisKeys);
     }
-    await this.instanceConfigRepo.delete({ userId, name: instanceName });
+    await this.prisma.instanceConfig.delete({
+      where: { userId_name: { userId, name: instanceName } },
+    });
     this.logger.log(`Purged storage for logged-out instance "${key}"`);
   }
 
@@ -569,9 +574,9 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
     if (config.webhookEvents !== undefined)
       instance.webhookEvents = config.webhookEvents;
 
-    await this.instanceConfigRepo.update(
-      { userId, name: instanceName },
-      {
+    await this.prisma.instanceConfig.update({
+      where: { userId_name: { userId, name: instanceName } },
+      data: {
         ...(config.webhookUrl !== undefined && {
           webhookUrl: config.webhookUrl,
         }),
@@ -585,7 +590,7 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
           webhookEvents: config.webhookEvents,
         }),
       },
-    );
+    });
 
     return instance;
   }
@@ -662,7 +667,9 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
       await this.redis.del(...redisKeys);
     }
     this.logger.log(`Instance "${key}" disconnected and removed`);
-    await this.instanceConfigRepo.delete({ userId, name: instanceName });
+    await this.prisma.instanceConfig.delete({
+      where: { userId_name: { userId, name: instanceName } },
+    });
     return true;
   }
 

@@ -7,6 +7,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { NgxFlickeringGridComponent } from '@omnedia/ngx-flickering-grid';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -22,7 +23,7 @@ type LoginField = 'email' | 'password';
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, TuiLink, TuiError, ...TuiTextfield],
+  imports: [ReactiveFormsModule, RouterLink, TuiLink, TuiError, ...TuiTextfield, NgxFlickeringGridComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   animations: [
     trigger('fadeInUp', [
@@ -55,6 +56,16 @@ type LoginField = 'email' | 'password';
     <div class="auth-layout">
       <!-- Brand panel (left) -->
       <div class="brand-panel" aria-hidden="true">
+        <div class="grid-bg">
+          <om-flickering-grid
+            styleClass="auth-flicker"
+            [squareSize]="4"
+            [gridGap]="6"
+            [flickerChance]="0.3"
+            color="rgb(255, 255, 255)"
+            [maxOpacity]="0.15"
+          />
+        </div>
         <div class="brand-inner">
           <div class="brand-identity">
             <div class="brand-logo" [@scaleIn]>
@@ -106,7 +117,7 @@ type LoginField = 'email' | 'password';
 
           <form [formGroup]="form" (ngSubmit)="onSubmit()" class="auth-form">
             <div class="field-group" [@shake]="shakeEmail() ? 'shaking' : 'idle'">
-              <tui-textfield>
+              <tui-textfield size="s">
                 <label tuiLabel>E-mail</label>
                 <input
                   #emailInput
@@ -120,7 +131,7 @@ type LoginField = 'email' | 'password';
             </div>
 
             <div class="field-group" [@shake]="shakePassword() ? 'shaking' : 'idle'">
-              <tui-textfield>
+              <tui-textfield size="s">
                 <label tuiLabel>Senha</label>
                 <input tuiTextfield type="password" formControlName="password" autocomplete="current-password" />
               </tui-textfield>
@@ -144,18 +155,6 @@ type LoginField = 'email' | 'password';
     :host { display: block; height: 100vh; }
 
     /* ── Keyframes ─────────────────────────────────────── */
-    @keyframes floatOrb {
-      0%   { transform: translateY(0)    scale(1); }
-      50%  { transform: translateY(-40px) scale(1.08); }
-      100% { transform: translateY(0)    scale(1); }
-    }
-
-    @keyframes floatOrbAlt {
-      0%   { transform: translateY(0)   scale(1); }
-      50%  { transform: translateY(32px) scale(0.94); }
-      100% { transform: translateY(0)   scale(1); }
-    }
-
     @keyframes fadeInUp {
       from { opacity: 0; transform: translateY(24px); }
       to   { opacity: 1; transform: translateY(0); }
@@ -179,46 +178,27 @@ type LoginField = 'email' | 'password';
       overflow: hidden;
     }
 
-    /* Floating orb — cyan */
-    .brand-panel::before {
-      content: '';
-      position: absolute;
-      width: 480px;
-      height: 480px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(8,145,178,0.35) 0%, transparent 70%);
-      filter: blur(80px);
-      top: -80px;
-      right: -80px;
-      pointer-events: none;
-      z-index: 0;
-      animation: floatOrb 10s var(--ease-default) infinite;
-    }
-
-    /* Floating orb — tangerine */
-    .brand-panel::after {
-      content: '';
-      position: absolute;
-      width: 400px;
-      height: 400px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(234,88,12,0.25) 0%, transparent 70%);
-      filter: blur(80px);
-      bottom: -60px;
-      left: -60px;
-      pointer-events: none;
-      z-index: 0;
-      animation: floatOrbAlt 12s var(--ease-default) infinite;
-    }
-
     [data-theme="dark"] .brand-panel {
       background: linear-gradient(145deg, #0f172a 0%, #1e3a8a 55%, #1d4ed8 100%);
     }
 
     .brand-inner {
       position: relative;
-      z-index: 1;
+      z-index: 2;
       max-width: 420px;
+      width: 100%;
+    }
+
+    .grid-bg {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .grid-bg om-flickering-grid {
+      display: block;
+      height: 100%;
       width: 100%;
     }
 
@@ -253,9 +233,7 @@ type LoginField = 'email' | 'password';
         transition: none !important;
       }
 
-      .feature-card,
-      .brand-panel::before,
-      .brand-panel::after {
+      .feature-card {
         animation: none !important;
       }
     }
@@ -482,16 +460,15 @@ type LoginField = 'email' | 'password';
 
     /* ── Reduced motion ────────────────────────────────── */
     @media (prefers-reduced-motion: reduce) {
-      .brand-panel::before,
-      .brand-panel::after {
-        animation-play-state: paused;
-      }
-
       .feature-card {
         animation: none;
         opacity: 1;
         transform: none;
       }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .grid-bg { display: none; }
     }
   `],
 })

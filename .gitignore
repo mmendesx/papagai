@@ -43,3 +43,4 @@ temp/
 
 # Planning artifacts (local only)
 tasks/
+/src/generated/prisma

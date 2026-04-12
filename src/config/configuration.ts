@@ -20,6 +20,10 @@ export default () => ({
     process.env.NODE_ENV === 'development',
   authThrottleTtl: parseInt(process.env.AUTH_THROTTLE_TTL ?? '60', 10),
   authThrottleLimit: parseInt(process.env.AUTH_THROTTLE_LIMIT ?? '5', 10),
+  // These individual DB_* vars are used by docker-compose health-checks and any
+  // non-Prisma tooling.  Prisma itself reads DATABASE_URL directly from the
+  // environment; pool parameters (connection_limit, pool_timeout, socket_timeout)
+  // must be appended to that URL as query params — see .env.example.
   db: {
     host: process.env.DB_HOST || 'localhost',
     port: parseInt(process.env.DB_PORT ?? '5432', 10),

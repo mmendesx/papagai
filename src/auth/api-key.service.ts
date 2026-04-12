@@ -3,21 +3,13 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
 import { createHash, randomBytes } from 'crypto';
-import { ApiKey } from './entities/api-key.entity.js';
-import { InstanceConfig } from '../instances/entities/instance-config.entity.js';
+import { PrismaService } from '../prisma/prisma.service.js';
 import { AccountApiKeyPermission } from './api-key-permissions.js';
 
 @Injectable()
 export class ApiKeyService {
-  constructor(
-    @InjectRepository(ApiKey)
-    private readonly apiKeyRepo: Repository<ApiKey>,
-    @InjectRepository(InstanceConfig)
-    private readonly instanceRepo: Repository<InstanceConfig>,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   // ── Key generation helpers ──────────────────────────────────────────────
 
@@ -42,30 +34,44 @@ export class ApiKeyService {
     name: string,
     expiresAt?: Date,
     permissions?: AccountApiKeyPermission[],
-  ): Promise<ApiKey & { key: string }> {
+  ) {
     const rawKey = this.generateRawKey('acct');
     const keyHash = this.hashKey(rawKey);
     const prefix = this.buildPrefix(rawKey);
 
-    const record = this.apiKeyRepo.create({
-      userId,
-      instanceId: null,
-      name,
-      prefix,
-      keyHash,
-      enabled: true,
-      expiresAt: expiresAt ?? null,
-      permissions: permissions ?? null,
+    const key = await this.prisma.apiKey.create({
+      data: {
+        userId,
+        instanceId: null,
+        name,
+        prefix,
+        keyHash,
+        enabled: true,
+        expiresAt: expiresAt ?? null,
+        permissions: permissions ?? [],
+      },
+      select: {
+        id: true,
+        userId: true,
+        instanceId: true,
+        name: true,
+        prefix: true,
+        enabled: true,
+        expiresAt: true,
+        lastUsedAt: true,
+        permissions: true,
+        createdAt: true,
+        // keyHash intentionally excluded
+      },
     });
 
-    const saved = await this.apiKeyRepo.save(record);
-    return { ...saved, key: rawKey };
+    return { ...key, key: rawKey };
   }
 
-  async listAccountKeys(userId: string): Promise<ApiKey[]> {
-    return this.apiKeyRepo.find({
-      where: { userId, instanceId: IsNull() },  // only account-scoped
-      order: { createdAt: 'DESC' },
+  async listAccountKeys(userId: string) {
+    return this.prisma.apiKey.findMany({
+      where: { userId, instanceId: null },
+      orderBy: { createdAt: 'desc' },
       select: {
         id: true,
         name: true,
@@ -81,13 +87,12 @@ export class ApiKeyService {
   }
 
   async revokeKey(userId: string, keyId: string): Promise<void> {
-    const key = await this.apiKeyRepo.findOne({
+    const result = await this.prisma.apiKey.deleteMany({
       where: { id: keyId, userId },
     });
-    if (!key) {
+    if (result.count === 0) {
       throw new NotFoundException('API key not found');
     }
-    await this.apiKeyRepo.delete(keyId);
   }
 
   // ── Instance-scoped key management ─────────────────────────────────────
@@ -97,9 +102,10 @@ export class ApiKeyService {
     instanceName: string,
     name: string,
     expiresAt?: Date,
-  ): Promise<ApiKey & { key: string }> {
-    const instance = await this.instanceRepo.findOne({
-      where: { userId, name: instanceName },
+  ) {
+    const instance = await this.prisma.instanceConfig.findUnique({
+      where: { userId_name: { userId, name: instanceName } },
+      select: { id: true },
     });
     if (!instance) {
       throw new NotFoundException(`Instance "${instanceName}" not found`);
@@ -109,34 +115,47 @@ export class ApiKeyService {
     const keyHash = this.hashKey(rawKey);
     const prefix = this.buildPrefix(rawKey);
 
-    const record = this.apiKeyRepo.create({
-      userId,
-      instanceId: instance.id,
-      name,
-      prefix,
-      keyHash,
-      enabled: true,
-      expiresAt: expiresAt ?? null,
+    const key = await this.prisma.apiKey.create({
+      data: {
+        userId,
+        instanceId: instance.id,
+        name,
+        prefix,
+        keyHash,
+        enabled: true,
+        expiresAt: expiresAt ?? null,
+        permissions: [],
+      },
+      select: {
+        id: true,
+        userId: true,
+        instanceId: true,
+        name: true,
+        prefix: true,
+        enabled: true,
+        expiresAt: true,
+        lastUsedAt: true,
+        permissions: true,
+        createdAt: true,
+        // keyHash intentionally excluded
+      },
     });
 
-    const saved = await this.apiKeyRepo.save(record);
-    return { ...saved, key: rawKey };
+    return { ...key, key: rawKey };
   }
 
-  async listInstanceKeys(
-    userId: string,
-    instanceName: string,
-  ): Promise<ApiKey[]> {
-    const instance = await this.instanceRepo.findOne({
-      where: { userId, name: instanceName },
+  async listInstanceKeys(userId: string, instanceName: string) {
+    const instance = await this.prisma.instanceConfig.findUnique({
+      where: { userId_name: { userId, name: instanceName } },
+      select: { id: true },
     });
     if (!instance) {
       throw new NotFoundException(`Instance "${instanceName}" not found`);
     }
 
-    return this.apiKeyRepo.find({
+    return this.prisma.apiKey.findMany({
       where: { userId, instanceId: instance.id },
-      order: { createdAt: 'DESC' },
+      orderBy: { createdAt: 'desc' },
       select: {
         id: true,
         name: true,
@@ -145,6 +164,7 @@ export class ApiKeyService {
         expiresAt: true,
         lastUsedAt: true,
         createdAt: true,
+        // keyHash intentionally excluded
       },
     });
   }
@@ -162,7 +182,7 @@ export class ApiKeyService {
     const keyHash = this.hashKey(rawKey);
 
     // Timing-safe lookup: hash first, then find by hash
-    const key = await this.apiKeyRepo.findOne({
+    const key = await this.prisma.apiKey.findUnique({
       where: { keyHash },
       select: {
         id: true,
@@ -180,12 +200,18 @@ export class ApiKeyService {
 
     if (key.expiresAt && key.expiresAt < new Date()) {
       // Disable the expired key asynchronously (no await)
-      void this.apiKeyRepo.update(key.id, { enabled: false });
+      void this.prisma.apiKey.update({
+        where: { id: key.id },
+        data: { enabled: false },
+      });
       throw new UnauthorizedException('API key has expired');
     }
 
     // Fire-and-forget lastUsedAt update — does not block the request
-    void this.apiKeyRepo.update(key.id, { lastUsedAt: new Date() });
+    void this.prisma.apiKey.update({
+      where: { id: key.id },
+      data: { lastUsedAt: new Date() },
+    });
 
     return {
       userId: key.userId,
@@ -202,8 +228,8 @@ export class ApiKeyService {
     instanceName: string,
     keyInstanceId: number,
   ): Promise<boolean> {
-    const instance = await this.instanceRepo.findOne({
-      where: { userId, name: instanceName },
+    const instance = await this.prisma.instanceConfig.findUnique({
+      where: { userId_name: { userId, name: instanceName } },
       select: { id: true },
     });
     return instance?.id === keyInstanceId;

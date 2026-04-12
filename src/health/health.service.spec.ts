@@ -8,9 +8,9 @@ jest.mock('ioredis', () => {
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { getDataSourceToken } from '@nestjs/typeorm';
 import { Redis } from 'ioredis';
 import { HealthService } from './health.service.js';
+import { PrismaService } from '../prisma/prisma.service.js';
 
 function getMockRedis() {
   const { Redis: RedisMock } = jest.requireMock<{ Redis: jest.Mock }>(
@@ -25,22 +25,22 @@ function getMockRedis() {
 
 describe('HealthService', () => {
   let service: HealthService;
-  let mockDataSource: { query: jest.Mock };
+  let mockPrisma: { $queryRaw: jest.Mock };
   let mockRedis: { ping: jest.Mock; disconnect: jest.Mock };
 
   beforeEach(async () => {
     jest.useRealTimers();
 
-    mockDataSource = {
-      query: jest.fn().mockResolvedValue([{ '?column?': 1 }]),
+    mockPrisma = {
+      $queryRaw: jest.fn().mockResolvedValue([{ '?column?': 1 }]),
     };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         HealthService,
         {
-          provide: getDataSourceToken(),
-          useValue: mockDataSource,
+          provide: PrismaService,
+          useValue: mockPrisma,
         },
         {
           provide: ConfigService,
@@ -70,7 +70,7 @@ describe('HealthService', () => {
     });
 
     it('returns db error and logs warn when db query fails', async () => {
-      mockDataSource.query.mockRejectedValue(new Error('connection refused'));
+      mockPrisma.$queryRaw.mockRejectedValue(new Error('connection refused'));
       const warnSpy = jest.spyOn((service as any).logger, 'warn');
 
       const result = await service.checkHealth();
@@ -96,7 +96,7 @@ describe('HealthService', () => {
     });
 
     it('returns error for both when both fail', async () => {
-      mockDataSource.query.mockRejectedValue(new Error('db down'));
+      mockPrisma.$queryRaw.mockRejectedValue(new Error('db down'));
       mockRedis.ping.mockRejectedValue(new Error('redis down'));
 
       const result = await service.checkHealth();
@@ -108,7 +108,7 @@ describe('HealthService', () => {
     it('returns db error when db query times out after 1500ms', async () => {
       jest.useFakeTimers();
 
-      mockDataSource.query.mockImplementation(
+      mockPrisma.$queryRaw.mockImplementation(
         () =>
           new Promise((resolve) =>
             setTimeout(() => resolve([{ '?column?': 1 }]), 5000),
@@ -133,7 +133,7 @@ describe('HealthService', () => {
         () => new Promise((resolve) => setTimeout(() => resolve('PONG'), 5000)),
       );
       // DB resolves instantly (no timers involved)
-      mockDataSource.query.mockResolvedValue([{ '?column?': 1 }]);
+      mockPrisma.$queryRaw.mockResolvedValue([{ '?column?': 1 }]);
 
       const healthPromise = service.checkHealth();
       await jest.advanceTimersByTimeAsync(1600);

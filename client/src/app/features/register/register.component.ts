@@ -7,6 +7,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { NgxFlickeringGridComponent } from '@omnedia/ngx-flickering-grid';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -22,7 +23,7 @@ type RegisterField = 'name' | 'email' | 'password' | 'appKey';
 @Component({
   selector: 'app-register',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, TuiLink, TuiError, ...TuiTextfield],
+  imports: [ReactiveFormsModule, RouterLink, TuiLink, TuiError, ...TuiTextfield, NgxFlickeringGridComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   animations: [
     trigger('fadeInUp', [
@@ -55,6 +56,16 @@ type RegisterField = 'name' | 'email' | 'password' | 'appKey';
     <div class="auth-layout">
       <!-- Brand panel (left) -->
       <div class="brand-panel" aria-hidden="true">
+        <div class="grid-bg">
+          <om-flickering-grid
+            styleClass="auth-flicker"
+            [squareSize]="4"
+            [gridGap]="6"
+            [flickerChance]="0.3"
+            color="rgb(255, 255, 255)"
+            [maxOpacity]="0.15"
+          />
+        </div>
         <div class="brand-inner">
           <div class="brand-identity">
             <div class="brand-logo" [@scaleIn]>
@@ -106,7 +117,7 @@ type RegisterField = 'name' | 'email' | 'password' | 'appKey';
 
           <form [formGroup]="form" (ngSubmit)="onSubmit()" class="auth-form">
             <div class="field-group" [@shake]="shakeName() ? 'shaking' : 'idle'">
-              <tui-textfield>
+              <tui-textfield size="s">
                 <label tuiLabel>Nome</label>
                 <input
                   #nameInput
@@ -120,7 +131,7 @@ type RegisterField = 'name' | 'email' | 'password' | 'appKey';
             </div>
 
             <div class="field-group" [@shake]="shakeEmail() ? 'shaking' : 'idle'">
-              <tui-textfield>
+              <tui-textfield size="s">
                 <label tuiLabel>E-mail</label>
                 <input tuiTextfield type="email" formControlName="email" autocomplete="email" />
               </tui-textfield>
@@ -128,7 +139,7 @@ type RegisterField = 'name' | 'email' | 'password' | 'appKey';
             </div>
 
             <div class="field-group" [@shake]="shakePassword() ? 'shaking' : 'idle'">
-              <tui-textfield>
+              <tui-textfield size="s">
                 <label tuiLabel>Senha</label>
                 <input tuiTextfield type="password" formControlName="password" autocomplete="new-password" />
               </tui-textfield>
@@ -136,7 +147,7 @@ type RegisterField = 'name' | 'email' | 'password' | 'appKey';
             </div>
 
             <div class="field-group" [@shake]="shakeAppKey() ? 'shaking' : 'idle'">
-              <tui-textfield>
+              <tui-textfield size="s">
                 <label tuiLabel>Chave de aplicação</label>
                 <input tuiTextfield type="password" formControlName="appKey" autocomplete="off" />
               </tui-textfield>
@@ -160,18 +171,6 @@ type RegisterField = 'name' | 'email' | 'password' | 'appKey';
     :host { display: block; height: 100vh; }
 
     /* ── Keyframes ─────────────────────────────────────── */
-    @keyframes floatOrb {
-      0%   { transform: translateY(0)     scale(1); }
-      50%  { transform: translateY(-40px) scale(1.08); }
-      100% { transform: translateY(0)     scale(1); }
-    }
-
-    @keyframes floatOrbAlt {
-      0%   { transform: translateY(0)    scale(1); }
-      50%  { transform: translateY(32px) scale(0.94); }
-      100% { transform: translateY(0)    scale(1); }
-    }
-
     @keyframes fadeInUp {
       from { opacity: 0; transform: translateY(24px); }
       to   { opacity: 1; transform: translateY(0); }
@@ -195,45 +194,13 @@ type RegisterField = 'name' | 'email' | 'password' | 'appKey';
       overflow: hidden;
     }
 
-    /* Floating orb — cyan */
-    .brand-panel::before {
-      content: '';
-      position: absolute;
-      width: 480px;
-      height: 480px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(8,145,178,0.35) 0%, transparent 70%);
-      filter: blur(80px);
-      top: -80px;
-      right: -80px;
-      pointer-events: none;
-      z-index: 0;
-      animation: floatOrb 10s var(--ease-default) infinite;
-    }
-
-    /* Floating orb — tangerine */
-    .brand-panel::after {
-      content: '';
-      position: absolute;
-      width: 400px;
-      height: 400px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(234,88,12,0.25) 0%, transparent 70%);
-      filter: blur(80px);
-      bottom: -60px;
-      left: -60px;
-      pointer-events: none;
-      z-index: 0;
-      animation: floatOrbAlt 12s var(--ease-default) infinite;
-    }
-
     [data-theme="dark"] .brand-panel {
       background: linear-gradient(145deg, #0f172a 0%, #1e3a8a 55%, #1d4ed8 100%);
     }
 
     .brand-inner {
       position: relative;
-      z-index: 1;
+      z-index: 2;
       max-width: 420px;
       width: 100%;
     }
@@ -475,18 +442,29 @@ type RegisterField = 'name' | 'email' | 'password' | 'appKey';
       .form-inner { max-width: 100%; }
     }
 
+    /* ── Flickering grid ───────────────────────────────── */
+    .grid-bg {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .grid-bg om-flickering-grid {
+      display: block;
+      height: 100%;
+      width: 100%;
+    }
+
     /* ── Reduced motion ────────────────────────────────── */
     @media (prefers-reduced-motion: reduce) {
-      .brand-panel::before,
-      .brand-panel::after {
-        animation-play-state: paused;
-      }
-
       .feature-card {
         animation: none;
         opacity: 1;
         transform: none;
       }
+
+      .grid-bg { display: none; }
     }
   `],
 })

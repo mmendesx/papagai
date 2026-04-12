@@ -2,12 +2,8 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import type { StringValue } from 'ms';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
-import { User } from './entities/user.entity.js';
-import { ApiKey } from './entities/api-key.entity.js';
-import { InstanceConfig } from '../instances/entities/instance-config.entity.js';
 import { AuthService } from './auth.service.js';
 import { AuthController } from './auth.controller.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
@@ -19,7 +15,6 @@ import { AnyAuthGuard } from './guards/any-auth.guard.js';
 @Module({
   imports: [
     ConfigModule,
-    TypeOrmModule.forFeature([User, ApiKey, InstanceConfig]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

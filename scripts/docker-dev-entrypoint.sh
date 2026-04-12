@@ -17,4 +17,7 @@ if [ ! -f "$STAMP" ] || [ "$LOCK" -nt "$STAMP" ] || [ ! -d node_modules/@nestjs/
   touch "$STAMP"
 fi
 
+echo "docker-dev-entrypoint: generating Prisma client..."
+npx prisma generate
+
 exec "$@"

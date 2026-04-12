@@ -6,10 +6,10 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { InjectRepository } from '@nestjs/typeorm';
-import { QueryFailedError, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { User } from './entities/user.entity.js';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { Prisma } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { JwtPayload } from './guards/jwt-auth.guard.js';
@@ -19,8 +19,7 @@ const BCRYPT_ROUNDS = 12;
 @Injectable()
 export class AuthService {
   constructor(
-    @InjectRepository(User)
-    private readonly usersRepo: Repository<User>,
+    private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {}
@@ -44,27 +43,22 @@ export class AuthService {
       });
     }
 
-    const existing = await this.usersRepo.findOne({
-      where: { email: dto.email.toLowerCase() },
-    });
-    if (existing) {
-      throw new ConflictException('E-mail já cadastrado');
-    }
-
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
-    const user = this.usersRepo.create({
-      name: dto.name,
-      email: dto.email.toLowerCase(),
-      passwordHash,
-    });
+    let user: Awaited<ReturnType<typeof this.prisma.user.create>>;
     try {
-      await this.usersRepo.save(user);
+      user = await this.prisma.user.create({
+        data: {
+          name: dto.name,
+          email: dto.email.toLowerCase(),
+          passwordHash,
+        },
+      });
     } catch (e) {
-      if (e instanceof QueryFailedError) {
-        const code = (e.driverError as { code?: string } | undefined)?.code;
-        if (code === '23505') {
-          throw new ConflictException('E-mail já cadastrado');
-        }
+      if (
+        e instanceof PrismaClientKnownRequestError &&
+        e.code === 'P2002'
+      ) {
+        throw new ConflictException('E-mail já cadastrado');
       }
       throw e;
     }
@@ -79,7 +73,7 @@ export class AuthService {
   async login(
     dto: LoginDto,
   ): Promise<{ user: PublicUser; accessToken: string }> {
-    const user = await this.usersRepo.findOne({
+    const user = await this.prisma.user.findUnique({
       where: { email: dto.email.toLowerCase() },
     });
     if (!user) {
@@ -97,14 +91,14 @@ export class AuthService {
   }
 
   async getProfile(userId: string): Promise<PublicUser> {
-    const user = await this.usersRepo.findOne({ where: { id: userId } });
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       throw new UnauthorizedException();
     }
     return this.toPublicUser(user);
   }
 
-  private async signToken(user: User): Promise<string> {
+  private async signToken(user: { id: string; email: string; name: string }): Promise<string> {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
@@ -114,7 +108,7 @@ export class AuthService {
     return this.jwtService.signAsync(payload);
   }
 
-  private toPublicUser(user: User): PublicUser {
+  private toPublicUser(user: { id: string; name: string; email: string }): PublicUser {
     return {
       id: user.id,
       name: user.name,
