@@ -28,6 +28,7 @@ export interface StoredMessage {
     | 'sticker'
     | 'location'
     | 'contact'
+    | 'reaction'
     | 'unknown';
   body: string | null;
   timestamp: number;
@@ -116,6 +117,9 @@ export function extractPreview(msg: any): {
     };
   if (m.contactMessage)
     return { type: 'contact', body: m.contactMessage.displayName ?? null };
+
+  if (m.reactionMessage)
+    return { type: 'reaction', body: m.reactionMessage.text ?? null };
 
   return { type: 'unknown', body: null };
 }
