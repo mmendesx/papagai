@@ -588,4 +588,67 @@ describe('WhatsappService', () => {
       jest.useRealTimers();
     });
   });
+
+  describe('ICT-1 — cross-device outgoing body extraction via messages.upsert', () => {
+    async function getMessagesUpsertHandler(): Promise<(payload: any) => void> {
+      await service.createInstance(TEST_USER_ID, 'upsertInstance');
+      const upsertCall = mockSocket.ev.on.mock.calls.find(
+        ([event]: [string]) => event === 'messages.upsert',
+      );
+      expect(upsertCall).toBeDefined();
+      return upsertCall[1] as (payload: any) => void;
+    }
+
+    it('BDD Scenario 1 — calls recordOutgoing with the extracted body when a fromMe text message arrives via messages.upsert', async () => {
+      const handler = await getMessagesUpsertHandler();
+      const mockChatStore = (service as any).chatStore as jest.Mocked<Partial<ChatStoreService>>;
+
+      const msg = {
+        key: { fromMe: true, remoteJid: '5511888888888@s.whatsapp.net', id: 'msg-id-001' },
+        message: { conversation: 'hello from phone' },
+      };
+
+      handler({ messages: [msg], type: 'notify' });
+
+      expect(mockChatStore.recordOutgoing).toHaveBeenCalledWith(
+        TEST_USER_ID,
+        'upsertInstance',
+        '5511888888888@s.whatsapp.net',
+        'hello from phone',
+        msg,
+      );
+    });
+
+    it('BDD Scenario 2 — recordOutgoing is called (not skipped by the handler) so seenIds dedup inside recordOutgoing can apply', async () => {
+      const handler = await getMessagesUpsertHandler();
+      const mockChatStore = (service as any).chatStore as jest.Mocked<Partial<ChatStoreService>>;
+
+      const msg = {
+        key: { fromMe: true, remoteJid: '5511777777777@s.whatsapp.net', id: 'msg-id-dup-002' },
+        message: { conversation: 'sent via API' },
+      };
+
+      // Simulate that recordOutgoing returns early on the second call (seenIds dedup)
+      // On first call (from send()), it records normally; on second call (from upsert), it no-ops.
+      let callCount = 0;
+      (mockChatStore.recordOutgoing as jest.Mock).mockImplementation(() => {
+        callCount++;
+      });
+
+      // First call simulates send() already recording the message
+      (mockChatStore.recordOutgoing as jest.Mock)({ id: 'msg-id-dup-002' });
+
+      // Second call via messages.upsert — handler must call recordOutgoing (not skip it),
+      // delegating dedup responsibility to recordOutgoing itself
+      handler({ messages: [msg], type: 'notify' });
+
+      expect(mockChatStore.recordOutgoing).toHaveBeenLastCalledWith(
+        TEST_USER_ID,
+        'upsertInstance',
+        '5511777777777@s.whatsapp.net',
+        'sent via API',
+        msg,
+      );
+    });
+  });
 });

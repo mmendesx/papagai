@@ -20,7 +20,7 @@ import {
   ContactInfo,
 } from './interfaces/whatsapp.interface.js';
 import { WebhookService } from '../webhook/webhook.service.js';
-import { ChatRealtimeEvent, ChatStoreService } from './chat-store.service.js';
+import { ChatRealtimeEvent, ChatStoreService, extractPreview } from './chat-store.service.js';
 import { phoneNumberToJid } from './utils/jid.js';
 import { downloadMedia } from './utils/media-downloader.js';
 import {
@@ -271,11 +271,12 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
         // recordIncoming/recordOutgoing both dedup on msg.key.id so echoes
         // from Baileys after send() won't double-count.
         if (msg.key.fromMe) {
+          const { body: outgoingBody } = extractPreview(msg);
           this.chatStore.recordOutgoing(
             instance.userId,
             instance.name,
             msg.key.remoteJid ?? '',
-            null,
+            outgoingBody,
             msg,
           );
         } else {
