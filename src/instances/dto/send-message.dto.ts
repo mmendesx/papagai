@@ -37,7 +37,7 @@ export class TextBodyDto {
 
 export class MediaDto {
   @ApiProperty({ example: 'https://example.com/image.jpg' })
-  @IsUrl()
+  @IsUrl({ require_tld: false, require_protocol: true })
   link!: string;
 
   @ApiPropertyOptional({ example: 'Check this out!' })
@@ -49,7 +49,7 @@ export class MediaDto {
 
 export class AudioDto {
   @ApiProperty({ example: 'https://example.com/audio.mp3' })
-  @IsUrl()
+  @IsUrl({ require_tld: false, require_protocol: true })
   link!: string;
 
   @ApiPropertyOptional({ example: false, description: 'Send as push-to-talk (voice note)' })
@@ -60,7 +60,7 @@ export class AudioDto {
 
 export class DocumentDto {
   @ApiProperty({ example: 'https://example.com/doc.pdf' })
-  @IsUrl()
+  @IsUrl({ require_tld: false, require_protocol: true })
   link!: string;
 
   @ApiPropertyOptional()
@@ -77,7 +77,7 @@ export class DocumentDto {
 
 export class StickerDto {
   @ApiProperty({ example: 'https://example.com/sticker.webp' })
-  @IsUrl()
+  @IsUrl({ require_tld: false, require_protocol: true })
   link!: string;
 }
 
