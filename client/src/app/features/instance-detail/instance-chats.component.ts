@@ -449,7 +449,7 @@ const MS_EPOCH_THRESHOLD = 1_000_000_000_000;
                         }
                         <!-- Unsupported / unknown type -->
                         @else if (msg.type && msg.type !== 'text') {
-                          <p class="bubble-body bubble-body--unsupported"><em>[{{ msg.type }} message]</em></p>
+                          <em class="bubble-unsupported">Mensagem não suportada</em>
                         }
                         <!-- Default text -->
                         @else {
@@ -1827,6 +1827,10 @@ const MS_EPOCH_THRESHOLD = 1_000_000_000_000;
 
     /* Unsupported / reaction body */
     .bubble-body--unsupported { color: var(--color-on-surface-variant); font-style: italic; }
+    .bubble-unsupported {
+      color: var(--color-on-surface-variant, #888);
+      font-size: 0.875em;
+    }
     .bubble-body--reaction { font-size: 1.5rem; line-height: 1; }
 
     /* ── Lightbox ─────────────────────────────────────────────────── */
@@ -2275,7 +2279,19 @@ export class InstanceChatsComponent {
       });
     }
     for (const msg of this.localMessages()) {
-      if (!byId.has(msg.id)) {
+      const existing = byId.get(msg.id);
+      if (existing) {
+        // Server version lacks display fields set only on the local optimistic
+        // message (type, mediaUrl, interactiveButtons). Merge them in so a
+        // refresh of messagesRes doesn't visually degrade button/media bubbles.
+        byId.set(msg.id, {
+          ...existing,
+          type: msg.type ?? existing.type,
+          mediaUrl: msg.mediaUrl ?? existing.mediaUrl,
+          caption: msg.caption ?? existing.caption,
+          interactiveButtons: msg.interactiveButtons ?? existing.interactiveButtons,
+        });
+      } else {
         byId.set(msg.id, {
           ...msg,
           timestamp: this.toEpochSeconds(msg.timestamp),
