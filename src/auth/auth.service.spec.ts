@@ -63,4 +63,29 @@ describe('AuthService', () => {
       }),
     ).rejects.toMatchObject({ message: 'E-mail já cadastrado' });
   });
+
+  it('getProfile throws NotFoundException when user is not found', async () => {
+    mockPrismaService.user.findUnique.mockResolvedValue(null);
+
+    await expect(service.getProfile('nonexistent-id')).rejects.toMatchObject({
+      message: "User with ID 'nonexistent-id' not found",
+    });
+  });
+
+  it('getProfile returns public user when found', async () => {
+    mockPrismaService.user.findUnique.mockResolvedValue({
+      id: 'user-123',
+      name: 'Alice',
+      email: 'alice@example.com',
+      passwordHash: 'hashed-password',
+    });
+
+    const result = await service.getProfile('user-123');
+
+    expect(result).toEqual({
+      id: 'user-123',
+      name: 'Alice',
+      email: 'alice@example.com',
+    });
+  });
 });

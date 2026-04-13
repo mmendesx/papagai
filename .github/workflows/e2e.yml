@@ -36,6 +36,19 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
+      - name: Lint
+        run: npm run lint:ci
+
+      - name: Type check
+        run: npx tsc --project tsconfig.build.json --noEmit
+
+      - name: Unit tests
+        run: npm test
+        env:
+          NODE_ENV: test
+          JWT_SECRET: e2e-integration-secret
+          APP_KEY: ci-app-key
+
       - name: Run e2e tests
         env:
           DATABASE_URL: postgresql://papagai:papagai@localhost:5432/papagai_test

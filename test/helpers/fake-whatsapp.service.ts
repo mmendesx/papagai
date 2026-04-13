@@ -1,7 +1,5 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { InstanceConfig } from '../../src/instances/entities/instance-config.entity';
+import { PrismaService } from '../../src/prisma/prisma.service';
 
 interface FakeInstance {
   name: string;
@@ -21,10 +19,7 @@ interface FakeInstance {
 export class FakeWhatsappService implements OnModuleInit, OnModuleDestroy {
   private instances = new Map<string, FakeInstance>();
 
-  constructor(
-    @InjectRepository(InstanceConfig)
-    private readonly repo: Repository<InstanceConfig>,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   onModuleInit() {}
   onModuleDestroy() {}
@@ -53,8 +48,9 @@ export class FakeWhatsappService implements OnModuleInit, OnModuleDestroy {
       socket: { user: undefined },
     };
     this.instances.set(key, inst);
-    await this.repo.upsert(
-      {
+    await this.prisma.instanceConfig.upsert({
+      where: { userId_name: { userId, name } },
+      create: {
         userId,
         name,
         webhookUrl: inst.webhookUrl,
@@ -62,8 +58,13 @@ export class FakeWhatsappService implements OnModuleInit, OnModuleDestroy {
         webhookEnabled: inst.webhookEnabled,
         webhookEvents: inst.webhookEvents,
       },
-      { conflictPaths: ['userId', 'name'] },
-    );
+      update: {
+        webhookUrl: inst.webhookUrl,
+        webhookHeaders: inst.webhookHeaders,
+        webhookEnabled: inst.webhookEnabled,
+        webhookEvents: inst.webhookEvents,
+      },
+    });
   }
 
   getInstance(userId: string, name: string): FakeInstance | undefined {
@@ -98,7 +99,7 @@ export class FakeWhatsappService implements OnModuleInit, OnModuleDestroy {
     const key = `${userId}:${name}`;
     if (!this.instances.has(key)) return false;
     this.instances.delete(key);
-    await this.repo.delete({ userId, name });
+    await this.prisma.instanceConfig.deleteMany({ where: { userId, name } });
     return true;
   }
 
@@ -117,7 +118,7 @@ export class FakeWhatsappService implements OnModuleInit, OnModuleDestroy {
       inst.webhookEnabled = config.webhookEnabled;
     if (config.webhookEvents !== undefined)
       inst.webhookEvents = config.webhookEvents;
-    await this.repo.update({ userId, name }, config);
+    await this.prisma.instanceConfig.updateMany({ where: { userId, name }, data: config });
     return inst;
   }
 

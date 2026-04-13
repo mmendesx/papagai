@@ -36,7 +36,7 @@ async function bootstrap() {
   assertProductionJwtSecret();
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const configService = app.get(ConfigService);
-  const corsOrigin = configService.get<string>('corsOrigin', '*');
+  const corsOrigin = configService.get<string>('corsOrigin', 'http://localhost:4200');
 
   function flattenErrors(errors: any[]): string[] {
     return errors.flatMap((e) => {

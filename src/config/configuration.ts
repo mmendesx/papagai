@@ -14,7 +14,8 @@ export default () => ({
   appKey: process.env.APP_KEY ?? '',
   jwtSecret: process.env.JWT_SECRET ?? DEV_JWT_SECRET_PLACEHOLDER,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '24h',
-  corsOrigin: process.env.CORS_ORIGIN ?? '*',
+  corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:4200',
+  webhookMaxRetries: parseInt(process.env.WEBHOOK_MAX_RETRIES ?? '3', 10),
   webhookAllowPrivateHosts:
     process.env.WEBHOOK_ALLOW_PRIVATE_HOSTS === 'true' &&
     process.env.NODE_ENV === 'development',

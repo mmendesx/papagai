@@ -1,6 +1,6 @@
-import { DataSource } from 'typeorm';
+import { PrismaClient } from '@prisma/client';
 
-export async function truncateTables(dataSource: DataSource): Promise<void> {
-  await dataSource.query('TRUNCATE TABLE instances RESTART IDENTITY CASCADE');
-  await dataSource.query('TRUNCATE TABLE users RESTART IDENTITY CASCADE');
+export async function truncateTables(prisma: PrismaClient): Promise<void> {
+  await prisma.$executeRawUnsafe('TRUNCATE TABLE instances RESTART IDENTITY CASCADE');
+  await prisma.$executeRawUnsafe('TRUNCATE TABLE users RESTART IDENTITY CASCADE');
 }

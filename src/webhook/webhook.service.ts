@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { firstValueFrom } from 'rxjs';
 import {
   Instance,
@@ -10,6 +12,10 @@ import {
   validateOrThrow,
   WebhookUrlInvalidError,
 } from './webhook-url-validator';
+import {
+  WEBHOOK_DELIVERY_QUEUE,
+  WebhookJobData,
+} from './webhook-queue.module.js';
 
 @Injectable()
 export class WebhookService {
@@ -18,6 +24,8 @@ export class WebhookService {
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
+    @InjectQueue(WEBHOOK_DELIVERY_QUEUE)
+    private readonly webhookQueue: Queue<WebhookJobData>,
   ) {}
 
   async sendWebhook(instance: Instance, data: WebhookData): Promise<void> {
@@ -77,15 +85,38 @@ export class WebhookService {
         }),
       );
     } catch (error: unknown) {
+      const maxRetries = this.configService.get<number>('webhookMaxRetries', 3);
       const category = this.classifyAxiosError(error);
       const extra =
         category === 'http_status'
           ? ` status=${(error as { response?: { status?: number } }).response?.status}`
           : '';
-      this.logger.warn(
-        `Webhook failed: instance=${instance.name} host=${hostname} category=${category}${extra}`,
-      );
-      this.logger.debug(error);
+
+      if (maxRetries > 0) {
+        const jobData: WebhookJobData = {
+          instanceName: instance.name,
+          webhookUrl: instance.webhookUrl!,
+          webhookEnabled: instance.webhookEnabled,
+          webhookEvents: instance.webhookEvents,
+          webhookHeaders: instance.webhookHeaders as Record<string, string>,
+          event: data.event,
+          payload: data as unknown as Record<string, unknown>,
+        };
+        void this.webhookQueue.add('deliver', jobData, {
+          attempts: maxRetries + 1,
+          backoff: { type: 'exponential', delay: 5000 },
+          removeOnComplete: true,
+          removeOnFail: 100,
+        });
+        this.logger.debug(
+          `Webhook failed (${category}${extra}), enqueued for retry: instance=${instance.name} event=${data.event}`,
+        );
+      } else {
+        this.logger.warn(
+          `Webhook failed: instance=${instance.name} host=${hostname} category=${category}${extra}`,
+        );
+        this.logger.debug(error);
+      }
     }
   }
 

@@ -26,7 +26,7 @@ jest.mock('fs', () => ({
 
 import { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, OpenAPIObject, SwaggerModule } from '@nestjs/swagger';
-import { DataSource } from 'typeorm';
+import { PrismaService } from '../src/prisma/prisma.service';
 import { createTestApp } from './helpers/app-factory';
 import { truncateTables } from './helpers/db-cleaner';
 
@@ -80,11 +80,11 @@ function collectEnumValues(document: OpenAPIObject, schema: Record<string, any> 
 
 describe('Swagger parity for AnyAuth and templates schema (e2e)', () => {
   let app: INestApplication;
-  let dataSource: DataSource;
+  let prisma: PrismaService;
   let openApiDocument: OpenAPIObject;
 
   beforeAll(async () => {
-    ({ app, dataSource } = await createTestApp());
+    ({ app, prisma } = await createTestApp());
 
     const swaggerConfig = new DocumentBuilder()
       .setTitle('Papagai WhatsApp Gateway API')
@@ -100,7 +100,7 @@ describe('Swagger parity for AnyAuth and templates schema (e2e)', () => {
   });
 
   afterAll(async () => {
-    await truncateTables(dataSource);
+    await truncateTables(prisma);
     await app.close();
   });
 

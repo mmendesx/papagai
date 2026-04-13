@@ -2,6 +2,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -93,7 +94,7 @@ export class AuthService {
   async getProfile(userId: string): Promise<PublicUser> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
-      throw new UnauthorizedException();
+      throw new NotFoundException(`User with ID '${userId}' not found`);
     }
     return this.toPublicUser(user);
   }

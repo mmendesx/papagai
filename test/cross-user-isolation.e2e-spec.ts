@@ -26,19 +26,19 @@ jest.mock('fs', () => ({
 
 import request from 'supertest';
 import { INestApplication } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { PrismaService } from '../src/prisma/prisma.service';
 import { createTestApp } from './helpers/app-factory';
 import { truncateTables } from './helpers/db-cleaner';
 import { registerAndLogin } from './helpers/auth-helpers';
 
 describe('Cross-user isolation (e2e)', () => {
   let app: INestApplication;
-  let dataSource: DataSource;
+  let prisma: PrismaService;
   let tokenA: string;
   let tokenB: string;
 
   beforeAll(async () => {
-    ({ app, dataSource } = await createTestApp());
+    ({ app, prisma } = await createTestApp());
 
     ({ token: tokenA } = await registerAndLogin(app, {
       email: 'userA_isolation@e2e.test',
@@ -60,7 +60,7 @@ describe('Cross-user isolation (e2e)', () => {
   });
 
   afterAll(async () => {
-    await truncateTables(dataSource);
+    await truncateTables(prisma);
     await app.close();
   });
 

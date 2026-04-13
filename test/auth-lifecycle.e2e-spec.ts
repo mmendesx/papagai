@@ -26,20 +26,20 @@ jest.mock('fs', () => ({
 
 import request from 'supertest';
 import { INestApplication } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { PrismaService } from '../src/prisma/prisma.service';
 import { createTestApp } from './helpers/app-factory';
 import { truncateTables } from './helpers/db-cleaner';
 
 describe('Auth lifecycle (e2e)', () => {
   let app: INestApplication;
-  let dataSource: DataSource;
+  let prisma: PrismaService;
 
   beforeAll(async () => {
-    ({ app, dataSource } = await createTestApp());
+    ({ app, prisma } = await createTestApp());
   });
 
   afterAll(async () => {
-    await truncateTables(dataSource);
+    await truncateTables(prisma);
     await app.close();
   });
 

@@ -5,8 +5,10 @@ jest.mock('dns/promises', () => ({
 import { Test, TestingModule } from '@nestjs/testing';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
+import { getQueueToken } from '@nestjs/bullmq';
 import { of, throwError } from 'rxjs';
 import { WebhookService } from './webhook.service';
+import { WEBHOOK_DELIVERY_QUEUE } from './webhook-queue.module';
 import {
   Instance,
   WebhookData,
@@ -59,6 +61,10 @@ describe('WebhookService', () => {
         {
           provide: ConfigService,
           useValue: { get: jest.fn().mockReturnValue(false) },
+        },
+        {
+          provide: getQueueToken(WEBHOOK_DELIVERY_QUEUE),
+          useValue: { add: jest.fn() },
         },
       ],
     }).compile();

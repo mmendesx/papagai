@@ -8,13 +8,12 @@ import { AppModule } from '../../src/app.module';
 import { WhatsappService } from '../../src/whatsapp/whatsapp.service';
 import { FakeWhatsappService } from './fake-whatsapp.service';
 import { HttpExceptionFilter } from '../../src/common/filters/http-exception.filter';
-import { DataSource } from 'typeorm';
+import { PrismaService } from '../../src/prisma/prisma.service';
 
 export async function createTestApp(): Promise<{
   app: INestApplication;
-  dataSource: DataSource;
+  prisma: PrismaService;
 }> {
-  process.env.DB_NAME = 'papagai_test';
   process.env.NODE_ENV = 'test';
   process.env.JWT_SECRET = 'e2e-integration-secret';
   process.env.APP_KEY = 'ci-app-key';
@@ -48,6 +47,6 @@ export async function createTestApp(): Promise<{
   app.useGlobalFilters(new HttpExceptionFilter());
   await app.init();
 
-  const dataSource = moduleRef.get(DataSource);
-  return { app, dataSource };
+  const prisma = moduleRef.get(PrismaService);
+  return { app, prisma };
 }
