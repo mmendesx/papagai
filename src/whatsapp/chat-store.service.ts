@@ -121,6 +121,30 @@ export function extractPreview(msg: any): {
   if (m.reactionMessage)
     return { type: 'reaction', body: m.reactionMessage.text ?? null };
 
+  // Disappearing-message wrapper — unwrap and re-run detection
+  if (m.ephemeralMessage?.message) {
+    return extractPreview({ message: m.ephemeralMessage.message });
+  }
+
+  // Newer document+caption format
+  if (m.documentWithCaptionMessage?.message?.documentMessage) {
+    const doc = m.documentWithCaptionMessage.message.documentMessage;
+    return { type: 'document', body: doc.caption ?? doc.fileName ?? null };
+  }
+
+  // View-once wrappers — detect inner media type
+  if (m.viewOnceMessage?.message) {
+    return extractPreview({ message: m.viewOnceMessage.message });
+  }
+  if (m.viewOnceMessageV2?.message?.viewOnceMessage?.message) {
+    return extractPreview({ message: m.viewOnceMessageV2.message.viewOnceMessage.message });
+  }
+
+  // Poll — return body = question text
+  if (m.pollCreationMessage) {
+    return { type: 'unknown', body: m.pollCreationMessage.name ?? null };
+  }
+
   return { type: 'unknown', body: null };
 }
 

@@ -72,6 +72,125 @@ describe('ChatStoreService', () => {
     it('returns unknown when message is null', () => {
       expect(extractPreview(null)).toEqual({ type: 'unknown', body: null });
     });
+
+    // Wrapper / newer Baileys types
+    it('unwraps ephemeralMessage to its inner type', () => {
+      const msg = {
+        message: {
+          ephemeralMessage: {
+            message: { conversation: 'hello' },
+          },
+        },
+      };
+      expect(extractPreview(msg)).toEqual({ type: 'text', body: 'hello' });
+    });
+
+    it('extracts documentWithCaptionMessage with caption', () => {
+      const msg = {
+        message: {
+          documentWithCaptionMessage: {
+            message: {
+              documentMessage: { caption: 'caption text', fileName: 'file.pdf' },
+            },
+          },
+        },
+      };
+      expect(extractPreview(msg)).toEqual({ type: 'document', body: 'caption text' });
+    });
+
+    it('extracts documentWithCaptionMessage falling back to fileName when no caption', () => {
+      const msg = {
+        message: {
+          documentWithCaptionMessage: {
+            message: {
+              documentMessage: { fileName: 'file.pdf' },
+            },
+          },
+        },
+      };
+      expect(extractPreview(msg)).toEqual({ type: 'document', body: 'file.pdf' });
+    });
+
+    it('unwraps viewOnceMessage to its inner image type', () => {
+      const msg = {
+        message: {
+          viewOnceMessage: {
+            message: { imageMessage: {} },
+          },
+        },
+      };
+      expect(extractPreview(msg)).toEqual({ type: 'image', body: null });
+    });
+
+    it('unwraps viewOnceMessageV2 to its inner image type', () => {
+      const msg = {
+        message: {
+          viewOnceMessageV2: {
+            message: {
+              viewOnceMessage: {
+                message: { imageMessage: {} },
+              },
+            },
+          },
+        },
+      };
+      expect(extractPreview(msg)).toEqual({ type: 'image', body: null });
+    });
+
+    it('extracts pollCreationMessage name as body', () => {
+      const msg = {
+        message: {
+          pollCreationMessage: { name: 'Poll question' },
+        },
+      };
+      expect(extractPreview(msg)).toEqual({ type: 'unknown', body: 'Poll question' });
+    });
+
+    // Regression: all 10 original types still resolve correctly
+    it('extracts video caption', () => {
+      const msg = { message: { videoMessage: { caption: 'a video' } } };
+      expect(extractPreview(msg)).toEqual({ type: 'video', body: 'a video' });
+    });
+
+    it('extracts audio as type audio with null body', () => {
+      const msg = { message: { audioMessage: {} } };
+      expect(extractPreview(msg)).toEqual({ type: 'audio', body: null });
+    });
+
+    it('extracts documentMessage with caption', () => {
+      const msg = { message: { documentMessage: { caption: 'doc caption', fileName: 'doc.pdf' } } };
+      expect(extractPreview(msg)).toEqual({ type: 'document', body: 'doc caption' });
+    });
+
+    it('extracts documentMessage falling back to fileName', () => {
+      const msg = { message: { documentMessage: { fileName: 'doc.pdf' } } };
+      expect(extractPreview(msg)).toEqual({ type: 'document', body: 'doc.pdf' });
+    });
+
+    it('extracts sticker as type sticker with null body', () => {
+      const msg = { message: { stickerMessage: {} } };
+      expect(extractPreview(msg)).toEqual({ type: 'sticker', body: null });
+    });
+
+    it('extracts locationMessage name', () => {
+      const msg = { message: { locationMessage: { name: 'Home' } } };
+      expect(extractPreview(msg)).toEqual({ type: 'location', body: 'Home' });
+    });
+
+    it('extracts locationMessage address when no name', () => {
+      const msg = { message: { locationMessage: { address: '123 Main St' } } };
+      expect(extractPreview(msg)).toEqual({ type: 'location', body: '123 Main St' });
+    });
+
+    it('extracts contactMessage displayName', () => {
+      const msg = { message: { contactMessage: { displayName: 'Bob' } } };
+      expect(extractPreview(msg)).toEqual({ type: 'contact', body: 'Bob' });
+    });
+
+    it('extracts reactionMessage text', () => {
+      const msg = { message: { reactionMessage: { text: '👍' } } };
+      expect(extractPreview(msg)).toEqual({ type: 'reaction', body: '👍' });
+    });
   });
 
   describe('recordIncoming', () => {
