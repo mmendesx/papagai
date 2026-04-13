@@ -1428,7 +1428,9 @@ const MS_EPOCH_THRESHOLD = 1_000_000_000_000;
     /* Bubbles */
     .bubble {
       position: relative;
-      max-width: 60%;
+      width: fit-content;
+      min-width: 80px;
+      max-width: 70%;
       padding: 0.5rem 0.75rem;
       border-radius: var(--radius-2xl);
       display: flex;
@@ -1755,7 +1757,7 @@ const MS_EPOCH_THRESHOLD = 1_000_000_000_000;
       }
 
       /* Bubbles wider on small screens */
-      .bubble { max-width: 85%; }
+      .bubble { width: fit-content; min-width: 80px; max-width: 85%; }
     }
 
     /* ── Media bubble content ────────────────────────────────────── */
