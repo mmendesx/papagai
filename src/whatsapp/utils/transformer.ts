@@ -138,20 +138,21 @@ const INTERACTIVE_BUILDERS: Partial<Record<string, (interactive: any) => any>> =
 
 const MESSAGE_CONTENT_BUILDERS: Record<MessageType, (payload: any) => any> = {
   text: (p) => ({ text: p.text.body }),
-  image: (p) => ({ image: { url: p.image.link }, caption: p.image.caption }),
-  audio: (p) => ({
-    audio: { url: p.audio.link },
-    mimetype: 'audio/mpeg',
-    ptt: false,
-  }),
-  video: (p) => ({ video: { url: p.video.link }, caption: p.video.caption }),
-  document: (p) => ({
-    document: { url: p.document.link },
-    mimetype: 'application/octet-stream',
-    fileName: p.document.filename,
-    caption: p.document.caption,
-  }),
-  sticker: (p) => ({ sticker: { url: p.sticker.link } }),
+  image: (p) => p.image.data
+    ? { image: Buffer.from(p.image.data, 'base64'), mimetype: p.image.mimetype, caption: p.image.caption }
+    : { image: { url: p.image.link }, caption: p.image.caption },
+  audio: (p) => p.audio.data
+    ? { audio: Buffer.from(p.audio.data, 'base64'), mimetype: p.audio.mimetype ?? 'audio/mpeg', ptt: p.audio.ptt ?? false }
+    : { audio: { url: p.audio.link }, mimetype: 'audio/mpeg', ptt: p.audio.ptt ?? false },
+  video: (p) => p.video.data
+    ? { video: Buffer.from(p.video.data, 'base64'), mimetype: p.video.mimetype, caption: p.video.caption }
+    : { video: { url: p.video.link }, caption: p.video.caption },
+  document: (p) => p.document.data
+    ? { document: Buffer.from(p.document.data, 'base64'), mimetype: p.document.mimetype ?? 'application/octet-stream', fileName: p.document.filename, caption: p.document.caption }
+    : { document: { url: p.document.link }, mimetype: 'application/octet-stream', fileName: p.document.filename, caption: p.document.caption },
+  sticker: (p) => p.sticker.data
+    ? { sticker: Buffer.from(p.sticker.data, 'base64'), mimetype: p.sticker.mimetype }
+    : { sticker: { url: p.sticker.link } },
   location: (p) => ({
     location: {
       degreesLatitude: p.location.latitude,
