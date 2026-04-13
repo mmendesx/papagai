@@ -215,6 +215,7 @@ export class ChatStoreService {
     if (!chatId || isIgnoredJid(chatId)) return;
 
     const { type, body } = extractPreview(msg);
+    if (type === 'reaction') return;
     const timestamp: number =
       (typeof msg.messageTimestamp === 'number'
         ? msg.messageTimestamp * 1000
@@ -272,6 +273,7 @@ export class ChatStoreService {
     const msgId: string = baileysResult?.key?.id ?? '';
     if (msgId && store.seenIds.has(msgId)) return;
     if (msgId) store.seenIds.add(msgId);
+    if (baileysResult?.message?.reactionMessage) return;
 
     // Normalize chatId — may be raw digits or already a JID
     const chatId = to.includes('@') ? to : `${to}@s.whatsapp.net`;
