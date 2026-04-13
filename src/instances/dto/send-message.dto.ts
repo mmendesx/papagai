@@ -6,10 +6,12 @@ import {
   IsUrl,
   IsBoolean,
   IsNumber,
+  IsBase64,
   Min,
   Max,
   MaxLength,
   ValidateNested,
+  ValidateIf,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -36,9 +38,24 @@ export class TextBodyDto {
 }
 
 export class MediaDto {
-  @ApiProperty({ example: 'https://example.com/image.jpg' })
+  @ApiPropertyOptional({ example: 'https://example.com/image.jpg' })
+  @ValidateIf((o) => !o.data)
+  @IsNotEmpty({ message: 'link or data is required' })
   @IsUrl({ require_tld: false, require_protocol: true })
-  link!: string;
+  link?: string;
+
+  @ApiPropertyOptional({ example: '<base64-encoded-content>' })
+  @IsOptional()
+  @IsString()
+  @IsBase64()
+  @MaxLength(22_369_622)
+  data?: string;
+
+  @ApiPropertyOptional({ example: 'image/jpeg' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  mimetype?: string;
 
   @ApiPropertyOptional({ example: 'Check this out!' })
   @IsOptional()
@@ -48,9 +65,24 @@ export class MediaDto {
 }
 
 export class AudioDto {
-  @ApiProperty({ example: 'https://example.com/audio.mp3' })
+  @ApiPropertyOptional({ example: 'https://example.com/audio.mp3' })
+  @ValidateIf((o) => !o.data)
+  @IsNotEmpty({ message: 'link or data is required' })
   @IsUrl({ require_tld: false, require_protocol: true })
-  link!: string;
+  link?: string;
+
+  @ApiPropertyOptional({ example: '<base64-encoded-content>' })
+  @IsOptional()
+  @IsString()
+  @IsBase64()
+  @MaxLength(22_369_622)
+  data?: string;
+
+  @ApiPropertyOptional({ example: 'audio/mpeg' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  mimetype?: string;
 
   @ApiPropertyOptional({ example: false, description: 'Send as push-to-talk (voice note)' })
   @IsOptional()
@@ -59,9 +91,24 @@ export class AudioDto {
 }
 
 export class DocumentDto {
-  @ApiProperty({ example: 'https://example.com/doc.pdf' })
+  @ApiPropertyOptional({ example: 'https://example.com/doc.pdf' })
+  @ValidateIf((o) => !o.data)
+  @IsNotEmpty({ message: 'link or data is required' })
   @IsUrl({ require_tld: false, require_protocol: true })
-  link!: string;
+  link?: string;
+
+  @ApiPropertyOptional({ example: '<base64-encoded-content>' })
+  @IsOptional()
+  @IsString()
+  @IsBase64()
+  @MaxLength(22_369_622)
+  data?: string;
+
+  @ApiPropertyOptional({ example: 'application/pdf' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  mimetype?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -76,9 +123,24 @@ export class DocumentDto {
 }
 
 export class StickerDto {
-  @ApiProperty({ example: 'https://example.com/sticker.webp' })
+  @ApiPropertyOptional({ example: 'https://example.com/sticker.webp' })
+  @ValidateIf((o) => !o.data)
+  @IsNotEmpty({ message: 'link or data is required' })
   @IsUrl({ require_tld: false, require_protocol: true })
-  link!: string;
+  link?: string;
+
+  @ApiPropertyOptional({ example: '<base64-encoded-content>' })
+  @IsOptional()
+  @IsString()
+  @IsBase64()
+  @MaxLength(22_369_622)
+  data?: string;
+
+  @ApiPropertyOptional({ example: 'image/webp' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  mimetype?: string;
 }
 
 export class LocationDto {

@@ -51,10 +51,24 @@ describe('MediaDto', () => {
     expect(await validate(dto)).toHaveLength(0);
   });
 
-  it('rejects missing link', async () => {
+  it('rejects when neither link nor data is provided', async () => {
     const dto = plainToInstance(MediaDto, {});
     const errors = await validate(dto);
-    expect(errors.some((e) => e.property === 'link')).toBe(true);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('accepts valid base64 data with mimetype', async () => {
+    const dto = plainToInstance(MediaDto, {
+      data: Buffer.from('test').toString('base64'),
+      mimetype: 'image/jpeg',
+    });
+    expect(await validate(dto)).toHaveLength(0);
+  });
+
+  it('rejects invalid base64 in data field', async () => {
+    const dto = plainToInstance(MediaDto, { data: 'not!!base64!!' });
+    const errors = await validate(dto);
+    expect(errors.some((e) => e.property === 'data')).toBe(true);
   });
 
   it('rejects non-URL link', async () => {
@@ -89,10 +103,18 @@ describe('AudioDto', () => {
     expect(await validate(dto)).toHaveLength(0);
   });
 
-  it('rejects missing link', async () => {
+  it('rejects when neither link nor data is provided', async () => {
     const dto = plainToInstance(AudioDto, {});
     const errors = await validate(dto);
-    expect(errors.some((e) => e.property === 'link')).toBe(true);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('accepts valid base64 data with mimetype', async () => {
+    const dto = plainToInstance(AudioDto, {
+      data: Buffer.from('test').toString('base64'),
+      mimetype: 'audio/ogg',
+    });
+    expect(await validate(dto)).toHaveLength(0);
   });
 
   it('accepts ptt: true', async () => {
@@ -121,10 +143,18 @@ describe('DocumentDto', () => {
     expect(await validate(dto)).toHaveLength(0);
   });
 
-  it('rejects missing link', async () => {
+  it('rejects when neither link nor data is provided', async () => {
     const dto = plainToInstance(DocumentDto, {});
     const errors = await validate(dto);
-    expect(errors.some((e) => e.property === 'link')).toBe(true);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('accepts valid base64 data with mimetype', async () => {
+    const dto = plainToInstance(DocumentDto, {
+      data: Buffer.from('test').toString('base64'),
+      mimetype: 'application/pdf',
+    });
+    expect(await validate(dto)).toHaveLength(0);
   });
 
   it('accepts optional filename', async () => {
@@ -153,10 +183,18 @@ describe('StickerDto', () => {
     expect(await validate(dto)).toHaveLength(0);
   });
 
-  it('rejects missing link', async () => {
+  it('rejects when neither link nor data is provided', async () => {
     const dto = plainToInstance(StickerDto, {});
     const errors = await validate(dto);
-    expect(errors.some((e) => e.property === 'link')).toBe(true);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('accepts valid base64 data with mimetype', async () => {
+    const dto = plainToInstance(StickerDto, {
+      data: Buffer.from('test').toString('base64'),
+      mimetype: 'image/webp',
+    });
+    expect(await validate(dto)).toHaveLength(0);
   });
 });
 
