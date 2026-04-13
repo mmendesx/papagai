@@ -93,6 +93,8 @@ interface ChatRealtimeEvent {
     sender: string | null;
     body: string | null;
     timestamp: number;
+    type?: string;
+    interactiveButtons?: string[];
   };
 }
 
@@ -378,57 +380,73 @@ const MS_EPOCH_THRESHOLD = 1_000_000_000_000;
                         }
                         <!-- Image / Sticker -->
                         @if (msg.type === 'image' || msg.type === 'sticker') {
-                          <div class="bubble-media">
-                            <img
-                              class="bubble-image"
-                              [src]="msg.mediaUrl || ''"
-                              [alt]="msg.caption || 'Imagem'"
-                              (click)="openLightbox(msg.mediaUrl || '')"
-                              style="cursor: pointer;"
-                            />
-                            @if (msg.caption) {
-                              <p class="bubble-caption">{{ msg.caption }}</p>
-                            }
-                          </div>
+                          @if (msg.mediaUrl) {
+                            <div class="bubble-media">
+                              <img
+                                class="bubble-image"
+                                [src]="msg.mediaUrl"
+                                [alt]="msg.caption || 'Imagem'"
+                                (click)="openLightbox(msg.mediaUrl)"
+                                style="cursor: pointer;"
+                              />
+                              @if (msg.caption) {
+                                <p class="bubble-caption">{{ msg.caption }}</p>
+                              }
+                            </div>
+                          } @else {
+                            <p class="bubble-body bubble-media-placeholder">{{ msg.type === 'sticker' ? '🖼️ Figurinha' : '📷 Imagem' }}</p>
+                          }
                         }
                         <!-- Video -->
                         @else if (msg.type === 'video') {
-                          <div class="bubble-media">
-                            <video
-                              class="bubble-video"
-                              [src]="msg.mediaUrl || ''"
-                              controls
-                              aria-label="Vídeo"
-                            ></video>
-                            @if (msg.caption) {
-                              <p class="bubble-caption">{{ msg.caption }}</p>
-                            }
-                          </div>
+                          @if (msg.mediaUrl) {
+                            <div class="bubble-media">
+                              <video
+                                class="bubble-video"
+                                [src]="msg.mediaUrl"
+                                controls
+                                aria-label="Vídeo"
+                              ></video>
+                              @if (msg.caption) {
+                                <p class="bubble-caption">{{ msg.caption }}</p>
+                              }
+                            </div>
+                          } @else {
+                            <p class="bubble-body bubble-media-placeholder">🎬 Vídeo</p>
+                          }
                         }
                         <!-- Audio -->
                         @else if (msg.type === 'audio') {
-                          <audio
-                            class="bubble-audio"
-                            [src]="msg.mediaUrl || ''"
-                            controls
-                            aria-label="Áudio"
-                          ></audio>
+                          @if (msg.mediaUrl) {
+                            <audio
+                              class="bubble-audio"
+                              [src]="msg.mediaUrl"
+                              controls
+                              aria-label="Áudio"
+                            ></audio>
+                          } @else {
+                            <p class="bubble-body bubble-media-placeholder">🎵 Áudio</p>
+                          }
                         }
                         <!-- Document -->
                         @else if (msg.type === 'document') {
-                          <a
-                            class="bubble-document"
-                            [href]="msg.mediaUrl || '#'"
-                            target="_blank"
-                            rel="noopener"
-                            [attr.aria-label]="'Baixar ' + (msg.body || 'documento')"
-                          >
-                            <!-- Document icon -->
-                            <svg class="bubble-doc-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/>
-                            </svg>
-                            <span class="bubble-doc-name">{{ msg.body || 'Documento' }}</span>
-                          </a>
+                          @if (msg.mediaUrl) {
+                            <a
+                              class="bubble-document"
+                              [href]="msg.mediaUrl"
+                              target="_blank"
+                              rel="noopener"
+                              [attr.aria-label]="'Baixar ' + (msg.body || 'documento')"
+                            >
+                              <!-- Document icon -->
+                              <svg class="bubble-doc-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/>
+                              </svg>
+                              <span class="bubble-doc-name">{{ msg.body || 'Documento' }}</span>
+                            </a>
+                          } @else {
+                            <p class="bubble-body bubble-media-placeholder">📄 {{ msg.body || 'Documento' }}</p>
+                          }
                         }
                         <!-- Interactive -->
                         @else if (msg.type === 'interactive') {
@@ -1831,6 +1849,10 @@ const MS_EPOCH_THRESHOLD = 1_000_000_000_000;
       color: var(--color-on-surface-variant, #888);
       font-size: 0.875em;
     }
+    .bubble-media-placeholder {
+      color: var(--color-on-surface-variant, #888);
+      font-style: italic;
+    }
     .bubble-body--reaction { font-size: 1.5rem; line-height: 1; }
 
     /* ── Lightbox ─────────────────────────────────────────────────── */
@@ -2979,6 +3001,8 @@ export class InstanceChatsComponent {
         fromMe: parsed.message.fromMe,
         senderName: parsed.message.sender ?? undefined,
         timestamp: this.toEpochSeconds(parsed.message.timestamp),
+        type: parsed.message.type ?? undefined,
+        interactiveButtons: parsed.message.interactiveButtons ?? undefined,
       };
 
       this.localMessages.update((messages: MessageItem[]) => {
