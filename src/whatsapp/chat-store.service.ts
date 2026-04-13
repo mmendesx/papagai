@@ -29,10 +29,12 @@ export interface StoredMessage {
     | 'location'
     | 'contact'
     | 'reaction'
-    | 'unknown';
+    | 'unknown'
+    | 'interactive';
   body: string | null;
   timestamp: number;
   status?: 'pending' | 'sent' | 'delivered' | 'read' | 'failed';
+  interactiveButtons?: string[];
 }
 
 export interface ChatRealtimeEvent {
@@ -120,6 +122,30 @@ export function extractPreview(msg: any): {
 
   if (m.reactionMessage)
     return { type: 'reaction', body: m.reactionMessage.text ?? null };
+
+  // Outgoing button messages (Baileys buttonsMessage format)
+  if (m.buttonsMessage) {
+    return {
+      type: 'interactive',
+      body: m.buttonsMessage.contentText ?? m.buttonsMessage.text ?? null,
+    };
+  }
+
+  // Outgoing native-flow interactive (CTA URL, CTA copy)
+  if (m.interactiveMessage) {
+    return {
+      type: 'interactive',
+      body: m.interactiveMessage.body?.text ?? null,
+    };
+  }
+
+  // Template messages
+  if (m.templateMessage?.hydratedTemplate) {
+    return {
+      type: 'interactive',
+      body: m.templateMessage.hydratedTemplate.hydratedContentText ?? null,
+    };
+  }
 
   // Disappearing-message wrapper — unwrap and re-run detection
   if (m.ephemeralMessage?.message) {
@@ -290,6 +316,7 @@ export class ChatStoreService {
     to: string,
     body: string | null,
     baileysResult: any,
+    interactiveButtons?: string[],
   ): void {
     const key = instanceKey(userId, instanceName);
     const store = this.getOrCreate(key);
@@ -309,10 +336,11 @@ export class ChatStoreService {
       chatId,
       fromMe: true,
       sender: null,
-      type: 'text',
+      type: extractPreview(baileysResult).type,
       body,
       timestamp,
       status: 'sent',
+      ...(interactiveButtons?.length ? { interactiveButtons } : {}),
     };
 
     this.pushMessage(store, chatId, storedMsg);

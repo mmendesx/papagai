@@ -191,6 +191,32 @@ describe('ChatStoreService', () => {
       const msg = { message: { reactionMessage: { text: '👍' } } };
       expect(extractPreview(msg)).toEqual({ type: 'reaction', body: '👍' });
     });
+
+    it('extracts buttonsMessage contentText as interactive body', () => {
+      const msg = { message: { buttonsMessage: { contentText: 'button body' } } };
+      expect(extractPreview(msg)).toEqual({ type: 'interactive', body: 'button body' });
+    });
+
+    it('extracts buttonsMessage text as interactive body when contentText is absent', () => {
+      const msg = { message: { buttonsMessage: { text: 'button body' } } };
+      expect(extractPreview(msg)).toEqual({ type: 'interactive', body: 'button body' });
+    });
+
+    it('extracts interactiveMessage body.text as interactive body', () => {
+      const msg = { message: { interactiveMessage: { body: { text: 'interactive body' } } } };
+      expect(extractPreview(msg)).toEqual({ type: 'interactive', body: 'interactive body' });
+    });
+
+    it('extracts templateMessage hydratedContentText as interactive body', () => {
+      const msg = {
+        message: {
+          templateMessage: {
+            hydratedTemplate: { hydratedContentText: 'template body' },
+          },
+        },
+      };
+      expect(extractPreview(msg)).toEqual({ type: 'interactive', body: 'template body' });
+    });
   });
 
   describe('recordIncoming', () => {
@@ -370,6 +396,59 @@ describe('ChatStoreService', () => {
 
       const messages = svc.getMessages(USER, INSTANCE, '5511999999999@s.whatsapp.net');
       expect(messages).toHaveLength(1);
+    });
+
+    it('detects image type from Baileys result with imageMessage', () => {
+      const redis = makeMockRedis();
+      const svc = new ChatStoreService(redis);
+
+      const baileysResult = {
+        key: { id: 'img-out-1' },
+        message: { imageMessage: { caption: 'photo caption' } },
+      };
+
+      svc.recordOutgoing(USER, INSTANCE, '5511999999999', 'photo caption', baileysResult);
+
+      const messages = svc.getMessages(USER, INSTANCE, '5511999999999@s.whatsapp.net');
+      expect(messages).toHaveLength(1);
+      expect(messages[0].type).toBe('image');
+    });
+
+    it('stores interactiveButtons when provided', () => {
+      const redis = makeMockRedis();
+      const svc = new ChatStoreService(redis);
+
+      const baileysResult = { key: { id: 'btn-out-1' }, message: { conversation: 'Escolha' } };
+
+      svc.recordOutgoing(
+        USER,
+        INSTANCE,
+        '5511999999999',
+        'Escolha',
+        baileysResult,
+        ['Sim', 'Não'],
+      );
+
+      const messages = svc.getMessages(USER, INSTANCE, '5511999999999@s.whatsapp.net');
+      expect(messages).toHaveLength(1);
+      expect(messages[0].interactiveButtons).toEqual(['Sim', 'Não']);
+    });
+
+    it('does not set interactiveButtons for a plain text outgoing message', () => {
+      const redis = makeMockRedis();
+      const svc = new ChatStoreService(redis);
+
+      const baileysResult = {
+        key: { id: 'text-out-1' },
+        message: { conversation: 'plain text' },
+      };
+
+      svc.recordOutgoing(USER, INSTANCE, '5511999999999', 'plain text', baileysResult);
+
+      const messages = svc.getMessages(USER, INSTANCE, '5511999999999@s.whatsapp.net');
+      expect(messages).toHaveLength(1);
+      expect(messages[0].type).toBe('text');
+      expect(messages[0].interactiveButtons).toBeUndefined();
     });
   });
 

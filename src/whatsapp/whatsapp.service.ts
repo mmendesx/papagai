@@ -32,6 +32,38 @@ import { WebhookEnricher } from './utils/webhook-enricher.js';
 import { resolveJid } from './utils/jid-resolver.js';
 import { Observable } from 'rxjs';
 
+function extractButtonLabels(content: any): string[] | undefined {
+  // Regular buttons (buildButtonMessage output: content.buttons[].buttonText.displayText)
+  if (content?.buttons?.length) {
+    const labels = content.buttons
+      .map((b: any) => b.buttonText?.displayText)
+      .filter(Boolean);
+    return labels.length ? labels : undefined;
+  }
+  // List message (buildListMessage output: content.listMessage.sections[].rows[].title)
+  if (content?.listMessage?.sections?.length) {
+    const labels = (content.listMessage.sections as any[])
+      .flatMap((s: any) => s.rows ?? [])
+      .map((r: any) => r.title)
+      .filter(Boolean);
+    return labels.length ? labels : undefined;
+  }
+  // Native flow (buildCtaInteractiveMessage output)
+  if (content?.interactiveMessage?.nativeFlowMessage?.buttons?.length) {
+    const labels = (content.interactiveMessage.nativeFlowMessage.buttons as any[])
+      .map((b: any) => {
+        try {
+          return JSON.parse(b.buttonParamsJson ?? '{}')?.display_text;
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean);
+    return labels.length ? labels : undefined;
+  }
+  return undefined;
+}
+
 @Injectable()
 export class WhatsappService implements OnModuleDestroy, OnModuleInit {
   private readonly logger = new Logger(WhatsappService.name);
@@ -440,9 +472,11 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
       content?.caption ??
       (typeof content === 'string' ? content : null);
 
+    const interactiveButtons = extractButtonLabels(content);
+
     // Record in the chat store; the messages.upsert Baileys echo will be deduped
     // by msg.key.id so this does not double-count.
-    this.chatStore.recordOutgoing(userId, instanceName, to, textBody, result);
+    this.chatStore.recordOutgoing(userId, instanceName, to, textBody, result, interactiveButtons);
 
     return result;
   }

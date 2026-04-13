@@ -16,6 +16,12 @@ jest.mock('./utils/redis-auth-state', () => ({
   }),
 }));
 
+jest.mock('./utils/jid-resolver', () => ({
+  resolveJid: jest.fn().mockImplementation((_socket: any, jid: string) =>
+    Promise.resolve(jid.includes('@') ? jid : `${jid}@s.whatsapp.net`),
+  ),
+}));
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { Boom } from '@hapi/boom';
@@ -648,6 +654,128 @@ describe('WhatsappService', () => {
         '5511777777777@s.whatsapp.net',
         'sent via API',
         msg,
+      );
+    });
+  });
+
+  describe('ICT-1 — extractButtonLabels (tested via send())', () => {
+    function buildSendInstance(sendMessageResult: any): Instance {
+      return buildMockInstance({
+        name: 'sendInstance',
+        connected: true,
+        socket: {
+          end: jest.fn(),
+          ev: { on: jest.fn() },
+          user: { id: '5511999999999:1@s.whatsapp.net' },
+          sendMessage: jest.fn().mockResolvedValue(sendMessageResult),
+          onWhatsApp: jest.fn().mockResolvedValue([{ jid: '5511888888888@s.whatsapp.net', exists: true }]),
+        } as any,
+      });
+    }
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('extracts labels from content.buttons and passes them as interactiveButtons', async () => {
+      const baileysResult = { key: { id: 'btn-send-1' }, message: { conversation: 'Pick' } };
+      const instance = buildSendInstance(baileysResult);
+      (service as any).instances.set(`${TEST_USER_ID}:sendInstance`, instance);
+
+      const content = {
+        text: 'Pick',
+        buttons: [
+          { buttonText: { displayText: 'Yes' } },
+          { buttonText: { displayText: 'No' } },
+        ],
+      };
+
+      await service.send(TEST_USER_ID, 'sendInstance', '5511888888888', content);
+
+      const mockChatStore = (service as any).chatStore as jest.Mocked<Partial<ChatStoreService>>;
+      expect(mockChatStore.recordOutgoing).toHaveBeenCalledWith(
+        TEST_USER_ID,
+        'sendInstance',
+        '5511888888888',
+        'Pick',
+        baileysResult,
+        ['Yes', 'No'],
+      );
+    });
+
+    it('extracts titles from listMessage sections and passes them as interactiveButtons', async () => {
+      const baileysResult = { key: { id: 'list-send-1' }, message: {} };
+      const instance = buildSendInstance(baileysResult);
+      (service as any).instances.set(`${TEST_USER_ID}:sendInstance`, instance);
+
+      const content = {
+        text: 'Choose',
+        listMessage: {
+          sections: [
+            { rows: [{ title: 'Option A' }, { title: 'Option B' }] },
+            { rows: [{ title: 'Option C' }] },
+          ],
+        },
+      };
+
+      await service.send(TEST_USER_ID, 'sendInstance', '5511888888888', content);
+
+      const mockChatStore = (service as any).chatStore as jest.Mocked<Partial<ChatStoreService>>;
+      expect(mockChatStore.recordOutgoing).toHaveBeenCalledWith(
+        TEST_USER_ID,
+        'sendInstance',
+        '5511888888888',
+        'Choose',
+        baileysResult,
+        ['Option A', 'Option B', 'Option C'],
+      );
+    });
+
+    it('extracts display_text from nativeFlowMessage buttons and passes them as interactiveButtons', async () => {
+      const baileysResult = { key: { id: 'flow-send-1' }, message: {} };
+      const instance = buildSendInstance(baileysResult);
+      (service as any).instances.set(`${TEST_USER_ID}:sendInstance`, instance);
+
+      const content = {
+        text: 'Confirm?',
+        interactiveMessage: {
+          nativeFlowMessage: {
+            buttons: [
+              { buttonParamsJson: JSON.stringify({ display_text: 'Confirm' }) },
+              { buttonParamsJson: JSON.stringify({ display_text: 'Cancel' }) },
+            ],
+          },
+        },
+      };
+
+      await service.send(TEST_USER_ID, 'sendInstance', '5511888888888', content);
+
+      const mockChatStore = (service as any).chatStore as jest.Mocked<Partial<ChatStoreService>>;
+      expect(mockChatStore.recordOutgoing).toHaveBeenCalledWith(
+        TEST_USER_ID,
+        'sendInstance',
+        '5511888888888',
+        'Confirm?',
+        baileysResult,
+        ['Confirm', 'Cancel'],
+      );
+    });
+
+    it('passes undefined interactiveButtons for plain text content', async () => {
+      const baileysResult = { key: { id: 'text-send-1' }, message: { conversation: 'Hello' } };
+      const instance = buildSendInstance(baileysResult);
+      (service as any).instances.set(`${TEST_USER_ID}:sendInstance`, instance);
+
+      await service.send(TEST_USER_ID, 'sendInstance', '5511888888888', { text: 'Hello' });
+
+      const mockChatStore = (service as any).chatStore as jest.Mocked<Partial<ChatStoreService>>;
+      expect(mockChatStore.recordOutgoing).toHaveBeenCalledWith(
+        TEST_USER_ID,
+        'sendInstance',
+        '5511888888888',
+        'Hello',
+        baileysResult,
+        undefined,
       );
     });
   });
