@@ -445,7 +445,7 @@ const MS_EPOCH_THRESHOLD = 1_000_000_000_000;
                         }
                         <!-- Reaction (shouldn't render as a bubble, but just in case) -->
                         @else if (msg.type === 'reaction') {
-                          <p class="bubble-body bubble-body--reaction">{{ msg.body }}</p>
+                          <!-- reaction: not rendered as a message bubble -->
                         }
                         <!-- Unsupported / unknown type -->
                         @else if (msg.type && msg.type !== 'text') {
