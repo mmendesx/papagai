@@ -2715,29 +2715,12 @@ export class InstanceChatsComponent {
 
     // ── Media path ────────────────────────────────────────────────
     if (attachment) {
-      // Step 1: Upload file
-      let uploadedUrl: string;
-      try {
-        const formData = new FormData();
-        formData.append('file', attachment);
-        const uploadResult = await firstValueFrom(
-          this.http.post<{ url: string }>(
-            `/api/instances/${encodeURIComponent(instanceName)}/upload`,
-            formData,
-          ),
-        );
-        uploadedUrl = uploadResult.url;
-      } catch {
-        void firstValueFrom(
-          this.alerts.open('Falha no envio do arquivo. Tente novamente.', {
-            appearance: 'negative',
-            label: 'Erro de upload',
-          }),
-        );
-        this.clearAttachment();
-        this.sending.set(false);
-        return;
-      }
+      // Step 1: Convert file to base64
+      const ab = await attachment.arrayBuffer();
+      const bytes = new Uint8Array(ab);
+      let binary = '';
+      for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+      const b64 = btoa(binary);
 
       // Step 2: Build payload based on MIME type
       const mime = attachment.type;
@@ -2749,7 +2732,7 @@ export class InstanceChatsComponent {
           messaging_product: 'whatsapp',
           to,
           type: 'audio',
-          audio: { link: uploadedUrl, ptt: false },
+          audio: { data: b64, mimetype: attachment.type, ptt: false },
         };
         optimisticBody = `[Áudio: ${attachment.name}]`;
       } else if (mime === 'video/mp4') {
@@ -2757,7 +2740,7 @@ export class InstanceChatsComponent {
           messaging_product: 'whatsapp',
           to,
           type: 'video',
-          video: { link: uploadedUrl, caption: body || undefined },
+          video: { data: b64, mimetype: attachment.type, caption: body || undefined },
         };
         optimisticBody = body ? body : `[Vídeo: ${attachment.name}]`;
       } else {
@@ -2766,7 +2749,7 @@ export class InstanceChatsComponent {
           messaging_product: 'whatsapp',
           to,
           type: 'image',
-          image: { link: uploadedUrl, caption: body || undefined },
+          image: { data: b64, mimetype: attachment.type, caption: body || undefined },
         };
         optimisticBody = body ? body : `[Imagem: ${attachment.name}]`;
       }
@@ -2778,7 +2761,7 @@ export class InstanceChatsComponent {
         fromMe: true,
         timestamp: sentAt,
         type: payload['type'] as string,
-        mediaUrl: uploadedUrl,
+        mediaUrl: `data:${attachment.type};base64,${b64}`,
       };
       this.localMessages.update((msgs) => [...msgs, optimisticMsg]);
 
