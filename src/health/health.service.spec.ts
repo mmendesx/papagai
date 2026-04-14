@@ -8,7 +8,6 @@ jest.mock('ioredis', () => {
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { Redis } from 'ioredis';
 import { HealthService } from './health.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 

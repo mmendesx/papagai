@@ -165,7 +165,11 @@ describe('API key lifecycle (e2e)', () => {
       .set('X-Api-Key', accountApiKey);
 
     expect(listRes.status).toBe(200);
-    expect(listRes.body.instances.some((i: { name: string }) => i.name === primaryInstanceName)).toBe(true);
+    expect(
+      listRes.body.instances.some(
+        (i: { name: string }) => i.name === primaryInstanceName,
+      ),
+    ).toBe(true);
 
     const statusRes = await request(app.getHttpServer())
       .get(`/api/instances/${primaryInstanceName}/status`)

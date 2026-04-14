@@ -95,10 +95,10 @@ export class WebhookService {
       if (maxRetries > 0) {
         const jobData: WebhookJobData = {
           instanceName: instance.name,
-          webhookUrl: instance.webhookUrl!,
+          webhookUrl: instance.webhookUrl,
           webhookEnabled: instance.webhookEnabled,
           webhookEvents: instance.webhookEvents,
-          webhookHeaders: instance.webhookHeaders as Record<string, string>,
+          webhookHeaders: instance.webhookHeaders,
           event: data.event,
           payload: data as unknown as Record<string, unknown>,
         };

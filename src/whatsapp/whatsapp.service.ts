@@ -20,7 +20,11 @@ import {
   ContactInfo,
 } from './interfaces/whatsapp.interface.js';
 import { WebhookService } from '../webhook/webhook.service.js';
-import { ChatRealtimeEvent, ChatStoreService, extractPreview } from './chat-store.service.js';
+import {
+  ChatRealtimeEvent,
+  ChatStoreService,
+  extractPreview,
+} from './chat-store.service.js';
 import { phoneNumberToJid } from './utils/jid.js';
 import { downloadMedia } from './utils/media-downloader.js';
 import {
@@ -50,7 +54,9 @@ function extractButtonLabels(content: any): string[] | undefined {
   }
   // Native flow (buildCtaInteractiveMessage output)
   if (content?.interactiveMessage?.nativeFlowMessage?.buttons?.length) {
-    const labels = (content.interactiveMessage.nativeFlowMessage.buttons as any[])
+    const labels = (
+      content.interactiveMessage.nativeFlowMessage.buttons as any[]
+    )
       .map((b: any) => {
         try {
           return JSON.parse(b.buttonParamsJson ?? '{}')?.display_text;
@@ -129,7 +135,9 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
           config.userId,
           config.name,
           config.webhookUrl ?? undefined,
-          (config.webhookHeaders ?? undefined) as Record<string, string> | undefined,
+          (config.webhookHeaders ?? undefined) as
+            | Record<string, string>
+            | undefined,
           config.webhookEnabled,
           config.webhookEvents,
         );
@@ -201,7 +209,7 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
       defaultQueryTimeoutMs: 60000,
       generateHighQualityLinkPreview: true,
       shouldResendMessageOn475AckError: true,
-      getMessage: async () => ({ conversation: '' }),
+      getMessage: () => Promise.resolve({ conversation: '' }),
     });
 
     const DEFAULT_WEBHOOK_EVENTS = [
@@ -278,23 +286,26 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
   private registerSocketEvents(instance: Instance): void {
     const sock = instance.socket;
 
-    sock.ev.on('connection.update', (update) =>
-      this.handleConnectionUpdate(instance, update),
-    );
-
-    sock.ev.on('creds.update', instance.saveCreds);
-
-    sock.ev.on('messaging-history.set', ({ chats, messages, isLatest, progress }) => {
-      this.logger.log(
-        `History sync for "${instance.name}": ${chats.length} chats, ${messages.length} messages (latest=${isLatest}, progress=${progress ?? '?'})`,
-      );
-      this.chatStore.recordHistorySync(
-        instance.userId,
-        instance.name,
-        chats,
-        messages,
-      );
+    sock.ev.on('connection.update', (update) => {
+      void this.handleConnectionUpdate(instance, update);
     });
+
+    sock.ev.on('creds.update', () => void instance.saveCreds());
+
+    sock.ev.on(
+      'messaging-history.set',
+      ({ chats, messages, isLatest, progress }) => {
+        this.logger.log(
+          `History sync for "${instance.name}": ${chats.length} chats, ${messages.length} messages (latest=${isLatest}, progress=${progress ?? '?'})`,
+        );
+        this.chatStore.recordHistorySync(
+          instance.userId,
+          instance.name,
+          chats,
+          messages,
+        );
+      },
+    );
 
     sock.ev.on('messages.upsert', ({ messages, type }) => {
       if (type !== 'notify') return;
@@ -476,7 +487,14 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
 
     // Record in the chat store; the messages.upsert Baileys echo will be deduped
     // by msg.key.id so this does not double-count.
-    this.chatStore.recordOutgoing(userId, instanceName, to, textBody, result, interactiveButtons);
+    this.chatStore.recordOutgoing(
+      userId,
+      instanceName,
+      to,
+      textBody,
+      result,
+      interactiveButtons,
+    );
 
     return result;
   }
@@ -509,11 +527,11 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
     }
   }
 
-  async getChats(
+  getChats(
     userId: string,
     instanceName: string,
     _includeMessages: boolean,
-  ): Promise<ChatInfo[]> {
+  ): ChatInfo[] {
     // Instance must exist (connected or not) — just check it's registered
     const key = this.instanceKey(userId, instanceName);
     if (!this.instances.has(key)) {
@@ -742,7 +760,7 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
     newInstance.retryCount = retryCount;
   }
 
-  async onModuleDestroy(): Promise<void> {
+  onModuleDestroy(): void {
     for (const [name, instance] of this.instances) {
       this.logger.log(`Shutting down instance "${name}"`);
       try {

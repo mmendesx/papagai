@@ -43,7 +43,9 @@ export class UploadCleanupService {
     }
 
     if (deleted > 0) {
-      this.logger.log(`Upload cleanup: deleted ${deleted} file(s) older than ${ttlHours}h`);
+      this.logger.log(
+        `Upload cleanup: deleted ${deleted} file(s) older than ${ttlHours}h`,
+      );
     }
   }
 }

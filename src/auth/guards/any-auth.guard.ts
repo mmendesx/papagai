@@ -1,9 +1,4 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
 import { ApiKeyAuthGuard } from './api-key-auth.guard.js';
@@ -24,6 +19,6 @@ export class AnyAuthGuard implements CanActivate {
     }
 
     // Falls back to JWT — throws UnauthorizedException if missing/invalid
-    return this.jwtGuard.canActivate(context) as Promise<boolean>;
+    return this.jwtGuard.canActivate(context);
   }
 }

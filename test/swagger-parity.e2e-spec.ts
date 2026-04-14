@@ -30,16 +30,32 @@ import { PrismaService } from '../src/prisma/prisma.service';
 import { createTestApp } from './helpers/app-factory';
 import { truncateTables } from './helpers/db-cleaner';
 
-const HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete', 'options', 'head', 'trace'] as const;
+const HTTP_METHODS = [
+  'get',
+  'post',
+  'put',
+  'patch',
+  'delete',
+  'options',
+  'head',
+  'trace',
+] as const;
 type HttpMethod = (typeof HTTP_METHODS)[number];
 
-function hasAnyAuthSecurity(operation: { security?: Array<Record<string, unknown>> }): boolean {
+function hasAnyAuthSecurity(operation: {
+  security?: Array<Record<string, unknown>>;
+}): boolean {
   const security = operation.security ?? [];
-  const schemeNames = new Set(security.flatMap((requirement) => Object.keys(requirement)));
+  const schemeNames = new Set(
+    security.flatMap((requirement) => Object.keys(requirement)),
+  );
   return schemeNames.has('bearer') && schemeNames.has('apiKey');
 }
 
-function resolveSchema(document: OpenAPIObject, schema: Record<string, any> | undefined) {
+function resolveSchema(
+  document: OpenAPIObject,
+  schema: Record<string, any> | undefined,
+) {
   if (!schema) {
     return undefined;
   }
@@ -49,13 +65,18 @@ function resolveSchema(document: OpenAPIObject, schema: Record<string, any> | un
     if (!schemaName) {
       return undefined;
     }
-    return document.components?.schemas?.[schemaName] as Record<string, any> | undefined;
+    return document.components?.schemas?.[schemaName] as
+      | Record<string, any>
+      | undefined;
   }
 
   return schema;
 }
 
-function collectEnumValues(document: OpenAPIObject, schema: Record<string, any> | undefined): string[] {
+function collectEnumValues(
+  document: OpenAPIObject,
+  schema: Record<string, any> | undefined,
+): string[] {
   const resolved = resolveSchema(document, schema);
   if (!resolved) {
     return [];
@@ -116,11 +137,17 @@ describe('Swagger parity for AnyAuth and templates schema (e2e)', () => {
     for (const target of authAnyAuthOperations) {
       const operation = openApiDocument.paths[target.path]?.[target.method];
       expect(operation).toBeDefined();
-      expect(hasAnyAuthSecurity(operation as { security?: Array<Record<string, unknown>> })).toBe(true);
+      expect(
+        hasAnyAuthSecurity(
+          operation as { security?: Array<Record<string, unknown>> },
+        ),
+      ).toBe(true);
     }
 
     const instanceOperations: Array<{ path: string; method: HttpMethod }> = [];
-    for (const [path, pathItem] of Object.entries(openApiDocument.paths ?? {})) {
+    for (const [path, pathItem] of Object.entries(
+      openApiDocument.paths ?? {},
+    )) {
       if (!path.startsWith('/api/instances')) {
         continue;
       }
@@ -137,7 +164,11 @@ describe('Swagger parity for AnyAuth and templates schema (e2e)', () => {
     for (const target of instanceOperations) {
       const operation = openApiDocument.paths[target.path]?.[target.method];
       expect(operation).toBeDefined();
-      expect(hasAnyAuthSecurity(operation as { security?: Array<Record<string, unknown>> })).toBe(true);
+      expect(
+        hasAnyAuthSecurity(
+          operation as { security?: Array<Record<string, unknown>> },
+        ),
+      ).toBe(true);
     }
   });
 
@@ -145,7 +176,9 @@ describe('Swagger parity for AnyAuth and templates schema (e2e)', () => {
     const operation = openApiDocument.paths['/api/auth/apikeys/templates']?.get;
     expect(operation).toBeDefined();
 
-    const okResponse = operation?.responses?.['200'] as Record<string, any> | undefined;
+    const okResponse = operation?.responses?.['200'] as
+      | Record<string, any>
+      | undefined;
     expect(okResponse).toBeDefined();
 
     const topLevelSchema = resolveSchema(
@@ -160,7 +193,9 @@ describe('Swagger parity for AnyAuth and templates schema (e2e)', () => {
 
     const templateItemSchema = resolveSchema(
       openApiDocument,
-      topLevelSchema?.properties?.templates?.items as Record<string, any> | undefined,
+      topLevelSchema?.properties?.templates?.items as
+        | Record<string, any>
+        | undefined,
     );
 
     expect(templateItemSchema?.type).toBe('object');

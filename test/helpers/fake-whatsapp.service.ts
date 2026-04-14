@@ -118,21 +118,24 @@ export class FakeWhatsappService implements OnModuleInit, OnModuleDestroy {
       inst.webhookEnabled = config.webhookEnabled;
     if (config.webhookEvents !== undefined)
       inst.webhookEvents = config.webhookEvents;
-    await this.prisma.instanceConfig.updateMany({ where: { userId, name }, data: config });
+    await this.prisma.instanceConfig.updateMany({
+      where: { userId, name },
+      data: config,
+    });
     return inst;
   }
 
-  getQR(userId: string, name: string): null {
+  getQR(_userId: string, _name: string): null {
     return null;
   }
 
   async send(): Promise<void> {}
 
-  async getContactInfo(): Promise<any> {
-    return undefined;
+  getContactInfo(): Promise<any> {
+    return Promise.resolve(undefined);
   }
 
-  async getChats(): Promise<any[]> {
+  getChats(): any[] {
     return [];
   }
 

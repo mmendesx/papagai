@@ -73,8 +73,15 @@ export class InstancesController {
   ) {}
 
   @ApiOperation({ summary: 'Create a new WhatsApp instance' })
-  @ApiResponse({ status: 201, description: 'Instance created successfully', type: InstanceStatusResponseDto })
-  @ApiResponse({ status: 400, description: 'Invalid webhook event or instance creation error' })
+  @ApiResponse({
+    status: 201,
+    description: 'Instance created successfully',
+    type: InstanceStatusResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid webhook event or instance creation error',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 409, description: 'Instance name already in use' })
   @ApiResponse({ status: 422, description: 'Validation error' })
@@ -118,9 +125,20 @@ export class InstancesController {
   }
 
   @ApiOperation({ summary: 'Send a WhatsApp message' })
-  @ApiParam({ name: 'name', description: 'Instance name', example: 'my-instance' })
-  @ApiResponse({ status: 200, description: 'Message sent', type: MessageResultResponseDto })
-  @ApiResponse({ status: 400, description: 'Send failed or invalid message type' })
+  @ApiParam({
+    name: 'name',
+    description: 'Instance name',
+    example: 'my-instance',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Message sent',
+    type: MessageResultResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Send failed or invalid message type',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Instance not found' })
   @Post(':name/messages')
@@ -147,8 +165,16 @@ export class InstancesController {
   }
 
   @ApiOperation({ summary: 'Get QR code for WhatsApp pairing' })
-  @ApiParam({ name: 'name', description: 'Instance name', example: 'my-instance' })
-  @ApiResponse({ status: 200, description: 'QR code or connection status', type: InstanceStatusResponseDto })
+  @ApiParam({
+    name: 'name',
+    description: 'Instance name',
+    example: 'my-instance',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'QR code or connection status',
+    type: InstanceStatusResponseDto,
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Instance not found' })
   @Get(':name/qr')
@@ -190,8 +216,16 @@ export class InstancesController {
   }
 
   @ApiOperation({ summary: 'Get contact profile information' })
-  @ApiParam({ name: 'name', description: 'Instance name', example: 'my-instance' })
-  @ApiParam({ name: 'number', description: 'Phone number with country code (no +)', example: '5511999999999' })
+  @ApiParam({
+    name: 'name',
+    description: 'Instance name',
+    example: 'my-instance',
+  })
+  @ApiParam({
+    name: 'number',
+    description: 'Phone number with country code (no +)',
+    example: '5511999999999',
+  })
   @ApiResponse({ status: 200, description: 'Contact info' })
   @ApiResponse({ status: 400, description: 'Lookup failed' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -213,20 +247,29 @@ export class InstancesController {
   }
 
   @ApiOperation({ summary: 'List chats for this instance' })
-  @ApiParam({ name: 'name', description: 'Instance name', example: 'my-instance' })
-  @ApiQuery({ name: 'include_messages', required: false, type: Boolean, description: 'Include recent messages in each chat' })
+  @ApiParam({
+    name: 'name',
+    description: 'Instance name',
+    example: 'my-instance',
+  })
+  @ApiQuery({
+    name: 'include_messages',
+    required: false,
+    type: Boolean,
+    description: 'Include recent messages in each chat',
+  })
   @ApiResponse({ status: 200, description: 'List of chats' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Instance not found' })
   @Get(':name/chats')
-  async getChats(
+  getChats(
     @Req() req: Request,
     @Param('name') name: string,
     @Query('include_messages') includeMessages?: string,
   ) {
     const userId = (req['user'] as JwtPayload).sub;
     try {
-      const chats = await this.instancesService.getChats(
+      const chats = this.instancesService.getChats(
         userId,
         name,
         includeMessages === 'true',
@@ -241,7 +284,11 @@ export class InstancesController {
   }
 
   @ApiOperation({ summary: 'Stream chat updates for this instance (SSE)' })
-  @ApiParam({ name: 'name', description: 'Instance name', example: 'my-instance' })
+  @ApiParam({
+    name: 'name',
+    description: 'Instance name',
+    example: 'my-instance',
+  })
   @ApiResponse({ status: 200, description: 'SSE stream with chat updates' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Instance not found' })
@@ -253,12 +300,14 @@ export class InstancesController {
     const userId = (req['user'] as JwtPayload).sub;
 
     try {
-      const updates$ = this.instancesService.streamChatEvents(userId, name).pipe(
-        map((evt) => ({
-          type: evt.type,
-          data: evt,
-        })),
-      );
+      const updates$ = this.instancesService
+        .streamChatEvents(userId, name)
+        .pipe(
+          map((evt) => ({
+            type: evt.type,
+            data: evt,
+          })),
+        );
 
       // Keep-alive helps avoid proxy idle timeouts on long-lived SSE streams.
       const heartbeat$ = interval(25000).pipe(
@@ -273,14 +322,24 @@ export class InstancesController {
       const msg = error instanceof Error ? error.message : String(error);
       throw new HttpException(
         msg,
-        msg.includes('não encontrado') ? HttpStatus.NOT_FOUND : HttpStatus.BAD_REQUEST,
+        msg.includes('não encontrado')
+          ? HttpStatus.NOT_FOUND
+          : HttpStatus.BAD_REQUEST,
       );
     }
   }
 
   @ApiOperation({ summary: 'Mark a chat as read' })
-  @ApiParam({ name: 'name', description: 'Instance name', example: 'my-instance' })
-  @ApiParam({ name: 'chatId', description: 'Chat JID or phone number', example: '5511999999999@s.whatsapp.net' })
+  @ApiParam({
+    name: 'name',
+    description: 'Instance name',
+    example: 'my-instance',
+  })
+  @ApiParam({
+    name: 'chatId',
+    description: 'Chat JID or phone number',
+    example: '5511999999999@s.whatsapp.net',
+  })
   @ApiResponse({ status: 200, description: 'Chat marked as read' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Instance not found' })
@@ -291,25 +350,44 @@ export class InstancesController {
     @Param('chatId') chatId: string,
   ) {
     const userId = (req['user'] as JwtPayload).sub;
-    const normalised = chatId.includes('@') ? chatId : `${chatId}@s.whatsapp.net`;
+    const normalised = chatId.includes('@')
+      ? chatId
+      : `${chatId}@s.whatsapp.net`;
     this.instancesService.markChatRead(userId, name, normalised);
     return { ok: true };
   }
 
   @ApiOperation({ summary: 'Get message history for a chat' })
-  @ApiParam({ name: 'name', description: 'Instance name', example: 'my-instance' })
-  @ApiParam({ name: 'chatId', description: 'Chat JID or bare phone number', example: '5511999999999' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Number of messages to return (1-500, default 100)' })
+  @ApiParam({
+    name: 'name',
+    description: 'Instance name',
+    example: 'my-instance',
+  })
+  @ApiParam({
+    name: 'chatId',
+    description: 'Chat JID or bare phone number',
+    example: '5511999999999',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Number of messages to return (1-500, default 100)',
+  })
   @ApiResponse({ status: 200, description: 'Chat messages' })
   @ApiResponse({ status: 400, description: 'Invalid chatId format' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Instance not found' })
   @Get(':name/chats/:chatId/messages')
-  async getChatMessages(
+  getChatMessages(
     @Req() req: Request,
     @Param('name') name: string,
     @Param('chatId') rawChatId: string,
-    @Query('limit', new DefaultValuePipe(100), new ParseIntPipe({ optional: false }))
+    @Query(
+      'limit',
+      new DefaultValuePipe(100),
+      new ParseIntPipe({ optional: false }),
+    )
     limit: number,
   ) {
     const userId = (req['user'] as JwtPayload).sub;
@@ -343,18 +421,24 @@ export class InstancesController {
       const msg = error instanceof Error ? error.message : String(error);
       throw new HttpException(
         msg,
-        msg.includes('não encontrado') ? HttpStatus.NOT_FOUND : HttpStatus.BAD_REQUEST,
+        msg.includes('não encontrado')
+          ? HttpStatus.NOT_FOUND
+          : HttpStatus.BAD_REQUEST,
       );
     }
   }
 
   @ApiOperation({ summary: 'Get usage metrics for this instance' })
-  @ApiParam({ name: 'name', description: 'Instance name', example: 'my-instance' })
+  @ApiParam({
+    name: 'name',
+    description: 'Instance name',
+    example: 'my-instance',
+  })
   @ApiResponse({ status: 200, description: 'Instance metrics' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Instance not found' })
   @Get(':name/metrics')
-  async getMetrics(@Req() req: Request, @Param('name') name: string) {
+  getMetrics(@Req() req: Request, @Param('name') name: string) {
     const userId = (req['user'] as JwtPayload).sub;
     try {
       const metrics = this.instancesService.getMetrics(userId, name);
@@ -363,18 +447,28 @@ export class InstancesController {
       const msg = error instanceof Error ? error.message : String(error);
       throw new HttpException(
         msg,
-        msg.includes('não encontrado') ? HttpStatus.NOT_FOUND : HttpStatus.BAD_REQUEST,
+        msg.includes('não encontrado')
+          ? HttpStatus.NOT_FOUND
+          : HttpStatus.BAD_REQUEST,
       );
     }
   }
 
   @ApiOperation({ summary: 'Get instance connection status' })
-  @ApiParam({ name: 'name', description: 'Instance name', example: 'my-instance' })
-  @ApiResponse({ status: 200, description: 'Instance status', type: InstanceStatusResponseDto })
+  @ApiParam({
+    name: 'name',
+    description: 'Instance name',
+    example: 'my-instance',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Instance status',
+    type: InstanceStatusResponseDto,
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Instance not found' })
   @Get(':name/status')
-  async getStatus(@Req() req: Request, @Param('name') name: string) {
+  getStatus(@Req() req: Request, @Param('name') name: string) {
     const userId = (req['user'] as JwtPayload).sub;
     const instance = this.instancesService.getInstance(userId, name);
     if (!instance) {
@@ -399,10 +493,14 @@ export class InstancesController {
   }
 
   @ApiOperation({ summary: 'List all instances (paginated)' })
-  @ApiResponse({ status: 200, description: 'Paginated instance list', type: [InstanceStatusResponseDto] })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated instance list',
+    type: [InstanceStatusResponseDto],
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @Get()
-  async listInstances(@Req() req: Request, @Query() query: PaginateQueryDto) {
+  listInstances(@Req() req: Request, @Query() query: PaginateQueryDto) {
     const userId = (req['user'] as any).sub;
     const page = query.page ?? 1;
     const limit = Math.min(query.limit ?? 20, 100);
@@ -416,7 +514,11 @@ export class InstancesController {
   }
 
   @ApiOperation({ summary: 'Update webhook configuration for an instance' })
-  @ApiParam({ name: 'name', description: 'Instance name', example: 'my-instance' })
+  @ApiParam({
+    name: 'name',
+    description: 'Instance name',
+    example: 'my-instance',
+  })
   @ApiResponse({ status: 200, description: 'Webhook updated' })
   @ApiResponse({ status: 400, description: 'Invalid webhook event' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -474,18 +576,33 @@ export class InstancesController {
 
   @ApiOperation({ summary: 'Upload a media file for use in messages' })
   @ApiConsumes('multipart/form-data')
-  @ApiParam({ name: 'name', description: 'Instance name', example: 'my-instance' })
+  @ApiParam({
+    name: 'name',
+    description: 'Instance name',
+    example: 'my-instance',
+  })
   @ApiBody({
     schema: {
       type: 'object',
       properties: {
-        file: { type: 'string', format: 'binary', description: 'File to upload (max 16 MB)' },
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'File to upload (max 16 MB)',
+        },
       },
       required: ['file'],
     },
   })
-  @ApiResponse({ status: 201, description: 'File uploaded, returns public URL', type: UploadResponseDto })
-  @ApiResponse({ status: 400, description: 'No file provided or file type not allowed' })
+  @ApiResponse({
+    status: 201,
+    description: 'File uploaded, returns public URL',
+    type: UploadResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'No file provided or file type not allowed',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Instance not found' })
   @ApiResponse({ status: 413, description: 'File exceeds 16 MB limit' })
@@ -497,7 +614,10 @@ export class InstancesController {
         destination: (req, _file, cb) => {
           const rawName = (req.params as Record<string, string>).name ?? '';
           if (!/^[a-zA-Z0-9_-]+$/.test(rawName)) {
-            return cb(new BadRequestException('Invalid instance name'), false as any);
+            return cb(
+              new BadRequestException('Invalid instance name'),
+              false as any,
+            );
           }
           const dir = join(process.cwd(), 'uploads', rawName);
           mkdirSync(dir, { recursive: true });
@@ -523,16 +643,19 @@ export class InstancesController {
         if (ALLOWED_MIME_TYPES.includes(file.mimetype)) {
           cb(null, true);
         } else {
-          cb(new BadRequestException(`File type not allowed: ${file.mimetype}`), false);
+          cb(
+            new BadRequestException(`File type not allowed: ${file.mimetype}`),
+            false,
+          );
         }
       },
     }),
   )
-  async uploadFile(
+  uploadFile(
     @Req() req: Request,
     @Param('name') name: string,
     @UploadedFile() file: Express.Multer.File,
-  ): Promise<UploadResponseDto> {
+  ): UploadResponseDto {
     if (!file) {
       throw new BadRequestException('No file provided');
     }
@@ -540,17 +663,29 @@ export class InstancesController {
     const userId = (req['user'] as JwtPayload).sub;
     const instance = this.instancesService.getInstance(userId, name);
     if (!instance) {
-      try { unlinkSync(file.path); } catch { /* best-effort cleanup */ }
-      throw new HttpException(`Instance ${name} not found`, HttpStatus.NOT_FOUND);
+      try {
+        unlinkSync(file.path);
+      } catch {
+        /* best-effort cleanup */
+      }
+      throw new HttpException(
+        `Instance ${name} not found`,
+        HttpStatus.NOT_FOUND,
+      );
     }
 
-    const baseUrl = process.env.BASE_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
+    const baseUrl =
+      process.env.BASE_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
     const url = `${baseUrl}/uploads/${encodeURIComponent(name)}/${file.filename}`;
     return { url };
   }
 
   @ApiOperation({ summary: 'Disconnect and delete a WhatsApp instance' })
-  @ApiParam({ name: 'name', description: 'Instance name', example: 'my-instance' })
+  @ApiParam({
+    name: 'name',
+    description: 'Instance name',
+    example: 'my-instance',
+  })
   @ApiResponse({ status: 200, description: 'Instance disconnected' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Instance not found' })
@@ -575,8 +710,17 @@ export class InstancesController {
 
   @Post(':name/apikeys')
   @ApiOperation({ summary: 'Create an instance-scoped API key' })
-  @ApiParam({ name: 'name', description: 'Instance name', example: 'my-instance' })
-  @ApiResponse({ status: 201, description: 'Instance-scoped key created — save the key value, it will not be shown again', type: ApiKeyResponseDto })
+  @ApiParam({
+    name: 'name',
+    description: 'Instance name',
+    example: 'my-instance',
+  })
+  @ApiResponse({
+    status: 201,
+    description:
+      'Instance-scoped key created — save the key value, it will not be shown again',
+    type: ApiKeyResponseDto,
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Instance not found' })
   async createInstanceApiKey(
@@ -596,7 +740,12 @@ export class InstancesController {
 
     const userId = (req['user'] as JwtPayload).sub;
     const expiresAt = dto.expiresAt ? new Date(dto.expiresAt) : undefined;
-    const result = await this.apiKeyService.createInstanceKey(userId, name, dto.name, expiresAt);
+    const result = await this.apiKeyService.createInstanceKey(
+      userId,
+      name,
+      dto.name,
+      expiresAt,
+    );
     return {
       id: result.id,
       name: result.name,
@@ -611,8 +760,16 @@ export class InstancesController {
 
   @Get(':name/apikeys')
   @ApiOperation({ summary: 'List API keys scoped to this instance' })
-  @ApiParam({ name: 'name', description: 'Instance name', example: 'my-instance' })
-  @ApiResponse({ status: 200, description: 'List of instance-scoped keys', type: [ApiKeyResponseDto] })
+  @ApiParam({
+    name: 'name',
+    description: 'Instance name',
+    example: 'my-instance',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of instance-scoped keys',
+    type: [ApiKeyResponseDto],
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Instance not found' })
   async listInstanceApiKeys(
@@ -635,7 +792,11 @@ export class InstancesController {
   @Delete(':name/apikeys/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Revoke an instance-scoped API key' })
-  @ApiParam({ name: 'name', description: 'Instance name', example: 'my-instance' })
+  @ApiParam({
+    name: 'name',
+    description: 'Instance name',
+    example: 'my-instance',
+  })
   @ApiParam({ name: 'id', description: 'API key ID' })
   @ApiResponse({ status: 204, description: 'Key revoked' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })

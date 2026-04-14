@@ -51,7 +51,21 @@ import { AnyAuthGuard } from './guards/any-auth.guard.js';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtAuthGuard, AuthThrottlerGuard, ApiKeyService, ApiKeyAuthGuard, AnyAuthGuard],
-  exports: [AuthService, JwtAuthGuard, JwtModule, ApiKeyService, ApiKeyAuthGuard, AnyAuthGuard],
+  providers: [
+    AuthService,
+    JwtAuthGuard,
+    AuthThrottlerGuard,
+    ApiKeyService,
+    ApiKeyAuthGuard,
+    AnyAuthGuard,
+  ],
+  exports: [
+    AuthService,
+    JwtAuthGuard,
+    JwtModule,
+    ApiKeyService,
+    ApiKeyAuthGuard,
+    AnyAuthGuard,
+  ],
 })
 export class AuthModule {}

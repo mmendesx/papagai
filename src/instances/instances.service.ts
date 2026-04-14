@@ -74,11 +74,7 @@ export class InstancesService {
     return this.whatsappService.getContactInfo(userId, instanceName, number);
   }
 
-  getChats(
-    userId: string,
-    instanceName: string,
-    includeMessages?: boolean,
-  ): Promise<any> {
+  getChats(userId: string, instanceName: string, includeMessages?: boolean) {
     this.logger.log(`${userId}:${instanceName} buscando conversas`);
     return this.whatsappService.getChats(
       userId,

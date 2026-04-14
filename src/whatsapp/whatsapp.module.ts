@@ -7,10 +7,7 @@ import { WhatsappService } from './whatsapp.service.js';
 import { ChatStoreService, REDIS_CLIENT } from './chat-store.service.js';
 
 @Module({
-  imports: [
-    HttpModule,
-    WebhookModule,
-  ],
+  imports: [HttpModule, WebhookModule],
   providers: [
     {
       provide: REDIS_CLIENT,

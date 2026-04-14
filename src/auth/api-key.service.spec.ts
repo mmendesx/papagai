@@ -174,9 +174,9 @@ describe('ApiKeyService', () => {
     it('throws NotFoundException when no key is deleted (count=0)', async () => {
       mockPrismaService.apiKey.deleteMany.mockResolvedValue({ count: 0 });
 
-      await expect(service.revokeKey('user-1', 'key-id-missing')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.revokeKey('user-1', 'key-id-missing'),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 

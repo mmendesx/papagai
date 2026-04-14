@@ -171,9 +171,7 @@ export class ApiKeyService {
 
   // ── Key validation (used by ApiKeyAuthGuard) ────────────────────────────
 
-  async validateKey(
-    rawKey: string,
-  ): Promise<{
+  async validateKey(rawKey: string): Promise<{
     userId: string;
     instanceId: number | null;
     keyId: string;
@@ -217,7 +215,8 @@ export class ApiKeyService {
       userId: key.userId,
       instanceId: key.instanceId,
       keyId: key.id,
-      permissions: (key.permissions as AccountApiKeyPermission[] | null) ?? null,
+      permissions:
+        (key.permissions as AccountApiKeyPermission[] | null) ?? null,
     };
   }
 

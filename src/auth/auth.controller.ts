@@ -1,19 +1,43 @@
-import { BadRequestException, Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { Request } from 'express';
 import { SkipThrottle } from '@nestjs/throttler';
-import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiParam, ApiResponse, ApiSecurity, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiSecurity,
+  ApiTags,
+} from '@nestjs/swagger';
 import { AuthService } from './auth.service.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { AuthResponseDto, UserResponseDto } from './dto/auth-response.dto.js';
-import { JwtAuthGuard, JwtPayload } from './guards/jwt-auth.guard.js';
+import { JwtPayload } from './guards/jwt-auth.guard.js';
 import { AuthThrottlerGuard } from './guards/auth-throttler.guard.js';
 import { AnyAuthGuard } from './guards/any-auth.guard.js';
 import { ApiKeyService } from './api-key.service.js';
 import { CreateApiKeyDto } from './dto/create-api-key.dto.js';
 import { ApiKeyResponseDto } from './dto/api-key-response.dto.js';
 import { ApiKeyTemplateListResponseDto } from './dto/api-key-template-response.dto.js';
-import { AccountApiKeyPermission, listAccountApiKeyPermissionTemplates, resolvePermissionsTemplate } from './api-key-permissions.js';
+import {
+  AccountApiKeyPermission,
+  listAccountApiKeyPermissionTemplates,
+  resolvePermissionsTemplate,
+} from './api-key-permissions.js';
 
 @ApiTags('Auth')
 @Controller('api/auth')
@@ -26,7 +50,11 @@ export class AuthController {
 
   @Post('register')
   @ApiOperation({ summary: 'Register a new account' })
-  @ApiResponse({ status: 201, description: 'Account created successfully', type: AuthResponseDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Account created successfully',
+    type: AuthResponseDto,
+  })
   @ApiResponse({ status: 409, description: 'Email already registered' })
   @ApiResponse({ status: 422, description: 'Validation error' })
   async register(@Body() dto: RegisterDto) {
@@ -36,7 +64,11 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Authenticate and receive a JWT token' })
-  @ApiResponse({ status: 200, description: 'Login successful', type: AuthResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Login successful',
+    type: AuthResponseDto,
+  })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   @ApiResponse({ status: 422, description: 'Validation error' })
   async login(@Body() dto: LoginDto) {
@@ -49,7 +81,11 @@ export class AuthController {
   @ApiBearerAuth('bearer')
   @ApiSecurity('apiKey')
   @ApiOperation({ summary: 'Get current authenticated user' })
-  @ApiResponse({ status: 200, description: 'Current user profile', type: UserResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Current user profile',
+    type: UserResponseDto,
+  })
   @ApiResponse({ status: 401, description: 'Missing or invalid token' })
   async me(@Req() req: Request & { user: JwtPayload }) {
     return this.authService.getProfile(req.user.sub);
@@ -60,7 +96,11 @@ export class AuthController {
   @ApiBearerAuth('bearer')
   @ApiSecurity('apiKey')
   @ApiOperation({ summary: 'Create an account-scoped API key' })
-  @ApiResponse({ status: 201, description: 'Key created — save the key value, it will not be shown again', type: ApiKeyResponseDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Key created — save the key value, it will not be shown again',
+    type: ApiKeyResponseDto,
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async createApiKey(
     @Req() req: Request & { user: { sub: string } },
@@ -92,7 +132,8 @@ export class AuthController {
       enabled: result.enabled,
       createdAt: result.createdAt,
       lastUsedAt: result.lastUsedAt ?? undefined,
-      permissions: (result.permissions as AccountApiKeyPermission[]) ?? undefined,
+      permissions:
+        (result.permissions as AccountApiKeyPermission[]) ?? undefined,
     };
   }
 
@@ -100,8 +141,13 @@ export class AuthController {
   @UseGuards(AnyAuthGuard)
   @ApiBearerAuth('bearer')
   @ApiSecurity('apiKey')
-  @ApiOperation({ summary: 'List default permission templates for account-scoped API keys' })
-  @ApiOkResponse({ description: 'Default templates', type: ApiKeyTemplateListResponseDto })
+  @ApiOperation({
+    summary: 'List default permission templates for account-scoped API keys',
+  })
+  @ApiOkResponse({
+    description: 'Default templates',
+    type: ApiKeyTemplateListResponseDto,
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   getApiKeyTemplates() {
     return { templates: listAccountApiKeyPermissionTemplates() };
@@ -112,7 +158,11 @@ export class AuthController {
   @ApiBearerAuth('bearer')
   @ApiSecurity('apiKey')
   @ApiOperation({ summary: 'List account-scoped API keys' })
-  @ApiResponse({ status: 200, description: 'List of keys (no plaintext key values)', type: [ApiKeyResponseDto] })
+  @ApiResponse({
+    status: 200,
+    description: 'List of keys (no plaintext key values)',
+    type: [ApiKeyResponseDto],
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async listApiKeys(
     @Req() req: Request & { user: { sub: string } },

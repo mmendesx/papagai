@@ -84,7 +84,10 @@ export class AudioDto {
   @MaxLength(128)
   mimetype?: string;
 
-  @ApiPropertyOptional({ example: false, description: 'Send as push-to-talk (voice note)' })
+  @ApiPropertyOptional({
+    example: false,
+    description: 'Send as push-to-talk (voice note)',
+  })
   @IsOptional()
   @IsBoolean()
   ptt?: boolean;
@@ -200,12 +203,19 @@ export class InteractiveDto {
 }
 
 export class MetaMessageDto {
-  @ApiProperty({ example: '5511999999999', description: 'Recipient phone number without + prefix' })
+  @ApiProperty({
+    example: '5511999999999',
+    description: 'Recipient phone number without + prefix',
+  })
   @IsString()
   @IsNotEmpty({ message: 'to é obrigatório' })
   to!: string;
 
-  @ApiProperty({ enum: MessageType, example: MessageType.text, description: 'Message type' })
+  @ApiProperty({
+    enum: MessageType,
+    example: MessageType.text,
+    description: 'Message type',
+  })
   @IsEnum(MessageType)
   type!: MessageType;
 
@@ -219,61 +229,92 @@ export class MetaMessageDto {
   @IsString()
   mimetype?: string;
 
-  @ApiPropertyOptional({ type: () => TextBodyDto, description: 'Required when type=text' })
+  @ApiPropertyOptional({
+    type: () => TextBodyDto,
+    description: 'Required when type=text',
+  })
   @IsOptional()
   @ValidateNested()
   @Type(() => TextBodyDto)
   text?: TextBodyDto;
 
-  @ApiPropertyOptional({ type: () => MediaDto, description: 'Required when type=image' })
+  @ApiPropertyOptional({
+    type: () => MediaDto,
+    description: 'Required when type=image',
+  })
   @IsOptional()
   @ValidateNested()
   @Type(() => MediaDto)
   image?: MediaDto;
 
-  @ApiPropertyOptional({ type: () => MediaDto, description: 'Required when type=video' })
+  @ApiPropertyOptional({
+    type: () => MediaDto,
+    description: 'Required when type=video',
+  })
   @IsOptional()
   @ValidateNested()
   @Type(() => MediaDto)
   video?: MediaDto;
 
-  @ApiPropertyOptional({ type: () => AudioDto, description: 'Required when type=audio' })
+  @ApiPropertyOptional({
+    type: () => AudioDto,
+    description: 'Required when type=audio',
+  })
   @IsOptional()
   @ValidateNested()
   @Type(() => AudioDto)
   audio?: AudioDto;
 
-  @ApiPropertyOptional({ type: () => DocumentDto, description: 'Required when type=document' })
+  @ApiPropertyOptional({
+    type: () => DocumentDto,
+    description: 'Required when type=document',
+  })
   @IsOptional()
   @ValidateNested()
   @Type(() => DocumentDto)
   document?: DocumentDto;
 
-  @ApiPropertyOptional({ type: () => StickerDto, description: 'Required when type=sticker' })
+  @ApiPropertyOptional({
+    type: () => StickerDto,
+    description: 'Required when type=sticker',
+  })
   @IsOptional()
   @ValidateNested()
   @Type(() => StickerDto)
   sticker?: StickerDto;
 
-  @ApiPropertyOptional({ type: () => LocationDto, description: 'Required when type=location' })
+  @ApiPropertyOptional({
+    type: () => LocationDto,
+    description: 'Required when type=location',
+  })
   @IsOptional()
   @ValidateNested()
   @Type(() => LocationDto)
   location?: LocationDto;
 
-  @ApiPropertyOptional({ type: () => ReactionDto, description: 'Required when type=reaction' })
+  @ApiPropertyOptional({
+    type: () => ReactionDto,
+    description: 'Required when type=reaction',
+  })
   @IsOptional()
   @ValidateNested()
   @Type(() => ReactionDto)
   reaction?: ReactionDto;
 
-  @ApiPropertyOptional({ type: () => InteractiveDto, description: 'Required when type=interactive' })
+  @ApiPropertyOptional({
+    type: () => InteractiveDto,
+    description: 'Required when type=interactive',
+  })
   @IsOptional()
   @ValidateNested()
   @Type(() => InteractiveDto)
   interactive?: InteractiveDto;
 
-  @ApiPropertyOptional({ type: 'array', items: { type: 'object' }, description: 'Required when type=contacts' })
+  @ApiPropertyOptional({
+    type: 'array',
+    items: { type: 'object' },
+    description: 'Required when type=contacts',
+  })
   @IsOptional()
   contacts?: any[];
 }

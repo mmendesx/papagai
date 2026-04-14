@@ -36,10 +36,14 @@ async function bootstrap() {
   assertProductionJwtSecret();
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const configService = app.get(ConfigService);
-  const corsOrigin = configService.get<string>('corsOrigin', 'http://localhost:4200');
+  const corsOrigin = configService.get<string>(
+    'corsOrigin',
+    'http://localhost:4200',
+  );
 
   function flattenErrors(errors: any[]): string[] {
     return errors.flatMap((e) => {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
       const own = Object.values(e.constraints ?? {}) as string[];
       const nested = flattenErrors(e.children ?? []);
       return [...own, ...nested];
@@ -118,4 +122,4 @@ async function bootstrap() {
     console.log(`Swagger UI: http://localhost:${port}/api/docs`);
   }
 }
-bootstrap();
+void bootstrap();

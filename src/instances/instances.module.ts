@@ -6,10 +6,7 @@ import { InstancesController } from './instances.controller.js';
 import { UploadCleanupService } from './upload-cleanup.service.js';
 
 @Module({
-  imports: [
-    WhatsappModule,
-    AuthModule,
-  ],
+  imports: [WhatsappModule, AuthModule],
   controllers: [InstancesController],
   providers: [InstancesService, UploadCleanupService],
   exports: [InstancesService],

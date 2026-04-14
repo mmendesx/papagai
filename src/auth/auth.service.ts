@@ -9,7 +9,6 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { Prisma } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
@@ -55,10 +54,7 @@ export class AuthService {
         },
       });
     } catch (e) {
-      if (
-        e instanceof PrismaClientKnownRequestError &&
-        e.code === 'P2002'
-      ) {
+      if (e instanceof PrismaClientKnownRequestError && e.code === 'P2002') {
         throw new ConflictException('E-mail já cadastrado');
       }
       throw e;
@@ -99,7 +95,11 @@ export class AuthService {
     return this.toPublicUser(user);
   }
 
-  private async signToken(user: { id: string; email: string; name: string }): Promise<string> {
+  private async signToken(user: {
+    id: string;
+    email: string;
+    name: string;
+  }): Promise<string> {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
@@ -109,7 +109,11 @@ export class AuthService {
     return this.jwtService.signAsync(payload);
   }
 
-  private toPublicUser(user: { id: string; name: string; email: string }): PublicUser {
+  private toPublicUser(user: {
+    id: string;
+    name: string;
+    email: string;
+  }): PublicUser {
     return {
       id: user.id,
       name: user.name,

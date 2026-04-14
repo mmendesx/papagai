@@ -17,7 +17,10 @@ import {
 } from '../api-key-permissions.js';
 
 export class CreateApiKeyDto {
-  @ApiProperty({ example: 'My integration', description: 'Human-readable label for this key' })
+  @ApiProperty({
+    example: 'My integration',
+    description: 'Human-readable label for this key',
+  })
   @IsString()
   @MinLength(1)
   @MaxLength(255)
@@ -25,7 +28,8 @@ export class CreateApiKeyDto {
 
   @ApiPropertyOptional({
     example: '2027-01-01T00:00:00Z',
-    description: 'Expiry date in ISO 8601 format. Omit for a key that never expires.',
+    description:
+      'Expiry date in ISO 8601 format. Omit for a key that never expires.',
   })
   @IsOptional()
   @IsISO8601()

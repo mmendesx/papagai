@@ -90,12 +90,18 @@ describe('ChatStoreService', () => {
         message: {
           documentWithCaptionMessage: {
             message: {
-              documentMessage: { caption: 'caption text', fileName: 'file.pdf' },
+              documentMessage: {
+                caption: 'caption text',
+                fileName: 'file.pdf',
+              },
             },
           },
         },
       };
-      expect(extractPreview(msg)).toEqual({ type: 'document', body: 'caption text' });
+      expect(extractPreview(msg)).toEqual({
+        type: 'document',
+        body: 'caption text',
+      });
     });
 
     it('extracts documentWithCaptionMessage falling back to fileName when no caption', () => {
@@ -108,7 +114,10 @@ describe('ChatStoreService', () => {
           },
         },
       };
-      expect(extractPreview(msg)).toEqual({ type: 'document', body: 'file.pdf' });
+      expect(extractPreview(msg)).toEqual({
+        type: 'document',
+        body: 'file.pdf',
+      });
     });
 
     it('unwraps viewOnceMessage to its inner image type', () => {
@@ -143,7 +152,10 @@ describe('ChatStoreService', () => {
           pollCreationMessage: { name: 'Poll question' },
         },
       };
-      expect(extractPreview(msg)).toEqual({ type: 'unknown', body: 'Poll question' });
+      expect(extractPreview(msg)).toEqual({
+        type: 'unknown',
+        body: 'Poll question',
+      });
     });
 
     // Regression: all 10 original types still resolve correctly
@@ -158,13 +170,23 @@ describe('ChatStoreService', () => {
     });
 
     it('extracts documentMessage with caption', () => {
-      const msg = { message: { documentMessage: { caption: 'doc caption', fileName: 'doc.pdf' } } };
-      expect(extractPreview(msg)).toEqual({ type: 'document', body: 'doc caption' });
+      const msg = {
+        message: {
+          documentMessage: { caption: 'doc caption', fileName: 'doc.pdf' },
+        },
+      };
+      expect(extractPreview(msg)).toEqual({
+        type: 'document',
+        body: 'doc caption',
+      });
     });
 
     it('extracts documentMessage falling back to fileName', () => {
       const msg = { message: { documentMessage: { fileName: 'doc.pdf' } } };
-      expect(extractPreview(msg)).toEqual({ type: 'document', body: 'doc.pdf' });
+      expect(extractPreview(msg)).toEqual({
+        type: 'document',
+        body: 'doc.pdf',
+      });
     });
 
     it('extracts sticker as type sticker with null body', () => {
@@ -179,7 +201,10 @@ describe('ChatStoreService', () => {
 
     it('extracts locationMessage address when no name', () => {
       const msg = { message: { locationMessage: { address: '123 Main St' } } };
-      expect(extractPreview(msg)).toEqual({ type: 'location', body: '123 Main St' });
+      expect(extractPreview(msg)).toEqual({
+        type: 'location',
+        body: '123 Main St',
+      });
     });
 
     it('extracts contactMessage displayName', () => {
@@ -193,18 +218,31 @@ describe('ChatStoreService', () => {
     });
 
     it('extracts buttonsMessage contentText as interactive body', () => {
-      const msg = { message: { buttonsMessage: { contentText: 'button body' } } };
-      expect(extractPreview(msg)).toEqual({ type: 'interactive', body: 'button body' });
+      const msg = {
+        message: { buttonsMessage: { contentText: 'button body' } },
+      };
+      expect(extractPreview(msg)).toEqual({
+        type: 'interactive',
+        body: 'button body',
+      });
     });
 
     it('extracts buttonsMessage text as interactive body when contentText is absent', () => {
       const msg = { message: { buttonsMessage: { text: 'button body' } } };
-      expect(extractPreview(msg)).toEqual({ type: 'interactive', body: 'button body' });
+      expect(extractPreview(msg)).toEqual({
+        type: 'interactive',
+        body: 'button body',
+      });
     });
 
     it('extracts interactiveMessage body.text as interactive body', () => {
-      const msg = { message: { interactiveMessage: { body: { text: 'interactive body' } } } };
-      expect(extractPreview(msg)).toEqual({ type: 'interactive', body: 'interactive body' });
+      const msg = {
+        message: { interactiveMessage: { body: { text: 'interactive body' } } },
+      };
+      expect(extractPreview(msg)).toEqual({
+        type: 'interactive',
+        body: 'interactive body',
+      });
     });
 
     it('extracts templateMessage hydratedContentText as interactive body', () => {
@@ -215,7 +253,10 @@ describe('ChatStoreService', () => {
           },
         },
       };
-      expect(extractPreview(msg)).toEqual({ type: 'interactive', body: 'template body' });
+      expect(extractPreview(msg)).toEqual({
+        type: 'interactive',
+        body: 'template body',
+      });
     });
   });
 
@@ -232,7 +273,11 @@ describe('ChatStoreService', () => {
       expect(chats[0].unreadCount).toBe(1);
       expect(chats[0].lastMessage).toBe('Hello');
 
-      const messages = svc.getMessages(USER, INSTANCE, '5511999999999@s.whatsapp.net');
+      const messages = svc.getMessages(
+        USER,
+        INSTANCE,
+        '5511999999999@s.whatsapp.net',
+      );
       expect(messages).toHaveLength(1);
       expect(messages[0].fromMe).toBe(false);
       expect(messages[0].body).toBe('Hello');
@@ -329,7 +374,11 @@ describe('ChatStoreService', () => {
       svc.recordIncoming(USER, INSTANCE, msg);
       svc.recordIncoming(USER, INSTANCE, msg);
 
-      const messages = svc.getMessages(USER, INSTANCE, '5511999999999@s.whatsapp.net');
+      const messages = svc.getMessages(
+        USER,
+        INSTANCE,
+        '5511999999999@s.whatsapp.net',
+      );
       expect(messages).toHaveLength(1);
 
       const counters = svc.getCounters(USER, INSTANCE);
@@ -367,7 +416,11 @@ describe('ChatStoreService', () => {
       expect(chats).toHaveLength(1);
       expect(chats[0].lastMessage).toBe('Hey!');
 
-      const messages = svc.getMessages(USER, INSTANCE, '5511999999999@s.whatsapp.net');
+      const messages = svc.getMessages(
+        USER,
+        INSTANCE,
+        '5511999999999@s.whatsapp.net',
+      );
       expect(messages).toHaveLength(1);
       expect(messages[0].fromMe).toBe(true);
     });
@@ -376,8 +429,12 @@ describe('ChatStoreService', () => {
       const redis = makeMockRedis();
       const svc = new ChatStoreService(redis);
 
-      svc.recordOutgoing(USER, INSTANCE, '5511999999999', 'a', { key: { id: '1' } });
-      svc.recordOutgoing(USER, INSTANCE, '5511999999999', 'b', { key: { id: '2' } });
+      svc.recordOutgoing(USER, INSTANCE, '5511999999999', 'a', {
+        key: { id: '1' },
+      });
+      svc.recordOutgoing(USER, INSTANCE, '5511999999999', 'b', {
+        key: { id: '2' },
+      });
 
       expect(svc.getCounters(USER, INSTANCE).sent).toBe(2);
     });
@@ -394,7 +451,11 @@ describe('ChatStoreService', () => {
         { key: { id: 'x1' } },
       );
 
-      const messages = svc.getMessages(USER, INSTANCE, '5511999999999@s.whatsapp.net');
+      const messages = svc.getMessages(
+        USER,
+        INSTANCE,
+        '5511999999999@s.whatsapp.net',
+      );
       expect(messages).toHaveLength(1);
     });
 
@@ -407,9 +468,19 @@ describe('ChatStoreService', () => {
         message: { imageMessage: { caption: 'photo caption' } },
       };
 
-      svc.recordOutgoing(USER, INSTANCE, '5511999999999', 'photo caption', baileysResult);
+      svc.recordOutgoing(
+        USER,
+        INSTANCE,
+        '5511999999999',
+        'photo caption',
+        baileysResult,
+      );
 
-      const messages = svc.getMessages(USER, INSTANCE, '5511999999999@s.whatsapp.net');
+      const messages = svc.getMessages(
+        USER,
+        INSTANCE,
+        '5511999999999@s.whatsapp.net',
+      );
       expect(messages).toHaveLength(1);
       expect(messages[0].type).toBe('image');
     });
@@ -418,7 +489,10 @@ describe('ChatStoreService', () => {
       const redis = makeMockRedis();
       const svc = new ChatStoreService(redis);
 
-      const baileysResult = { key: { id: 'btn-out-1' }, message: { conversation: 'Escolha' } };
+      const baileysResult = {
+        key: { id: 'btn-out-1' },
+        message: { conversation: 'Escolha' },
+      };
 
       svc.recordOutgoing(
         USER,
@@ -429,7 +503,11 @@ describe('ChatStoreService', () => {
         ['Sim', 'Não'],
       );
 
-      const messages = svc.getMessages(USER, INSTANCE, '5511999999999@s.whatsapp.net');
+      const messages = svc.getMessages(
+        USER,
+        INSTANCE,
+        '5511999999999@s.whatsapp.net',
+      );
       expect(messages).toHaveLength(1);
       expect(messages[0].interactiveButtons).toEqual(['Sim', 'Não']);
     });
@@ -443,9 +521,19 @@ describe('ChatStoreService', () => {
         message: { conversation: 'plain text' },
       };
 
-      svc.recordOutgoing(USER, INSTANCE, '5511999999999', 'plain text', baileysResult);
+      svc.recordOutgoing(
+        USER,
+        INSTANCE,
+        '5511999999999',
+        'plain text',
+        baileysResult,
+      );
 
-      const messages = svc.getMessages(USER, INSTANCE, '5511999999999@s.whatsapp.net');
+      const messages = svc.getMessages(
+        USER,
+        INSTANCE,
+        '5511999999999@s.whatsapp.net',
+      );
       expect(messages).toHaveLength(1);
       expect(messages[0].type).toBe('text');
       expect(messages[0].interactiveButtons).toBeUndefined();
@@ -453,7 +541,7 @@ describe('ChatStoreService', () => {
   });
 
   describe('getChats', () => {
-    it('sorts by lastMessageAt descending', async () => {
+    it('sorts by lastMessageAt descending', () => {
       const redis = makeMockRedis();
       const svc = new ChatStoreService(redis);
 
@@ -488,11 +576,27 @@ describe('ChatStoreService', () => {
       const redis = makeMockRedis();
       const svc = new ChatStoreService(redis);
 
-      svc.recordIncoming(USER, INSTANCE, makeMsg({ id: 'a', messageTimestamp: 1000 }));
-      svc.recordIncoming(USER, INSTANCE, makeMsg({ id: 'b', messageTimestamp: 2000 }));
-      svc.recordIncoming(USER, INSTANCE, makeMsg({ id: 'c', messageTimestamp: 3000 }));
+      svc.recordIncoming(
+        USER,
+        INSTANCE,
+        makeMsg({ id: 'a', messageTimestamp: 1000 }),
+      );
+      svc.recordIncoming(
+        USER,
+        INSTANCE,
+        makeMsg({ id: 'b', messageTimestamp: 2000 }),
+      );
+      svc.recordIncoming(
+        USER,
+        INSTANCE,
+        makeMsg({ id: 'c', messageTimestamp: 3000 }),
+      );
 
-      const messages = svc.getMessages(USER, INSTANCE, '5511999999999@s.whatsapp.net');
+      const messages = svc.getMessages(
+        USER,
+        INSTANCE,
+        '5511999999999@s.whatsapp.net',
+      );
       expect(messages[0].id).toBe('a');
       expect(messages[1].id).toBe('b');
       expect(messages[2].id).toBe('c');
@@ -527,7 +631,9 @@ describe('ChatStoreService', () => {
       const redis = makeMockRedis();
       const svc = new ChatStoreService(redis);
       svc.recordIncoming(USER, INSTANCE, makeMsg());
-      expect(svc.getMessages(USER, INSTANCE, 'nope@s.whatsapp.net')).toEqual([]);
+      expect(svc.getMessages(USER, INSTANCE, 'nope@s.whatsapp.net')).toEqual(
+        [],
+      );
     });
   });
 
@@ -640,7 +746,11 @@ describe('ChatStoreService', () => {
       expect(counters.sent).toBe(5);
       expect(counters.received).toBe(10);
 
-      const messages = svc.getMessages(USER, INSTANCE, '5511999999999@s.whatsapp.net');
+      const messages = svc.getMessages(
+        USER,
+        INSTANCE,
+        '5511999999999@s.whatsapp.net',
+      );
       expect(messages).toHaveLength(1);
       expect(messages[0].id).toBe('msg-hydrated');
     });
@@ -679,13 +789,13 @@ describe('ChatStoreService', () => {
       await svc.hydrate(USER, INSTANCE);
 
       // Attempt to record the same message again
-      svc.recordIncoming(
+      svc.recordIncoming(USER, INSTANCE, makeMsg({ id: 'already-seen' }));
+
+      const messages = svc.getMessages(
         USER,
         INSTANCE,
-        makeMsg({ id: 'already-seen' }),
+        '5511999999999@s.whatsapp.net',
       );
-
-      const messages = svc.getMessages(USER, INSTANCE, '5511999999999@s.whatsapp.net');
       expect(messages).toHaveLength(1);
     });
   });

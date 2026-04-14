@@ -13,6 +13,7 @@ describe('AuthThrottlerGuard', () => {
   });
 
   it('throwThrottlingException throws HttpException with 429', async () => {
+    // eslint-disable-next-line @typescript-eslint/require-await
     await expect(async () =>
       (guard as any).throwThrottlingException(),
     ).rejects.toThrow(HttpException);

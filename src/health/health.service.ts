@@ -12,7 +12,9 @@ export class HealthService implements OnModuleDestroy {
     private readonly prisma: PrismaService,
     configService: ConfigService,
   ) {
-    this.redis = new Redis(configService.get<string>('redisUrl') ?? 'redis://localhost:6379');
+    this.redis = new Redis(
+      configService.get<string>('redisUrl') ?? 'redis://localhost:6379',
+    );
   }
 
   async checkHealth(): Promise<{ db: string; redis: string; uptime: number }> {
@@ -20,8 +22,14 @@ export class HealthService implements OnModuleDestroy {
       new Promise<T>((resolve, reject) => {
         const handle = setTimeout(() => reject(new Error('timeout')), ms);
         promise.then(
-          (v) => { clearTimeout(handle); resolve(v); },
-          (e) => { clearTimeout(handle); reject(e); },
+          (v) => {
+            clearTimeout(handle);
+            resolve(v);
+          },
+          (e) => {
+            clearTimeout(handle);
+            reject(e instanceof Error ? e : new Error(String(e)));
+          },
         );
       });
 

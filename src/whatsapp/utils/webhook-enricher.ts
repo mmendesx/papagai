@@ -43,9 +43,9 @@ export class WebhookEnricher {
   }
 
   async enrich(webhookData: any, msg: any, messageType: string): Promise<void> {
-    type Enricher = (msg: any, data: any) => Promise<void>;
+    type Enricher = (msg: any, data: any) => void | Promise<void>;
     const ENRICHERS: Partial<Record<string, Enricher>> = {
-      text: async (msg, data) => {
+      text: (msg, data) => {
         data.text =
           msg.message?.conversation || msg.message?.extendedTextMessage?.text;
       },
@@ -89,7 +89,7 @@ export class WebhookEnricher {
         const r = await this.downloadFn(msg, 'sticker');
         if (r) data.sticker = r;
       },
-      location: async (msg, data) => {
+      location: (msg, data) => {
         const loc = msg.message?.locationMessage;
         data.location = {
           degreesLatitude: loc?.degreesLatitude,
@@ -98,7 +98,7 @@ export class WebhookEnricher {
           address: loc?.address,
         };
       },
-      contact: async (msg, data) => {
+      contact: (msg, data) => {
         const contact = msg.message?.contactMessage;
         const vcard: string = contact?.vcard || '';
         data.contact = {
@@ -107,12 +107,12 @@ export class WebhookEnricher {
           numbers: parseVCard(vcard),
         };
       },
-      button_response: async (msg, data) => {
+      button_response: (msg, data) => {
         const btn = msg.message?.buttonsResponseMessage;
         data.buttonId = btn?.selectedButtonId;
         data.text = btn?.selectedDisplayText;
       },
-      reaction: async (msg, data) => {
+      reaction: (msg, data) => {
         const react = msg.message?.reactionMessage;
         data.reaction = react?.text;
         data.parentMessageId = react?.key?.id;

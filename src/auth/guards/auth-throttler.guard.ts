@@ -29,7 +29,9 @@ export class AuthThrottlerGuard extends ThrottlerGuard {
       if (error instanceof HttpException && error.getStatus() === 429) {
         throw error;
       }
-      this.logger.warn(`AuthThrottlerGuard failed open: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.warn(
+        `AuthThrottlerGuard failed open: ${error instanceof Error ? error.message : String(error)}`,
+      );
       return true;
     }
   }

@@ -163,7 +163,9 @@ export function extractPreview(msg: any): {
     return extractPreview({ message: m.viewOnceMessage.message });
   }
   if (m.viewOnceMessageV2?.message?.viewOnceMessage?.message) {
-    return extractPreview({ message: m.viewOnceMessageV2.message.viewOnceMessage.message });
+    return extractPreview({
+      message: m.viewOnceMessageV2.message.viewOnceMessage.message,
+    });
   }
 
   // Poll — return body = question text
@@ -249,8 +251,13 @@ export class ChatStoreService {
 
   // ── Public API ────────────────────────────────────────────────────────────
 
-  observeEvents(userId: string, instanceName: string): Observable<ChatRealtimeEvent> {
-    return this.getEventsSubject(instanceKey(userId, instanceName)).asObservable();
+  observeEvents(
+    userId: string,
+    instanceName: string,
+  ): Observable<ChatRealtimeEvent> {
+    return this.getEventsSubject(
+      instanceKey(userId, instanceName),
+    ).asObservable();
   }
 
   recordIncoming(userId: string, instanceName: string, msg: any): void {
@@ -397,8 +404,7 @@ export class ChatStoreService {
     instanceName: string,
   ): { sent: number; received: number; activeConversations: number } {
     const store = this.stores.get(instanceKey(userId, instanceName));
-    if (!store)
-      return { sent: 0, received: 0, activeConversations: 0 };
+    if (!store) return { sent: 0, received: 0, activeConversations: 0 };
     return {
       sent: store.counters.sent,
       received: store.counters.received,
@@ -513,7 +519,7 @@ export class ChatStoreService {
       source: 'read',
       chat: { ...chat },
     });
-    this.persistChatAsync(userId, instanceName, chatId, chat);
+    void this.persistChatAsync(userId, instanceName, chatId, chat);
   }
 
   clearInstance(userId: string, instanceName: string): void {

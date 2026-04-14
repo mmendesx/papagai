@@ -41,7 +41,10 @@ export class WebhookDeliveryProcessor extends WorkerHost {
         this.logger.warn(
           `Webhook blocked (SSRF): instance=${instanceName} url=${this.extractHostname(webhookUrl)} — moving to failed`,
         );
-        await job.moveToFailed(new Error('SSRF-blocked address'), job.token ?? '');
+        await job.moveToFailed(
+          new Error('SSRF-blocked address'),
+          job.token ?? '',
+        );
         return;
       }
       throw error;

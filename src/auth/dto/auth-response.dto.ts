@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class UserResponseDto {
   @ApiProperty({ example: 1, description: 'User ID' })
@@ -12,9 +12,15 @@ export class UserResponseDto {
 }
 
 export class AuthResponseDto {
-  @ApiProperty({ example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...', description: 'JWT access token' })
+  @ApiProperty({
+    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+    description: 'JWT access token',
+  })
   access_token: string;
 
-  @ApiProperty({ type: UserResponseDto, description: 'Authenticated user profile' })
+  @ApiProperty({
+    type: UserResponseDto,
+    description: 'Authenticated user profile',
+  })
   user: UserResponseDto;
 }

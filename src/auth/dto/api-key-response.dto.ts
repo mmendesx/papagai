@@ -11,12 +11,16 @@ export class ApiKeyResponseDto {
   @ApiProperty({ example: 'My integration' })
   name: string;
 
-  @ApiProperty({ example: 'ppg_acct_7x', description: 'First 12 characters of the key for identification' })
+  @ApiProperty({
+    example: 'ppg_acct_7x',
+    description: 'First 12 characters of the key for identification',
+  })
   prefix: string;
 
   @ApiPropertyOptional({
     example: 'ppg_acct_7xKqR3mNpL9vBsYtFgHjWcEu',
-    description: 'Full key — only present immediately after creation, never returned again',
+    description:
+      'Full key — only present immediately after creation, never returned again',
   })
   key?: string;
 

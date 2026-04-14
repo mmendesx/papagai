@@ -17,9 +17,11 @@ jest.mock('./utils/redis-auth-state', () => ({
 }));
 
 jest.mock('./utils/jid-resolver', () => ({
-  resolveJid: jest.fn().mockImplementation((_socket: any, jid: string) =>
-    Promise.resolve(jid.includes('@') ? jid : `${jid}@s.whatsapp.net`),
-  ),
+  resolveJid: jest
+    .fn()
+    .mockImplementation((_socket: any, jid: string) =>
+      Promise.resolve(jid.includes('@') ? jid : `${jid}@s.whatsapp.net`),
+    ),
 }));
 
 import { Test, TestingModule } from '@nestjs/testing';
@@ -42,8 +44,6 @@ const mockSocket = {
   end: mockSocketEnd,
   user: { id: '5511999999999:1@s.whatsapp.net' },
 };
-
-const makeWASocketMock = jest.fn(() => mockSocket);
 
 jest.mock('@whiskeysockets/baileys', () => {
   const mock = jest.fn(() => mockSocket);
@@ -116,7 +116,9 @@ describe('WhatsappService', () => {
       recordOutgoing: jest.fn(),
       getChats: jest.fn().mockReturnValue([]),
       getMessages: jest.fn().mockReturnValue([]),
-      getCounters: jest.fn().mockReturnValue({ sent: 0, received: 0, activeConversations: 0 }),
+      getCounters: jest
+        .fn()
+        .mockReturnValue({ sent: 0, received: 0, activeConversations: 0 }),
       clearInstance: jest.fn(),
     };
 
@@ -607,10 +609,16 @@ describe('WhatsappService', () => {
 
     it('BDD Scenario 1 — calls recordOutgoing with the extracted body when a fromMe text message arrives via messages.upsert', async () => {
       const handler = await getMessagesUpsertHandler();
-      const mockChatStore = (service as any).chatStore as jest.Mocked<Partial<ChatStoreService>>;
+      const mockChatStore = (service as any).chatStore as jest.Mocked<
+        Partial<ChatStoreService>
+      >;
 
       const msg = {
-        key: { fromMe: true, remoteJid: '5511888888888@s.whatsapp.net', id: 'msg-id-001' },
+        key: {
+          fromMe: true,
+          remoteJid: '5511888888888@s.whatsapp.net',
+          id: 'msg-id-001',
+        },
         message: { conversation: 'hello from phone' },
       };
 
@@ -627,19 +635,21 @@ describe('WhatsappService', () => {
 
     it('BDD Scenario 2 — recordOutgoing is called (not skipped by the handler) so seenIds dedup inside recordOutgoing can apply', async () => {
       const handler = await getMessagesUpsertHandler();
-      const mockChatStore = (service as any).chatStore as jest.Mocked<Partial<ChatStoreService>>;
+      const mockChatStore = (service as any).chatStore as jest.Mocked<
+        Partial<ChatStoreService>
+      >;
 
       const msg = {
-        key: { fromMe: true, remoteJid: '5511777777777@s.whatsapp.net', id: 'msg-id-dup-002' },
+        key: {
+          fromMe: true,
+          remoteJid: '5511777777777@s.whatsapp.net',
+          id: 'msg-id-dup-002',
+        },
         message: { conversation: 'sent via API' },
       };
 
-      // Simulate that recordOutgoing returns early on the second call (seenIds dedup)
-      // On first call (from send()), it records normally; on second call (from upsert), it no-ops.
-      let callCount = 0;
-      (mockChatStore.recordOutgoing as jest.Mock).mockImplementation(() => {
-        callCount++;
-      });
+      // Simulate that recordOutgoing tracks calls (dedup is delegated to recordOutgoing itself).
+      (mockChatStore.recordOutgoing as jest.Mock).mockImplementation(() => {});
 
       // First call simulates send() already recording the message
       (mockChatStore.recordOutgoing as jest.Mock)({ id: 'msg-id-dup-002' });
@@ -668,7 +678,11 @@ describe('WhatsappService', () => {
           ev: { on: jest.fn() },
           user: { id: '5511999999999:1@s.whatsapp.net' },
           sendMessage: jest.fn().mockResolvedValue(sendMessageResult),
-          onWhatsApp: jest.fn().mockResolvedValue([{ jid: '5511888888888@s.whatsapp.net', exists: true }]),
+          onWhatsApp: jest
+            .fn()
+            .mockResolvedValue([
+              { jid: '5511888888888@s.whatsapp.net', exists: true },
+            ]),
         } as any,
       });
     }
@@ -678,7 +692,10 @@ describe('WhatsappService', () => {
     });
 
     it('extracts labels from content.buttons and passes them as interactiveButtons', async () => {
-      const baileysResult = { key: { id: 'btn-send-1' }, message: { conversation: 'Pick' } };
+      const baileysResult = {
+        key: { id: 'btn-send-1' },
+        message: { conversation: 'Pick' },
+      };
       const instance = buildSendInstance(baileysResult);
       (service as any).instances.set(`${TEST_USER_ID}:sendInstance`, instance);
 
@@ -690,9 +707,16 @@ describe('WhatsappService', () => {
         ],
       };
 
-      await service.send(TEST_USER_ID, 'sendInstance', '5511888888888', content);
+      await service.send(
+        TEST_USER_ID,
+        'sendInstance',
+        '5511888888888',
+        content,
+      );
 
-      const mockChatStore = (service as any).chatStore as jest.Mocked<Partial<ChatStoreService>>;
+      const mockChatStore = (service as any).chatStore as jest.Mocked<
+        Partial<ChatStoreService>
+      >;
       expect(mockChatStore.recordOutgoing).toHaveBeenCalledWith(
         TEST_USER_ID,
         'sendInstance',
@@ -718,9 +742,16 @@ describe('WhatsappService', () => {
         },
       };
 
-      await service.send(TEST_USER_ID, 'sendInstance', '5511888888888', content);
+      await service.send(
+        TEST_USER_ID,
+        'sendInstance',
+        '5511888888888',
+        content,
+      );
 
-      const mockChatStore = (service as any).chatStore as jest.Mocked<Partial<ChatStoreService>>;
+      const mockChatStore = (service as any).chatStore as jest.Mocked<
+        Partial<ChatStoreService>
+      >;
       expect(mockChatStore.recordOutgoing).toHaveBeenCalledWith(
         TEST_USER_ID,
         'sendInstance',
@@ -748,9 +779,16 @@ describe('WhatsappService', () => {
         },
       };
 
-      await service.send(TEST_USER_ID, 'sendInstance', '5511888888888', content);
+      await service.send(
+        TEST_USER_ID,
+        'sendInstance',
+        '5511888888888',
+        content,
+      );
 
-      const mockChatStore = (service as any).chatStore as jest.Mocked<Partial<ChatStoreService>>;
+      const mockChatStore = (service as any).chatStore as jest.Mocked<
+        Partial<ChatStoreService>
+      >;
       expect(mockChatStore.recordOutgoing).toHaveBeenCalledWith(
         TEST_USER_ID,
         'sendInstance',
@@ -762,13 +800,20 @@ describe('WhatsappService', () => {
     });
 
     it('passes undefined interactiveButtons for plain text content', async () => {
-      const baileysResult = { key: { id: 'text-send-1' }, message: { conversation: 'Hello' } };
+      const baileysResult = {
+        key: { id: 'text-send-1' },
+        message: { conversation: 'Hello' },
+      };
       const instance = buildSendInstance(baileysResult);
       (service as any).instances.set(`${TEST_USER_ID}:sendInstance`, instance);
 
-      await service.send(TEST_USER_ID, 'sendInstance', '5511888888888', { text: 'Hello' });
+      await service.send(TEST_USER_ID, 'sendInstance', '5511888888888', {
+        text: 'Hello',
+      });
 
-      const mockChatStore = (service as any).chatStore as jest.Mocked<Partial<ChatStoreService>>;
+      const mockChatStore = (service as any).chatStore as jest.Mocked<
+        Partial<ChatStoreService>
+      >;
       expect(mockChatStore.recordOutgoing).toHaveBeenCalledWith(
         TEST_USER_ID,
         'sendInstance',

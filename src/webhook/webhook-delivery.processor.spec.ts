@@ -26,7 +26,9 @@ import {
   WebhookUrlInvalidError,
 } from './webhook-url-validator';
 
-function buildJob(overrides: Partial<typeof mockJob> = {}): Job<WebhookJobData> {
+function buildJob(
+  overrides: Partial<Job<WebhookJobData>> = {},
+): Job<WebhookJobData> {
   return {
     data: {
       instanceName: 'test',
@@ -45,8 +47,6 @@ function buildJob(overrides: Partial<typeof mockJob> = {}): Job<WebhookJobData> 
   } as unknown as Job<WebhookJobData>;
 }
 
-const mockJob = buildJob();
-
 describe('WebhookDeliveryProcessor', () => {
   let processor: WebhookDeliveryProcessor;
   let httpPost: jest.Mock;
@@ -54,7 +54,9 @@ describe('WebhookDeliveryProcessor', () => {
 
   beforeEach(async () => {
     httpPost = jest.fn();
-    mockValidateOrThrow = validateOrThrow as jest.MockedFunction<typeof validateOrThrow>;
+    mockValidateOrThrow = validateOrThrow as jest.MockedFunction<
+      typeof validateOrThrow
+    >;
     mockValidateOrThrow.mockResolvedValue(undefined);
 
     const module: TestingModule = await Test.createTestingModule({
@@ -117,9 +119,7 @@ describe('WebhookDeliveryProcessor', () => {
       expect(logSpy).toHaveBeenCalledWith(
         expect.stringContaining('event=message'),
       );
-      expect(logSpy).toHaveBeenCalledWith(
-        expect.stringContaining('attempt=2'),
-      );
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('attempt=2'));
     });
 
     it('does NOT call logger.log on first-attempt success (attemptsMade === 0)', async () => {
@@ -145,7 +145,9 @@ describe('WebhookDeliveryProcessor', () => {
 
       await processor.process(job);
 
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(job.moveToFailed).toHaveBeenCalledTimes(1);
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(job.moveToFailed).toHaveBeenCalledWith(
         expect.objectContaining({ message: 'SSRF-blocked address' }),
         'token',
@@ -169,7 +171,9 @@ describe('WebhookDeliveryProcessor', () => {
       const networkError = new Error('Connection refused');
       httpPost.mockReturnValue(throwError(() => networkError));
 
-      await expect(processor.process(job)).rejects.toThrow('Connection refused');
+      await expect(processor.process(job)).rejects.toThrow(
+        'Connection refused',
+      );
     });
   });
 

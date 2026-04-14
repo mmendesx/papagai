@@ -66,36 +66,36 @@ const ACCOUNT_ADMIN_PERMISSIONS: AccountApiKeyPermission[] = [
   AccountApiKeyPermission.ACCOUNT_KEYS_MANAGE,
 ];
 
-const ACCOUNT_API_KEY_PERMISSION_TEMPLATES: AccountApiKeyPermissionTemplate[] = [
-  {
-    id: AccountApiKeyTemplateId.READ_ONLY,
-    name: 'Read-only',
-    description:
-      'Can read profile, instances, status, contacts, chats, metrics, and events.',
-    permissions: READ_ONLY_PERMISSIONS,
-  },
-  {
-    id: AccountApiKeyTemplateId.OPERATOR,
-    name: 'Operator',
-    description:
-      'Read-only plus send messages, mark chats as read, and update webhooks.',
-    permissions: OPERATOR_PERMISSIONS,
-  },
-  {
-    id: AccountApiKeyTemplateId.INSTANCE_MANAGER,
-    name: 'Instance manager',
-    description:
-      'Operator plus create/delete instances and manage instance-scoped keys.',
-    permissions: INSTANCE_MANAGER_PERMISSIONS,
-  },
-  {
-    id: AccountApiKeyTemplateId.ACCOUNT_ADMIN,
-    name: 'Account admin',
-    description:
-      'Instance manager plus manage account-scoped API keys.',
-    permissions: ACCOUNT_ADMIN_PERMISSIONS,
-  },
-];
+const ACCOUNT_API_KEY_PERMISSION_TEMPLATES: AccountApiKeyPermissionTemplate[] =
+  [
+    {
+      id: AccountApiKeyTemplateId.READ_ONLY,
+      name: 'Read-only',
+      description:
+        'Can read profile, instances, status, contacts, chats, metrics, and events.',
+      permissions: READ_ONLY_PERMISSIONS,
+    },
+    {
+      id: AccountApiKeyTemplateId.OPERATOR,
+      name: 'Operator',
+      description:
+        'Read-only plus send messages, mark chats as read, and update webhooks.',
+      permissions: OPERATOR_PERMISSIONS,
+    },
+    {
+      id: AccountApiKeyTemplateId.INSTANCE_MANAGER,
+      name: 'Instance manager',
+      description:
+        'Operator plus create/delete instances and manage instance-scoped keys.',
+      permissions: INSTANCE_MANAGER_PERMISSIONS,
+    },
+    {
+      id: AccountApiKeyTemplateId.ACCOUNT_ADMIN,
+      name: 'Account admin',
+      description: 'Instance manager plus manage account-scoped API keys.',
+      permissions: ACCOUNT_ADMIN_PERMISSIONS,
+    },
+  ];
 
 export function listAccountApiKeyPermissionTemplates(): AccountApiKeyPermissionTemplate[] {
   return ACCOUNT_API_KEY_PERMISSION_TEMPLATES.map((template) => ({
@@ -235,8 +235,7 @@ export function resolveAccountPermissionForRequest(
   const path = normalizePath(req.path || req.originalUrl || '/');
 
   const rule = ROUTE_PERMISSION_RULES.find(
-    (candidate) =>
-      candidate.method === method && candidate.pattern.test(path),
+    (candidate) => candidate.method === method && candidate.pattern.test(path),
   );
 
   return rule?.permission;
