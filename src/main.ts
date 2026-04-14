@@ -1,3 +1,4 @@
+import 'dotenv/config'; // loads .env silently if present; no-op when absent
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe, UnprocessableEntityException } from '@nestjs/common';

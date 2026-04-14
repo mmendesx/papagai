@@ -1,3 +1,4 @@
+import 'dotenv/config'; // loads .env silently if present; no-op when absent
 import {
   INestApplication,
   ValidationPipe,
