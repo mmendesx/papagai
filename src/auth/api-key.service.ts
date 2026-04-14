@@ -68,7 +68,7 @@ export class ApiKeyService {
     return { ...key, key: rawKey };
   }
 
-  async listAccountKeys(userId: string) {
+  listAccountKeys(userId: string) {
     return this.prisma.apiKey.findMany({
       where: { userId, instanceId: null },
       orderBy: { createdAt: 'desc' },
