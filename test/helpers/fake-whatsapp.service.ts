@@ -1,5 +1,7 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Observable, EMPTY } from 'rxjs';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { ChatRealtimeEvent } from '../../src/whatsapp/chat-store.service';
 
 interface FakeInstance {
   name: string;
@@ -129,14 +131,64 @@ export class FakeWhatsappService implements OnModuleInit, OnModuleDestroy {
     return null;
   }
 
-  async send(): Promise<void> {}
+  send(
+    _userId: string,
+    _instanceName: string,
+    _to: string,
+    _content: any,
+  ): Promise<any> {
+    return Promise.resolve({ key: { id: 'fake-msg-id' }, status: 1 });
+  }
 
-  getContactInfo(): Promise<any> {
+  getContactInfo(
+    _userId: string,
+    _instanceName: string,
+    _number: string,
+  ): Promise<any> {
     return Promise.resolve(undefined);
   }
 
-  getChats(): any[] {
+  getChats(
+    _userId: string,
+    _instanceName: string,
+    _includeMessages: boolean,
+  ): any[] {
     return [];
+  }
+
+  getChatMessages(
+    _userId: string,
+    _instanceName: string,
+    _chatId: string,
+    _limit: number,
+  ): any[] {
+    return [];
+  }
+
+  streamChatEvents(
+    _userId: string,
+    _instanceName: string,
+  ): Observable<ChatRealtimeEvent> {
+    return EMPTY;
+  }
+
+  markChatRead(_userId: string, _instanceName: string, _chatId: string): void {}
+
+  getMetrics(
+    _userId: string,
+    _instanceName: string,
+  ): {
+    messagesSent: number;
+    messagesReceived: number;
+    activeConversations: number;
+    webhookEnabled: boolean;
+  } {
+    return {
+      messagesSent: 0,
+      messagesReceived: 0,
+      activeConversations: 0,
+      webhookEnabled: false,
+    };
   }
 
   async reconnectInstance(): Promise<void> {}
