@@ -1,3 +1,4 @@
+import { existsSync } from 'fs';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -17,6 +18,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
       load: [configuration],
       isGlobal: true,
       envFilePath: ['.env', '.env.local'],
+      ignoreEnvFile: !existsSync('.env') && !existsSync('.env.local'),
     }),
     ScheduleModule.forRoot(),
     BullModule.forRootAsync({
