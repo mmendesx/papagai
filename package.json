@@ -1,7 +1,7 @@
 {
     "name": "papagai",
     "version": "1.0.0",
-    "description": "🦜 Papagai - O papagaio que entrega suas mensagens. Gateway multi-dispositivo para WhatsApp com webhooks, mídia e botões interativos.",
+    "description": "Papagai is a self-hosted WhatsApp gateway with REST API, webhooks, signed media URLs, API keys, and an Angular dashboard.",
     "author": "Matheus Mendes",
     "private": true,
     "license": "MIT",

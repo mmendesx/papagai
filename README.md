@@ -1,50 +1,56 @@
-# 🦜 Papagai
+# Papagai
 
-**O papagaio que entrega suas mensagens.**
+[![E2E Tests](https://github.com/mmendesx/papagai/actions/workflows/e2e.yml/badge.svg)](https://github.com/mmendesx/papagai/actions/workflows/e2e.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Papagai é um gateway WhatsApp multi-dispositivo self-hosted que expõe uma API REST para gerenciar sessões, enviar todos os tipos de mensagem e receber eventos via webhooks. Inclui um painel web e uma página de documentação de API integrada, tudo servido de uma única origem.
+**The self-hosted WhatsApp gateway for delivering messages through a REST API, webhooks, signed media URLs, and a web dashboard.**
 
----
+Papagai is a multi-device WhatsApp gateway built for teams that want to run their own messaging infrastructure. It exposes a REST API for managing WhatsApp sessions, sending messages, receiving events through webhooks, and inspecting activity from an Angular dashboard served by the same backend.
 
-## Funcionalidades
-
-- **Gerenciamento de sessões multi-instância** — crie, conecte via QR Code, desconecte e exclua instâncias WhatsApp de forma independente
-- **Envio de mensagens** — texto, imagens, áudio, notas de voz, vídeo, documentos, stickers, localização, reações e mensagens com botões interativos
-- **Recebimento de mensagens** — todos os tipos capturados, mídia baixada automaticamente e servida como arquivos estáticos
-- **Webhooks por instância** — URL configurável, cabeçalhos personalizados, filtro de eventos (message, qr, connected, disconnected, …), ativar/desativar
-- **Autenticação JWT** — cadastro e login; todas as rotas de instância são protegidas
-- **Painel web** — SPA Angular para gerenciar instâncias, monitorar status, escanear QR Codes e configurar webhooks
-- **Documentação de API integrada** — página de referência interativa em `/docs`, sem ferramentas externas
-- **Reconexão automática** — sessões reconectam automaticamente após queda de conexão
+Papagai is not affiliated with, endorsed by, or sponsored by WhatsApp or Meta. It uses the Baileys ecosystem to interact with WhatsApp Web protocols. Use it responsibly and make sure your usage complies with WhatsApp's terms and the laws that apply to your region.
 
 ---
 
-## Stack Tecnológica
+## Features
 
-| Camada                   | Tecnologia                                |
-| ------------------------ | ----------------------------------------- |
-| Backend                  | NestJS 11, TypeScript 5.7, Node 22        |
-| Banco de dados           | PostgreSQL 16 + Prisma                    |
-| Cache / estado de sessão | Redis 7                                   |
-| WhatsApp                 | `@whiskeysockets/baileys` (fork whaileys) |
-| Frontend                 | Angular 19, Taiga UI, Tailwind CSS        |
-| Container                | Docker, Docker Compose                    |
-
----
-
-## Pré-requisitos
-
-- **Docker + Docker Compose** — para o caminho recomendado de desenvolvimento
-- **Node 22 + npm** — para executar o backend ou frontend fora do Docker
-- **Git**
+- **Multi-instance session management**: create, connect with QR Code, disconnect, and delete independent WhatsApp instances.
+- **Message sending**: text, images, audio, voice notes, video, documents, stickers, location, reactions, and interactive button messages.
+- **Message receiving**: inbound events are transformed, enriched, and delivered through per-instance webhooks.
+- **Signed media URLs**: downloaded media is exposed through expiring signed URLs instead of public static file paths.
+- **Per-instance webhooks**: configurable URL, custom headers, event filters, enable/disable controls, retries, and SSRF validation.
+- **JWT and API key authentication**: account access through JWT and scoped automation access through API keys.
+- **Angular dashboard**: manage instances, monitor status, scan QR Codes, configure webhooks, and inspect chats.
+- **Integrated API documentation**: interactive reference available at `/docs` when enabled.
+- **Automatic reconnection**: sessions attempt to reconnect after connection drops.
 
 ---
 
-## Primeiros Passos
+## Tech Stack
 
-### Docker com hot reload (recomendado)
+| Layer | Technology |
+| --- | --- |
+| Backend | NestJS 11, TypeScript 5.7, Node 22 |
+| Database | PostgreSQL 16 + Prisma |
+| Cache / queue | Redis 7, ioredis, BullMQ |
+| WhatsApp | `@whiskeysockets/baileys` through the `whaileys` fork |
+| Frontend | Angular 19, Taiga UI, Tailwind CSS |
+| Container | Docker, Docker Compose |
 
-A stack de desenvolvimento sobe PostgreSQL, Redis, o backend NestJS **e** o servidor Angular, todos com hot reload. Os segredos de dev já vêm embutidos — nenhum arquivo `.env` é necessário.
+---
+
+## Requirements
+
+- **Docker + Docker Compose** for the recommended development path.
+- **Node 22 + npm** for running the backend or frontend outside Docker.
+- **Git**.
+
+---
+
+## Quick Start
+
+### Docker With Hot Reload
+
+The development stack starts PostgreSQL, Redis, the NestJS backend, and the Angular dev server with hot reload. Development secrets are already defined in `docker-compose.dev.yml`, so no `.env` file is required for local development.
 
 ```bash
 git clone https://github.com/mmendesx/papagai.git
@@ -52,47 +58,47 @@ cd papagai
 make dev
 ```
 
-Ou sem o Make:
+Without Make:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 ```
 
-Após iniciar:
+After startup:
 
-- **App (Angular com HMR)** → `http://localhost:4200`
-- **API diretamente** → `http://localhost:3000`
-- Cadastre o primeiro usuário → `http://localhost:4200/register`
+- **Angular app with HMR**: `http://localhost:4200`
+- **API directly**: `http://localhost:3000`
+- **First user registration**: `http://localhost:4200/register`
 
-Como funciona:
+How the development stack works:
 
-- O código-fonte é montado nos containers via bind mount.
-- Alterações em `src/` disparam reinicialização do NestJS (`nest start --watch`) no container `papagai-app`.
-- Alterações em `client/src/` disparam HMR do Angular (`ng serve`) no container `papagai-client`.
-- O dev server do Angular faz proxy de `/api` para o container `app` via `client/proxy.conf.docker.json` — sem CORS.
+- Source code is mounted into the containers through bind mounts.
+- Changes in `src/` restart NestJS through `nest start --watch` in the `papagai-app` container.
+- Changes in `client/src/` trigger Angular HMR through `ng serve` in the `papagai-client` container.
+- The Angular dev server proxies `/api` to the backend container through `client/proxy.conf.docker.json`.
 
-> **Desenvolvimento local sem Docker**: se preferir rodar o backend ou o frontend diretamente no host, suba apenas a infra com `make infra` (PostgreSQL + Redis) e execute `npm run start:dev` e/ou `npm run start --prefix client` localmente. O arquivo `client/proxy.conf.json` aponta para `http://localhost:3000` para esse cenário.
+For local development without Docker, start only PostgreSQL and Redis with `make infra`, then run `npm run start:dev` and/or `npm run start --prefix client` on the host. The local Angular proxy file at `client/proxy.conf.json` points to `http://localhost:3000`.
 
 ---
 
-## Banco de dados
+## Database
 
-O schema é gerenciado pelo **Prisma** (`prisma/schema.prisma`). Em produção, as migrations são controladas exclusivamente por arquivos versionados. Antes de iniciar a aplicação em produção, aplique as migrations pendentes:
+The database schema is managed by Prisma in `prisma/schema.prisma`. Production migrations are controlled by versioned migration files. Apply pending migrations before starting the production app:
 
 ```bash
 npm run prisma:migrate:deploy
 ```
 
-### Scripts Prisma disponíveis
+### Prisma Scripts
 
-| Script                          | O que faz                                                 |
-| ------------------------------- | --------------------------------------------------------- |
-| `npm run prisma:generate`       | Regenera o Prisma Client a partir do schema               |
-| `npm run prisma:migrate`        | Cria e aplica uma nova migration em desenvolvimento       |
-| `npm run prisma:migrate:deploy` | Aplica migrations pendentes em produção (sem prompt)      |
-| `npm run prisma:studio`         | Abre o Prisma Studio para inspecionar o banco visualmente |
+| Script | Purpose |
+| --- | --- |
+| `npm run prisma:generate` | Regenerates Prisma Client from the schema. |
+| `npm run prisma:migrate` | Creates and applies a new development migration. |
+| `npm run prisma:migrate:deploy` | Applies pending production migrations without prompts. |
+| `npm run prisma:studio` | Opens Prisma Studio for visual database inspection. |
 
-Para resetar um banco de dados de desenvolvimento existente (apaga volumes e recria a stack):
+To reset an existing development database and recreate the stack:
 
 ```bash
 make down/v && make dev
@@ -100,73 +106,73 @@ make down/v && make dev
 
 ---
 
-## Variáveis de Ambiente
+## Environment Variables
 
-Os valores padrão de dev estão pré-definidos em `docker-compose.dev.yml` e em `.env.example`. Em produção, **`APP_KEY`, `JWT_SECRET` e `BASE_URL` devem ser definidos** — o compose de produção falha intencionalmente sem eles.
+Development defaults are defined in `docker-compose.dev.yml` and `.env.example`. In production, **`APP_KEY`, `JWT_SECRET`, and `BASE_URL` are required**. The production compose file intentionally fails startup when they are missing.
 
-| Variável                | Padrão (dev)                                                     | Descrição                                               |
-| ----------------------- | ---------------------------------------------------------------- | ------------------------------------------------------- |
-| `PORT`                  | `3000`                                                           | Porta do servidor HTTP                                  |
-| `NODE_ENV`              | `development`                                                    | Ambiente de execução                                    |
-| `APP_KEY`               | `dev-app-key`                                                    | Segredo da aplicação — **altere em produção**           |
-| `JWT_SECRET`            | `dev-jwt-secret`                                                 | Segredo de assinatura JWT — **altere em produção**      |
-| `DATABASE_URL`          | `postgresql://papagai:papagai@db:5432/papagai`                   | URL de conexão do PostgreSQL (usada pelo Prisma)        |
-| `DB_HOST`               | `localhost`                                                      | Host do PostgreSQL                                      |
-| `DB_PORT`               | `5432`                                                           | Porta do PostgreSQL                                     |
-| `DB_USER`               | `papagai`                                                        | Usuário do PostgreSQL                                   |
-| `DB_PASS`               | `papagai`                                                        | Senha do PostgreSQL                                     |
-| `DB_NAME`               | `papagai`                                                        | Nome do banco de dados                                  |
-| `REDIS_URL`             | `redis://localhost:6380` (local) / `redis://redis:6379` (Docker) | String de conexão do Redis                              |
-| `MEDIA_DIR`             | `./media`                                                        | Diretório para mídia recebida                           |
-| `INSTANCES_DIR`         | `./instances`                                                    | Diretório para dados de sessão do Baileys               |
-| `BASE_URL`              | `http://localhost:PORT`                                          | URL pública usada para gerar links assinados de mídia   |
-| `MEDIA_URL_TTL_SECONDS` | `86400`                                                          | Validade dos links assinados de mídia                   |
-| `MAX_INSTANCES`         | `10`                                                             | Máximo de instâncias WhatsApp simultâneas               |
-| `LOG_LEVEL`             | `info`                                                           | Verbosidade dos logs (`debug`, `info`, `warn`, `error`) |
-
----
-
-## Referência de API
-
-A referência interativa completa está disponível no app em **`/docs`** após o servidor estar rodando.
-
-| Grupo                | Endpoints                                                                                                      |
-| -------------------- | -------------------------------------------------------------------------------------------------------------- |
-| Autenticação         | `POST /api/auth/login` · `POST /api/auth/register`                                                             |
-| Instâncias           | `GET /api/instances` · `POST /api/instances/create` · `DELETE /api/instances/:name`                            |
-| Status & QR          | `GET /api/instances/:name/status` · `GET /api/instances/:name/qr`                                              |
-| Mensagens            | `POST /api/instances/:name/send/*` (text, image, audio, video, document, sticker, location, reaction, buttons) |
-| Webhooks             | `PATCH /api/instances/:name/webhook`                                                                           |
-| Contatos & Conversas | `GET /api/instances/:name/contact/:number` · `GET /api/instances/:name/chats`                                  |
-
-As rotas protegidas aceitam **JWT** (`Authorization: Bearer <token>`) ou **API Key** (`X-Api-Key: <key>`).
-
-### Escopo de API Keys
-
-- **Chave de conta (`ppg_acct_...`)**: criada em `POST /api/auth/apikeys`; pode acessar rotas de conta e rotas de instâncias do mesmo usuário.
-- **Chave de instância (`ppg_inst_...`)**: criada em `POST /api/instances/:name/apikeys`; só pode acessar rotas da instância correspondente (`:name`).
-- Chaves de instância são bloqueadas em rotas de conta (ex.: `GET /api/instances`, `POST /api/auth/apikeys`) com **403 Forbidden**.
-- Em chaves de conta, você pode enviar `permissions` ao criar a chave para limitar os grupos de endpoints permitidos.
-- Em chaves de conta, você também pode enviar `permissionsTemplate` para usar templates padrão: `read_only`, `operator`, `instance_manager`, `account_admin`.
-- Se `permissions` for omitido, a chave de conta mantém acesso total (comportamento legado).
+| Variable | Development default | Description |
+| --- | --- | --- |
+| `PORT` | `3000` | HTTP server port. |
+| `NODE_ENV` | `development` | Runtime environment. |
+| `APP_KEY` | `dev-app-key` | Application signing secret. Change this in production. |
+| `JWT_SECRET` | `dev-jwt-secret` | JWT signing secret. Change this in production. |
+| `DATABASE_URL` | `postgresql://papagai:papagai@db:5432/papagai` | PostgreSQL connection string used by Prisma. |
+| `DB_HOST` | `localhost` | PostgreSQL host. |
+| `DB_PORT` | `5432` | PostgreSQL port. |
+| `DB_USER` | `papagai` | PostgreSQL user. |
+| `DB_PASS` | `papagai` | PostgreSQL password. |
+| `DB_NAME` | `papagai` | PostgreSQL database name. |
+| `REDIS_URL` | `redis://localhost:6380` locally, `redis://redis:6379` in Docker | Redis connection string. |
+| `MEDIA_DIR` | `./media` | Directory for downloaded media. |
+| `INSTANCES_DIR` | `./instances` | Directory for Baileys session data. |
+| `BASE_URL` | `http://localhost:PORT` | Public URL used to generate signed media links. |
+| `MEDIA_URL_TTL_SECONDS` | `86400` | Signed media URL lifetime in seconds. |
+| `MAX_INSTANCES` | `10` | Maximum number of concurrent WhatsApp instances. |
+| `LOG_LEVEL` | `info` | Log verbosity: `debug`, `info`, `warn`, or `error`. |
 
 ---
 
-## Testes
+## API Reference
 
-**Testes unitários:**
+The full interactive API reference is available at **`/docs`** after the server is running and Swagger is enabled.
+
+| Group | Endpoints |
+| --- | --- |
+| Authentication | `POST /api/auth/login`, `POST /api/auth/register` |
+| Instances | `GET /api/instances`, `POST /api/instances/create`, `DELETE /api/instances/:name` |
+| Status and QR | `GET /api/instances/:name/status`, `GET /api/instances/:name/qr` |
+| Messages | `POST /api/instances/:name/send/*` for text, image, audio, video, document, sticker, location, reaction, and buttons |
+| Webhooks | `PATCH /api/instances/:name/webhook` |
+| Contacts and Chats | `GET /api/instances/:name/contact/:number`, `GET /api/instances/:name/chats` |
+
+Protected routes accept either **JWT** through `Authorization: Bearer <token>` or an **API key** through `X-Api-Key: <key>`.
+
+### API Key Scope
+
+- **Account key (`ppg_acct_...`)**: created through `POST /api/auth/apikeys`; can access account routes and instance routes owned by the same user.
+- **Instance key (`ppg_inst_...`)**: created through `POST /api/instances/:name/apikeys`; can access only the matching instance.
+- Instance keys are blocked from account routes such as `GET /api/instances` and `POST /api/auth/apikeys` with **403 Forbidden**.
+- Account keys can receive a `permissions` list to limit which endpoint groups are allowed.
+- Account keys can also receive `permissionsTemplate` with one of the built-in templates: `read_only`, `operator`, `instance_manager`, or `account_admin`.
+- If `permissions` is omitted, the account key keeps full access for backward compatibility.
+
+---
+
+## Testing
+
+Unit tests:
 
 ```bash
 npm test
 ```
 
-**Testes end-to-end** (usam doubles em memória; não exigem PostgreSQL ou Redis):
+End-to-end tests use in-memory doubles and do not require PostgreSQL or Redis:
 
 ```bash
 npm run test:e2e
 ```
 
-**Com cobertura:**
+Coverage:
 
 ```bash
 npm run test:cov
@@ -174,25 +180,49 @@ npm run test:cov
 
 ---
 
-## Segurança
+## Dependency Security
 
-As CVEs conhecidas nas dependências transitivas são remediadas via `overrides` no `package.json` do backend e do cliente — consulte [`docs/dependency-overrides.md`](docs/dependency-overrides.md) para a lista completa com as versões forçadas e os motivos. Alguns riscos residuais foram aceitos temporariamente por exigirem um upgrade de versão maior (Angular 21 ou Taiga UI 5.x) e estão rastreados nos respectivos projetos de upgrade.
+Known transitive dependency CVEs are handled through `overrides` in the backend and client `package.json` files. See [`docs/dependency-overrides.md`](docs/dependency-overrides.md) for the pinned versions and rationale.
+
+Run audits before releasing a new version:
+
+```bash
+npm audit --audit-level=moderate
+npm audit --audit-level=moderate --prefix client
+```
 
 ---
 
-## Produção
+## Production
 
-A stack de produção exige `APP_KEY`, `JWT_SECRET` e `BASE_URL` definidos no ambiente ou em um arquivo `.env` na raiz do projeto — o compose rejeitará a inicialização sem eles.
+The production stack requires `APP_KEY`, `JWT_SECRET`, and `BASE_URL` in the environment or in a root `.env` file. Startup is intentionally rejected when these values are missing.
 
 ```bash
 cp .env.example .env
-# Defina APP_KEY e JWT_SECRET com valores aleatórios fortes
-# Defina BASE_URL com a URL pública da aplicação
+# Set APP_KEY and JWT_SECRET to strong random values.
+# Set BASE_URL to the public application URL.
 
 make prod/build
-# equivalente: docker compose up -d --build
+# Equivalent: docker compose up -d --build
 ```
 
-O `Dockerfile` multi-estágio compila o backend NestJS e o SPA Angular, servindo ambos de um único container Node 22-alpine na porta 3000.
+The multi-stage `Dockerfile` builds the NestJS backend and Angular SPA, then serves both from one Node 22 Alpine container on port 3000.
 
-O compose de produção expõe apenas a aplicação. PostgreSQL e Redis ficam acessíveis somente na rede interna do Docker.
+The production compose file exposes only the application. PostgreSQL and Redis stay reachable only on the internal Docker network.
+
+### Production Security Checklist
+
+- Set a strong, unique `APP_KEY`.
+- Set a strong, unique `JWT_SECRET`.
+- Set `BASE_URL` to the public HTTPS origin used by clients and webhooks.
+- Keep `SWAGGER_ENABLED=false` unless you intentionally want public API docs.
+- Keep `WEBHOOK_ALLOW_PRIVATE_HOSTS=false` outside local development.
+- Do not expose PostgreSQL or Redis ports to the public internet.
+- Do not commit `.env`, media files, session data, database dumps, or local credentials.
+- Run `npm run lint:ci`, `npm test`, `npm run test:e2e`, and dependency audits before publishing a release.
+
+---
+
+## License
+
+MIT License. See [LICENSE](LICENSE).
