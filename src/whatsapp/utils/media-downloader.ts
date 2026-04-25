@@ -17,6 +17,7 @@ export async function downloadMedia(
   mediaType: string,
   mediaDir: string,
   logger: Logger,
+  signMediaPath?: (path: string) => string,
 ): Promise<MediaFile | null> {
   try {
     const messageKey = `${mediaType}Message`;
@@ -45,7 +46,9 @@ export async function downloadMedia(
 
     return {
       path: filePath,
-      url: `/media/${fileName}`,
+      url: signMediaPath
+        ? signMediaPath(`/media/${fileName}`)
+        : `/media/${fileName}`,
       filename: fileName,
       mimetype: mimeType,
       size: mediaMessage.fileLength ?? buffer.length,

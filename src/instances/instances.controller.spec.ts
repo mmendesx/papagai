@@ -11,6 +11,7 @@ import { ApiKeyService } from '../auth/api-key.service.js';
 import { AnyAuthGuard } from '../auth/guards/any-auth.guard.js';
 import { ApiKeyAuthGuard } from '../auth/guards/api-key-auth.guard.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
+import { MediaUrlService } from '../media/media-url.service.js';
 
 const TEST_SECRET = 'instances-controller-auth-spec';
 
@@ -46,6 +47,12 @@ const mockApiKeyService = {
   instanceMatchesKey: jest.fn(),
 };
 
+const mockMediaUrlService = {
+  signPath: jest.fn(
+    (path: string) => `http://localhost:3000${path}?expires=1&signature=test`,
+  ),
+};
+
 describe('InstancesController', () => {
   let app: INestApplication;
   let token: string;
@@ -70,6 +77,7 @@ describe('InstancesController', () => {
         },
         { provide: ApiKeyService, useValue: mockApiKeyService },
         { provide: InstancesService, useValue: mockService },
+        { provide: MediaUrlService, useValue: mockMediaUrlService },
       ],
     }).compile();
 

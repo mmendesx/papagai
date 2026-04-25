@@ -76,7 +76,7 @@ describe('ApiKeyService', () => {
   });
 
   describe('validateKey', () => {
-    it('resolves with userId, instanceId, keyId, permissions for a valid enabled non-expired key', async () => {
+    it('resolves with full-account permissions for a valid enabled non-expired legacy key', async () => {
       mockPrismaService.apiKey.findUnique.mockResolvedValue({
         id: 'key-id-1',
         userId: 'user-1',
@@ -92,7 +92,7 @@ describe('ApiKeyService', () => {
         userId: 'user-1',
         instanceId: null,
         keyId: 'key-id-1',
-        permissions: [],
+        permissions: null,
       });
     });
 

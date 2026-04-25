@@ -58,7 +58,7 @@ describe('Auth rate limiting (e2e)', () => {
   it('POST /api/auth/login returns 401 on bad credentials (guard allows through)', async () => {
     await request(app.getHttpServer())
       .post('/api/auth/login')
-      .send({ email: 'noone@example.com', password: 'wrong' })
+      .send({ email: 'noone@example.com', password: 'wrongpassword' })
       .expect(401);
   });
 
@@ -71,7 +71,7 @@ describe('Auth rate limiting (e2e)', () => {
 
   it('POST /api/auth/login returns 429 after exceeding limit', async () => {
     const limit = parseInt(process.env.AUTH_THROTTLE_LIMIT ?? '3', 10);
-    const payload = { email: 'spam@example.com', password: 'wrong' };
+    const payload = { email: 'spam@example.com', password: 'wrongpassword' };
 
     let got429 = false;
     // Send limit+1 requests; at least one should be throttled

@@ -8,7 +8,6 @@ import { AppModule } from './app.module.js';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor.js';
 import { DEV_JWT_SECRET_PLACEHOLDER } from './config/configuration.js';
-import { join } from 'path';
 
 function warnWebhookAllowPrivateHosts(): void {
   if (
@@ -32,9 +31,52 @@ function assertProductionJwtSecret(): void {
   }
 }
 
+function assertProductionAppKey(): void {
+  const nodeEnv = process.env.NODE_ENV || 'development';
+  if (nodeEnv !== 'production') {
+    return;
+  }
+
+  if (!process.env.APP_KEY?.trim()) {
+    throw new Error(
+      'Fatal: APP_KEY must be set to a strong, unique value when NODE_ENV=production.',
+    );
+  }
+}
+
+function assertProductionBaseUrl(): void {
+  const nodeEnv = process.env.NODE_ENV || 'development';
+  if (nodeEnv !== 'production') {
+    return;
+  }
+
+  const baseUrl = process.env.BASE_URL?.trim();
+  if (!baseUrl) {
+    throw new Error(
+      'Fatal: BASE_URL must be set to the public application URL when NODE_ENV=production.',
+    );
+  }
+
+  let hostname: string;
+  try {
+    hostname = new URL(baseUrl).hostname;
+  } catch {
+    throw new Error(
+      'Fatal: BASE_URL must be a valid absolute URL when NODE_ENV=production.',
+    );
+  }
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    throw new Error(
+      'Fatal: BASE_URL must not point to localhost when NODE_ENV=production.',
+    );
+  }
+}
+
 async function bootstrap() {
   warnWebhookAllowPrivateHosts();
   assertProductionJwtSecret();
+  assertProductionAppKey();
+  assertProductionBaseUrl();
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const configService = app.get(ConfigService);
   const corsOrigin = configService.get<string>(
@@ -93,15 +135,6 @@ async function bootstrap() {
       jsonDocumentUrl: 'api/docs-json',
     });
   }
-
-  app.useStaticAssets(join(__dirname, '..', 'media'), {
-    prefix: '/media/',
-  });
-
-  // uploads/ is created at runtime under process.cwd(), not inside dist/
-  app.useStaticAssets(join(process.cwd(), 'uploads'), {
-    prefix: '/uploads/',
-  });
 
   const port = process.env.PORT || 3000;
   await app.listen(port);

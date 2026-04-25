@@ -35,6 +35,7 @@ import {
 import { WebhookEnricher } from './utils/webhook-enricher.js';
 import { resolveJid } from './utils/jid-resolver.js';
 import { Observable } from 'rxjs';
+import { MediaUrlService } from '../media/media-url.service.js';
 
 function extractButtonLabels(content: any): string[] | undefined {
   // Regular buttons (buildButtonMessage output: content.buttons[].buttonText.displayText)
@@ -85,6 +86,7 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
     private webhookService: WebhookService,
     private chatStore: ChatStoreService,
     private readonly prisma: PrismaService,
+    private readonly mediaUrlService: MediaUrlService,
   ) {
     this.redis = new Redis(
       this.configService.get<string>('redisUrl') || 'redis://localhost:6379',
@@ -95,7 +97,9 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
     }
 
     this.webhookEnricher = new WebhookEnricher((msg, type) =>
-      downloadMedia(msg, type, this.mediaDir, this.logger),
+      downloadMedia(msg, type, this.mediaDir, this.logger, (path) =>
+        this.mediaUrlService.signPath(path),
+      ),
     );
 
     this.reconnectionContext = {

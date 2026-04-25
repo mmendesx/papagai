@@ -5,9 +5,10 @@ import { Redis } from 'ioredis';
 import { WebhookModule } from '../webhook/webhook.module.js';
 import { WhatsappService } from './whatsapp.service.js';
 import { ChatStoreService, REDIS_CLIENT } from './chat-store.service.js';
+import { MediaModule } from '../media/media.module.js';
 
 @Module({
-  imports: [HttpModule, WebhookModule],
+  imports: [HttpModule, WebhookModule, MediaModule],
   providers: [
     {
       provide: REDIS_CLIENT,

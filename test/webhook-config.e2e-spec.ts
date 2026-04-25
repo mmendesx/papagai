@@ -69,12 +69,12 @@ describe('Webhook config (e2e)', () => {
       .patch('/api/instances/hookbot/webhook')
       .set('Authorization', `Bearer ${carolToken}`)
       .send({
-        webhookUrl: 'http://example.com/hook',
+        webhookUrl: 'http://8.8.8.8/hook',
         enabled: true,
         events: ['message'],
       });
     expect(res.status).toBe(200);
-    expect(res.body.webhook.url).toBe('http://example.com/hook');
+    expect(res.body.webhook.url).toBe('http://8.8.8.8/hook');
     expect(res.body.webhook.enabled).toBe(true);
   });
 
@@ -82,7 +82,7 @@ describe('Webhook config (e2e)', () => {
     const res = await request(app.getHttpServer())
       .patch('/api/instances/hookbot/webhook')
       .set('Authorization', `Bearer ${daveToken}`)
-      .send({ webhookUrl: 'http://example.com/hook' });
+      .send({ webhookUrl: 'http://8.8.8.8/hook' });
     expect(res.status).toBe(404);
   });
 

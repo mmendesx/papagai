@@ -9,6 +9,5 @@
   "moduleNameMapper": {
     "^(\\.{1,2}/.*)\\.js$": "$1"
   },
-  "testTimeout": 30000,
-  "globalSetup": "./helpers/global-setup.ts"
+  "testTimeout": 30000
 }

@@ -9,6 +9,7 @@ import {
   WebhookUrlInvalidError,
 } from '../webhook/webhook-url-validator.js';
 import { Observable } from 'rxjs';
+import { MediaUrlService } from '../media/media-url.service.js';
 
 @Injectable()
 export class InstancesService {
@@ -17,6 +18,7 @@ export class InstancesService {
   constructor(
     private readonly whatsappService: WhatsappService,
     private readonly configService: ConfigService,
+    private readonly mediaUrlService: MediaUrlService,
   ) {}
 
   async createInstance(
@@ -59,6 +61,7 @@ export class InstancesService {
     this.logger.log(
       `${userId}:${instanceName} enviando mensagem tipo ${payload.type} para ${payload.to}`,
     );
+    await this.validateMessageMediaUrls(payload);
     const content = toMessageContent(payload);
     return this.whatsappService.send(userId, instanceName, payload.to, content);
   }
@@ -143,6 +146,41 @@ export class InstancesService {
   }
 
   private async validateWebhookUrl(url: string): Promise<void> {
+    const allowPrivate =
+      this.configService.get<boolean>('webhookAllowPrivateHosts') ?? false;
+    try {
+      await validateOrThrow(url, { allowPrivate });
+    } catch (error) {
+      if (error instanceof WebhookUrlInvalidError) {
+        throw new BadRequestException(error.message);
+      }
+      throw error;
+    }
+  }
+
+  private async validateMessageMediaUrls(payload: any): Promise<void> {
+    const mediaPayloads = [
+      payload?.image,
+      payload?.audio,
+      payload?.video,
+      payload?.document,
+      payload?.sticker,
+    ];
+
+    for (const media of mediaPayloads) {
+      const link = media?.link;
+      if (typeof link !== 'string' || link.trim() === '') {
+        continue;
+      }
+      await this.validateMediaUrl(link);
+    }
+  }
+
+  private async validateMediaUrl(url: string): Promise<void> {
+    if (this.mediaUrlService.isSignedMediaUrl(url)) {
+      return;
+    }
+
     const allowPrivate =
       this.configService.get<boolean>('webhookAllowPrivateHosts') ?? false;
     try {

@@ -16,7 +16,9 @@ _Date added: 2026-04-07_
 | `picomatch` | `4.0.4` | Incorrect regex in 4.0.0–4.0.3 | Transitive via multiple tools; direct upgrade would require major dep changes |
 | `music-metadata` | `11.12.3` | High severity in ≤11.12.1 | Transitive; override is a safe patch |
 | `lodash` | `4.18.1` | Prototype pollution in ≤4.17.23 | Transitive via `@nestjs/config`; upgrading config requires a major version bump |
-| `axios` | `^1.7.2` | GHSA-jr5f-v2jv-69x6, GHSA-43fc-jf86-j433 | `whaileys` 6.4.9 pins `axios ^0.24.0`, causing a nested install at ≤0.30.2; a direct upgrade is not feasible without forking or patching whaileys |
+| `axios` | `^1.15.0` | GHSA-jr5f-v2jv-69x6, GHSA-43fc-jf86-j433 | `whaileys` pins an older axios range; a direct upstream fix requires a patched whaileys release |
+| `follow-redirects` | `1.16.0` | GHSA-r4q5-vmmm-2653 | Transitive via axios/http tooling; patch-level override |
+| `protobufjs` | `7.5.5` | GHSA-xq3m-2v4x-88gg | Transitive via `whaileys`/`libsignal`; no patched whaileys release available |
 
 #### axios override — extended rationale
 
@@ -28,11 +30,7 @@ _Date added: 2026-04-07_
 
 ### Residual risks
 
-These vulnerabilities are accepted and tracked. They cannot be resolved without a major dependency upgrade.
-
-| Package | Vulnerable range | Reason accepted |
-|---|---|---|
-| `whaileys` | `*` | `fixAvailable: false` — fork of `@whiskeysockets/baileys` with no patched release available; tracked as OQ-1 |
+`npm audit --audit-level=moderate` currently reports no known backend vulnerabilities.
 
 ---
 
@@ -48,17 +46,10 @@ _Date added: 2026-04-07_
 | `serialize-javascript` | `7.0.5` | XSS in ≤7.0.4 | Transitive via Angular build toolchain |
 | `tar` | `7.5.13` | Path traversal in ≤7.5.10 | Transitive via Angular CLI |
 | `vite` | `6.4.2` | High severity in ≤6.4.1 | Patch available in 6.x; Angular 19 confirmed compatible |
+| `follow-redirects` | `1.16.0` | GHSA-r4q5-vmmm-2653 | Transitive via Karma/http-proxy |
+| `postcss` | `8.5.10` | GHSA-qx2v-qp2m-jg93 | Transitive via Angular build toolchain |
+| `uuid` | `14.0.0` | GHSA-w5hq-g745-h8pq | Transitive via webpack-dev-server/sockjs |
 
 ### Residual risks
 
-These packages require a major framework upgrade (Angular 21 or Taiga UI 5.x) to fully remediate. Accepted and tracked under the Angular upgrade initiative.
-
-| Package | Reason accepted | Follow-up |
-|---|---|---|
-| `@angular-devkit/build-angular` | Fix requires Angular 21 (major) | Track in Angular upgrade initiative |
-| `@angular/build` | Same as above | Same |
-| `@angular/cli` | Same as above | Same |
-| `@taiga-ui/cdk`, `@taiga-ui/core`, `@taiga-ui/kit`, `@taiga-ui/layout` | Fix requires Taiga UI 5.x (major, breaking) | Track with Taiga UI upgrade |
-| `copy-webpack-plugin` | Transitive via Angular build; fix tied to Angular 21 | Same |
-| `ng-morph` | Transitive via Taiga UI | Same |
-| `pacote` | Transitive via Angular CLI | Same |
+`npm audit --audit-level=moderate` currently reports no known client vulnerabilities.

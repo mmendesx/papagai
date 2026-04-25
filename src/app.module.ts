@@ -10,6 +10,7 @@ import { AuthModule } from './auth/auth.module.js';
 import { HealthModule } from './health/health.module.js';
 import configuration from './config/configuration.js';
 import { PrismaModule } from './prisma/prisma.module.js';
+import { MediaModule } from './media/media.module.js';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
     PrismaModule,
     AuthModule,
     HealthModule,
+    MediaModule,
     InstancesModule,
     WebhookModule,
     ServeStaticModule.forRoot({

@@ -82,7 +82,7 @@ describe('Cross-user isolation (e2e)', () => {
     const res = await request(app.getHttpServer())
       .patch('/api/instances/alpha/webhook')
       .set('Authorization', `Bearer ${tokenB}`)
-      .send({ webhookUrl: 'http://example.com/hook' });
+      .send({ webhookUrl: 'http://8.8.8.8/hook' });
     expect(res.status).toBe(404);
   });
 

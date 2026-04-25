@@ -8,8 +8,6 @@ services:
       POSTGRES_DB: papagai
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U papagai"]
       interval: 5s
@@ -22,8 +20,6 @@ services:
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
-    ports:
-      - "6380:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -44,6 +40,7 @@ services:
       # Required — compose fails fast if unset (no weak defaults). See README.md and .env.example.
       APP_KEY: ${APP_KEY:?Set APP_KEY in your environment or a .env file next to this compose file}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in your environment or a .env file next to this compose file}
+      BASE_URL: ${BASE_URL:?Set BASE_URL to your public application URL}
       DB_HOST: db
       DB_PORT: 5432
       DB_USER: papagai

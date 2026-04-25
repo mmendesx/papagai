@@ -14,73 +14,33 @@ jest.mock('fs', () => ({
   mkdirSync: jest.fn(),
 }));
 
-import { Test, TestingModule } from '@nestjs/testing';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { ValidationPipe } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import request from 'supertest';
 import { App } from 'supertest/types';
-import { AppModule } from './../src/app.module';
-import { WhatsappService } from './../src/whatsapp/whatsapp.service';
-import { HttpExceptionFilter } from './../src/common/filters/http-exception.filter';
-import { LoggingInterceptor } from './../src/common/interceptors/logging.interceptor';
-
-const mockWhatsappService = {
-  createInstance: jest.fn(),
-  getInstance: jest.fn().mockReturnValue(undefined),
-  getQR: jest.fn().mockReturnValue(null),
-  getInstances: jest.fn().mockReturnValue({ instances: [], total: 0 }),
-  disconnectInstance: jest.fn(),
-  sendText: jest.fn(),
-  sendButtons: jest.fn(),
-  sendImage: jest.fn(),
-  sendAudio: jest.fn(),
-  sendVoice: jest.fn(),
-  sendVideo: jest.fn(),
-  sendDocument: jest.fn(),
-  sendSticker: jest.fn(),
-  sendLocation: jest.fn(),
-  sendReaction: jest.fn(),
-  getContactInfo: jest.fn(),
-  getChats: jest.fn().mockResolvedValue([]),
-};
+import { PrismaService } from './../src/prisma/prisma.service';
+import { createTestApp } from './helpers/app-factory';
+import { truncateTables } from './helpers/db-cleaner';
+import { registerAndLogin } from './helpers/auth-helpers';
 
 describe('App (e2e)', () => {
   let app: NestExpressApplication;
+  let prisma: PrismaService;
   let authHeader: { Authorization: string };
 
   beforeAll(async () => {
-    process.env.JWT_SECRET = 'e2e-jwt-secret-for-app-spec';
-    process.env.APP_KEY = 'e2e-app-key';
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    })
-      .overrideProvider(WhatsappService)
-      .useValue(mockWhatsappService)
-      .compile();
-
-    app = moduleFixture.createNestApplication<NestExpressApplication>();
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        transform: true,
-        forbidNonWhitelisted: false,
-      }),
-    );
-    app.useGlobalFilters(new HttpExceptionFilter());
-    app.useGlobalInterceptors(new LoggingInterceptor());
-    await app.init();
-    const jwtService = app.get(JwtService);
-    const token = await jwtService.signAsync({
-      sub: '00000000-0000-4000-8000-000000000001',
-      email: 'e2e@test.com',
-      name: 'E2E',
-      role: 'user',
+    ({ app, prisma } = (await createTestApp()) as {
+      app: NestExpressApplication;
+      prisma: PrismaService;
+    });
+    const { token } = await registerAndLogin(app, {
+      email: 'app_e2e@test.com',
+      name: 'App E2E',
     });
     authHeader = { Authorization: `Bearer ${token}` };
   });
 
   afterAll(async () => {
+    await truncateTables(prisma);
     await app.close();
   });
 
@@ -101,11 +61,11 @@ describe('App (e2e)', () => {
       .expect(401);
   });
 
-  it('POST /api/instances/create with invalid name returns 400', () => {
+  it('POST /api/instances/create with invalid name returns 422', () => {
     return request(app.getHttpServer() as App)
       .post('/api/instances/create')
       .set(authHeader)
       .send({ name: 'ab/cd' })
-      .expect(400);
+      .expect(422);
   });
 });

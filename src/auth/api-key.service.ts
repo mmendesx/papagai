@@ -216,7 +216,9 @@ export class ApiKeyService {
       instanceId: key.instanceId,
       keyId: key.id,
       permissions:
-        (key.permissions as AccountApiKeyPermission[] | null) ?? null,
+        key.permissions.length === 0
+          ? null
+          : (key.permissions as AccountApiKeyPermission[]),
     };
   }
 

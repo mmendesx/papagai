@@ -21,14 +21,14 @@ Papagai é um gateway WhatsApp multi-dispositivo self-hosted que expõe uma API 
 
 ## Stack Tecnológica
 
-| Camada | Tecnologia |
-|--------|-----------|
-| Backend | NestJS 11, TypeScript 5.7, Node 22 |
-| Banco de dados | PostgreSQL 16 + Prisma |
-| Cache / estado de sessão | Redis 7 |
-| WhatsApp | `@whiskeysockets/baileys` (fork whaileys) |
-| Frontend | Angular 19, Taiga UI, Tailwind CSS |
-| Container | Docker, Docker Compose |
+| Camada                   | Tecnologia                                |
+| ------------------------ | ----------------------------------------- |
+| Backend                  | NestJS 11, TypeScript 5.7, Node 22        |
+| Banco de dados           | PostgreSQL 16 + Prisma                    |
+| Cache / estado de sessão | Redis 7                                   |
+| WhatsApp                 | `@whiskeysockets/baileys` (fork whaileys) |
+| Frontend                 | Angular 19, Taiga UI, Tailwind CSS        |
+| Container                | Docker, Docker Compose                    |
 
 ---
 
@@ -85,12 +85,12 @@ npm run prisma:migrate:deploy
 
 ### Scripts Prisma disponíveis
 
-| Script | O que faz |
-|--------|-----------|
-| `npm run prisma:generate` | Regenera o Prisma Client a partir do schema |
-| `npm run prisma:migrate` | Cria e aplica uma nova migration em desenvolvimento |
-| `npm run prisma:migrate:deploy` | Aplica migrations pendentes em produção (sem prompt) |
-| `npm run prisma:studio` | Abre o Prisma Studio para inspecionar o banco visualmente |
+| Script                          | O que faz                                                 |
+| ------------------------------- | --------------------------------------------------------- |
+| `npm run prisma:generate`       | Regenera o Prisma Client a partir do schema               |
+| `npm run prisma:migrate`        | Cria e aplica uma nova migration em desenvolvimento       |
+| `npm run prisma:migrate:deploy` | Aplica migrations pendentes em produção (sem prompt)      |
+| `npm run prisma:studio`         | Abre o Prisma Studio para inspecionar o banco visualmente |
 
 Para resetar um banco de dados de desenvolvimento existente (apaga volumes e recria a stack):
 
@@ -102,25 +102,27 @@ make down/v && make dev
 
 ## Variáveis de Ambiente
 
-Os valores padrão de dev estão pré-definidos em `docker-compose.dev.yml` e em `.env.example`. Em produção, **`APP_KEY` e `JWT_SECRET` devem ser definidos** — o compose de produção falha intencionalmente sem eles.
+Os valores padrão de dev estão pré-definidos em `docker-compose.dev.yml` e em `.env.example`. Em produção, **`APP_KEY`, `JWT_SECRET` e `BASE_URL` devem ser definidos** — o compose de produção falha intencionalmente sem eles.
 
-| Variável | Padrão (dev) | Descrição |
-|----------|--------------|-----------|
-| `PORT` | `3000` | Porta do servidor HTTP |
-| `NODE_ENV` | `development` | Ambiente de execução |
-| `APP_KEY` | `dev-app-key` | Segredo da aplicação — **altere em produção** |
-| `JWT_SECRET` | `dev-jwt-secret` | Segredo de assinatura JWT — **altere em produção** |
-| `DATABASE_URL` | `postgresql://papagai:papagai@db:5432/papagai` | URL de conexão do PostgreSQL (usada pelo Prisma) |
-| `DB_HOST` | `localhost` | Host do PostgreSQL |
-| `DB_PORT` | `5432` | Porta do PostgreSQL |
-| `DB_USER` | `papagai` | Usuário do PostgreSQL |
-| `DB_PASS` | `papagai` | Senha do PostgreSQL |
-| `DB_NAME` | `papagai` | Nome do banco de dados |
-| `REDIS_URL` | `redis://localhost:6380` (local) / `redis://redis:6379` (Docker) | String de conexão do Redis |
-| `MEDIA_DIR` | `./media` | Diretório para mídia recebida |
-| `INSTANCES_DIR` | `./instances` | Diretório para dados de sessão do Baileys |
-| `MAX_INSTANCES` | `10` | Máximo de instâncias WhatsApp simultâneas |
-| `LOG_LEVEL` | `info` | Verbosidade dos logs (`debug`, `info`, `warn`, `error`) |
+| Variável                | Padrão (dev)                                                     | Descrição                                               |
+| ----------------------- | ---------------------------------------------------------------- | ------------------------------------------------------- |
+| `PORT`                  | `3000`                                                           | Porta do servidor HTTP                                  |
+| `NODE_ENV`              | `development`                                                    | Ambiente de execução                                    |
+| `APP_KEY`               | `dev-app-key`                                                    | Segredo da aplicação — **altere em produção**           |
+| `JWT_SECRET`            | `dev-jwt-secret`                                                 | Segredo de assinatura JWT — **altere em produção**      |
+| `DATABASE_URL`          | `postgresql://papagai:papagai@db:5432/papagai`                   | URL de conexão do PostgreSQL (usada pelo Prisma)        |
+| `DB_HOST`               | `localhost`                                                      | Host do PostgreSQL                                      |
+| `DB_PORT`               | `5432`                                                           | Porta do PostgreSQL                                     |
+| `DB_USER`               | `papagai`                                                        | Usuário do PostgreSQL                                   |
+| `DB_PASS`               | `papagai`                                                        | Senha do PostgreSQL                                     |
+| `DB_NAME`               | `papagai`                                                        | Nome do banco de dados                                  |
+| `REDIS_URL`             | `redis://localhost:6380` (local) / `redis://redis:6379` (Docker) | String de conexão do Redis                              |
+| `MEDIA_DIR`             | `./media`                                                        | Diretório para mídia recebida                           |
+| `INSTANCES_DIR`         | `./instances`                                                    | Diretório para dados de sessão do Baileys               |
+| `BASE_URL`              | `http://localhost:PORT`                                          | URL pública usada para gerar links assinados de mídia   |
+| `MEDIA_URL_TTL_SECONDS` | `86400`                                                          | Validade dos links assinados de mídia                   |
+| `MAX_INSTANCES`         | `10`                                                             | Máximo de instâncias WhatsApp simultâneas               |
+| `LOG_LEVEL`             | `info`                                                           | Verbosidade dos logs (`debug`, `info`, `warn`, `error`) |
 
 ---
 
@@ -128,14 +130,14 @@ Os valores padrão de dev estão pré-definidos em `docker-compose.dev.yml` e em
 
 A referência interativa completa está disponível no app em **`/docs`** após o servidor estar rodando.
 
-| Grupo | Endpoints |
-|-------|-----------|
-| Autenticação | `POST /api/auth/login` · `POST /api/auth/register` |
-| Instâncias | `GET /api/instances` · `POST /api/instances/create` · `DELETE /api/instances/:name` |
-| Status & QR | `GET /api/instances/:name/status` · `GET /api/instances/:name/qr` |
-| Mensagens | `POST /api/instances/:name/send/*` (text, image, audio, video, document, sticker, location, reaction, buttons) |
-| Webhooks | `PATCH /api/instances/:name/webhook` |
-| Contatos & Conversas | `GET /api/instances/:name/contact/:number` · `GET /api/instances/:name/chats` |
+| Grupo                | Endpoints                                                                                                      |
+| -------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Autenticação         | `POST /api/auth/login` · `POST /api/auth/register`                                                             |
+| Instâncias           | `GET /api/instances` · `POST /api/instances/create` · `DELETE /api/instances/:name`                            |
+| Status & QR          | `GET /api/instances/:name/status` · `GET /api/instances/:name/qr`                                              |
+| Mensagens            | `POST /api/instances/:name/send/*` (text, image, audio, video, document, sticker, location, reaction, buttons) |
+| Webhooks             | `PATCH /api/instances/:name/webhook`                                                                           |
+| Contatos & Conversas | `GET /api/instances/:name/contact/:number` · `GET /api/instances/:name/chats`                                  |
 
 As rotas protegidas aceitam **JWT** (`Authorization: Bearer <token>`) ou **API Key** (`X-Api-Key: <key>`).
 
@@ -158,11 +160,9 @@ As rotas protegidas aceitam **JWT** (`Authorization: Bearer <token>`) ou **API K
 npm test
 ```
 
-**Testes end-to-end** (requerem uma instância PostgreSQL em execução):
+**Testes end-to-end** (usam doubles em memória; não exigem PostgreSQL ou Redis):
 
 ```bash
-docker compose up -d db
-# aguarde o healthcheck e então:
 npm run test:e2e
 ```
 
@@ -182,14 +182,17 @@ As CVEs conhecidas nas dependências transitivas são remediadas via `overrides`
 
 ## Produção
 
-A stack de produção exige `APP_KEY` e `JWT_SECRET` definidos no ambiente ou em um arquivo `.env` na raiz do projeto — o compose rejeitará a inicialização sem eles.
+A stack de produção exige `APP_KEY`, `JWT_SECRET` e `BASE_URL` definidos no ambiente ou em um arquivo `.env` na raiz do projeto — o compose rejeitará a inicialização sem eles.
 
 ```bash
 cp .env.example .env
 # Defina APP_KEY e JWT_SECRET com valores aleatórios fortes
+# Defina BASE_URL com a URL pública da aplicação
 
 make prod/build
 # equivalente: docker compose up -d --build
 ```
 
 O `Dockerfile` multi-estágio compila o backend NestJS e o SPA Angular, servindo ambos de um único container Node 22-alpine na porta 3000.
+
+O compose de produção expõe apenas a aplicação. PostgreSQL e Redis ficam acessíveis somente na rede interna do Docker.

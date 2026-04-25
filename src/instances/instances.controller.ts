@@ -52,6 +52,7 @@ import {
 import { InstanceStatusResponseDto } from './dto/instance-status-response.dto.js';
 import { MessageResultResponseDto } from './dto/message-result-response.dto.js';
 import { UploadResponseDto } from './dto/upload-response.dto.js';
+import { MediaUrlService } from '../media/media-url.service.js';
 
 export const ALLOWED_WEBHOOK_EVENTS = [
   'message',
@@ -70,6 +71,7 @@ export class InstancesController {
   constructor(
     private readonly instancesService: InstancesService,
     private readonly apiKeyService: ApiKeyService,
+    private readonly mediaUrlService: MediaUrlService,
   ) {}
 
   @ApiOperation({ summary: 'Create a new WhatsApp instance' })
@@ -674,9 +676,9 @@ export class InstancesController {
       );
     }
 
-    const baseUrl =
-      process.env.BASE_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
-    const url = `${baseUrl}/uploads/${encodeURIComponent(name)}/${file.filename}`;
+    const url = this.mediaUrlService.signPath(
+      `/uploads/${encodeURIComponent(name)}/${file.filename}`,
+    );
     return { url };
   }
 

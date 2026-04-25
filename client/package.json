@@ -53,7 +53,10 @@
     "tar": "7.5.13",
     "vite": "6.4.2",
     "glob": "^13.0.0",
-    "inflight": "^1.0.6"
+    "inflight": "^1.0.6",
+    "follow-redirects": "1.16.0",
+    "postcss": "8.5.10",
+    "uuid": "14.0.0"
   },
   "devDependencies": {
     "@angular-devkit/build-angular": "^19.2.23",
@@ -67,7 +70,7 @@
     "karma-coverage": "~2.2.0",
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.1.0",
-    "postcss": "^8.5.8",
+    "postcss": "8.5.10",
     "tailwindcss": "^3.4.19",
     "typescript": "~5.7.2"
   }

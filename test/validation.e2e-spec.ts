@@ -8,74 +8,33 @@ jest.mock('@whiskeysockets/baileys', () => ({
   downloadContentFromMessage: jest.fn(),
 }));
 
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { INestApplication } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { JwtService } from '@nestjs/jwt';
 import request from 'supertest';
-import { AppModule } from '../src/app.module.js';
-import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter.js';
-import { LoggingInterceptor } from '../src/common/interceptors/logging.interceptor.js';
-import { WhatsappService } from '../src/whatsapp/whatsapp.service.js';
-
-const mockWhatsappService = {
-  createInstance: jest.fn(),
-  getInstance: jest.fn().mockReturnValue(undefined),
-  getQR: jest.fn().mockReturnValue(null),
-  getInstances: jest.fn().mockReturnValue([]),
-  disconnectInstance: jest.fn(),
-  sendText: jest.fn(),
-  sendButtons: jest.fn(),
-  sendImage: jest.fn(),
-  sendAudio: jest.fn(),
-  sendVoice: jest.fn(),
-  sendVideo: jest.fn(),
-  sendDocument: jest.fn(),
-  sendSticker: jest.fn(),
-  sendLocation: jest.fn(),
-  sendReaction: jest.fn(),
-  getContactInfo: jest.fn(),
-  getChats: jest.fn().mockResolvedValue([]),
-};
+import { PrismaService } from '../src/prisma/prisma.service';
+import { createTestApp } from './helpers/app-factory';
+import { truncateTables } from './helpers/db-cleaner';
+import { registerAndLogin } from './helpers/auth-helpers';
 
 describe('Validation (e2e)', () => {
   let app: INestApplication;
+  let prisma: PrismaService;
   let authHeader: { Authorization: string };
 
   beforeAll(async () => {
-    process.env.JWT_SECRET = 'e2e-jwt-secret-for-validation-spec';
-    process.env.APP_KEY = 'e2e-app-key';
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    })
-      .overrideProvider(WhatsappService)
-      .useValue(mockWhatsappService)
-      .compile();
-
-    app = moduleFixture.createNestApplication<NestExpressApplication>();
-
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        transform: true,
-        forbidNonWhitelisted: false,
-      }),
-    );
-    app.useGlobalFilters(new HttpExceptionFilter());
-    app.useGlobalInterceptors(new LoggingInterceptor());
-
-    await app.init();
-    const jwtService = app.get(JwtService);
-    const token = await jwtService.signAsync({
-      sub: '00000000-0000-4000-8000-000000000002',
-      email: 'validation-e2e@test.com',
+    ({ app, prisma } = (await createTestApp()) as {
+      app: NestExpressApplication;
+      prisma: PrismaService;
+    });
+    const { token } = await registerAndLogin(app, {
+      email: 'validation_app_e2e@test.com',
       name: 'Validation E2E',
-      role: 'user',
     });
     authHeader = { Authorization: `Bearer ${token}` };
   });
 
   afterAll(async () => {
+    await truncateTables(prisma);
     await app.close();
   });
 
@@ -83,14 +42,14 @@ describe('Validation (e2e)', () => {
     jest.clearAllMocks();
   });
 
-  it('POST /api/instances/create with invalid name returns 400 with structured body', () => {
+  it('POST /api/instances/create with invalid name returns 422 with structured body', () => {
     return request(app.getHttpServer())
       .post('/api/instances/create')
       .set(authHeader)
       .send({ name: 'ab/cd' })
-      .expect(400)
+      .expect(422)
       .expect((res) => {
-        expect(res.body.statusCode).toBe(400);
+        expect(res.body.statusCode).toBe(422);
         expect(res.body.path).toBe('/api/instances/create');
         expect(res.body.timestamp).toBeDefined();
         expect(() => new Date(res.body.timestamp)).not.toThrow();
@@ -102,7 +61,6 @@ describe('Validation (e2e)', () => {
   });
 
   it('POST /api/instances/create with valid name succeeds (delegates to mocked service)', () => {
-    mockWhatsappService.createInstance.mockResolvedValue(undefined);
     return request(app.getHttpServer())
       .post('/api/instances/create')
       .set(authHeader)

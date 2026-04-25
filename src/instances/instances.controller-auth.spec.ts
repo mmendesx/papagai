@@ -9,6 +9,7 @@ import { ApiKeyService } from '../auth/api-key.service.js';
 import { AnyAuthGuard } from '../auth/guards/any-auth.guard.js';
 import { ApiKeyAuthGuard } from '../auth/guards/api-key-auth.guard.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
+import { MediaUrlService } from '../media/media-url.service.js';
 
 describe('InstancesController JWT', () => {
   let app: INestApplication;
@@ -56,6 +57,15 @@ describe('InstancesController JWT', () => {
             getContactInfo: jest.fn(),
             getChats: jest.fn(),
             updateWebhookConfig: jest.fn(),
+          },
+        },
+        {
+          provide: MediaUrlService,
+          useValue: {
+            signPath: jest.fn(
+              (path: string) =>
+                `http://localhost:3000${path}?expires=1&signature=test`,
+            ),
           },
         },
       ],

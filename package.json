@@ -63,7 +63,7 @@
         "@whiskeysockets/baileys": "npm:whaileys@6.4.10",
         "axios": "^1.15.0",
         "bcryptjs": "^3.0.3",
-        "bullmq": "^5.73.5",
+        "bullmq": "^5.76.2",
         "class-transformer": "^0.5.1",
         "class-validator": "^0.14.1",
         "ioredis": "^5.4.0",
@@ -71,8 +71,7 @@
         "pg": "^8.13.0",
         "qrcode": "^1.5.4",
         "reflect-metadata": "^0.2.2",
-        "rxjs": "^7.8.1",
-        "uuid": "^10.0.0"
+        "rxjs": "^7.8.1"
     },
     "devDependencies": {
         "@eslint/eslintrc": "^3.2.0",
@@ -89,7 +88,6 @@
         "@types/node": "^22.19.17",
         "@types/qrcode": "^1.5.5",
         "@types/supertest": "^6.0.2",
-        "@types/uuid": "^10.0.0",
         "eslint": "^9.18.0",
         "eslint-config-prettier": "^10.0.1",
         "eslint-plugin-prettier": "^5.2.2",
@@ -114,7 +112,9 @@
         "lodash": "4.18.1",
         "axios": "^1.15.0",
         "glob": "^13.0.0",
-        "inflight": "^1.0.6"
+        "inflight": "^1.0.6",
+        "follow-redirects": "1.16.0",
+        "protobufjs": "7.5.5"
     },
     "jest": {
         "moduleFileExtensions": [

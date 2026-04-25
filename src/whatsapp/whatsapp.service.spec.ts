@@ -32,6 +32,7 @@ import { WebhookService } from '../webhook/webhook.service';
 import { ChatStoreService } from './chat-store.service';
 import { Instance } from './interfaces/whatsapp.interface';
 import { PrismaService } from '../prisma/prisma.service';
+import { MediaUrlService } from '../media/media-url.service';
 
 const { DisconnectReason } = jest.requireMock('@whiskeysockets/baileys');
 
@@ -146,6 +147,15 @@ describe('WhatsappService', () => {
               delete: jest.fn().mockResolvedValue(undefined),
               update: jest.fn().mockResolvedValue(undefined),
             },
+          },
+        },
+        {
+          provide: MediaUrlService,
+          useValue: {
+            signPath: jest.fn(
+              (path: string) =>
+                `http://localhost:3000${path}?expires=1&signature=test`,
+            ),
           },
         },
       ],

@@ -2,5 +2,14 @@ node_modules
 dist
 instances
 media
+.env
 .env.local
+.env.*
+!.env.example
+uploads
+coverage
+playwright-report
+test-results
+dist-playwright
+.git
 *.tsbuildinfo

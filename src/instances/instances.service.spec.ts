@@ -3,6 +3,7 @@ import { BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InstancesService } from './instances.service.js';
 import { WhatsappService } from '../whatsapp/whatsapp.service.js';
+import { MediaUrlService } from '../media/media-url.service.js';
 
 jest.mock('../webhook/webhook-url-validator.js', () => ({
   validateOrThrow: jest.fn(),
@@ -22,6 +23,7 @@ describe('InstancesService', () => {
     updateWebhookConfig: jest.Mock;
   };
   let mockConfigService: { get: jest.Mock };
+  let mockMediaUrlService: { isSignedMediaUrl: jest.Mock };
 
   beforeEach(async () => {
     mockWhatsappService = {
@@ -34,11 +36,16 @@ describe('InstancesService', () => {
       get: jest.fn().mockReturnValue(false),
     };
 
+    mockMediaUrlService = {
+      isSignedMediaUrl: jest.fn().mockReturnValue(false),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         InstancesService,
         { provide: WhatsappService, useValue: mockWhatsappService },
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: MediaUrlService, useValue: mockMediaUrlService },
       ],
     }).compile();
 
