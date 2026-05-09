@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: papagai
@@ -15,7 +15,7 @@ services:
       retries: 5
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     restart: unless-stopped
     command: redis-server --appendonly yes
     volumes:
@@ -29,27 +29,57 @@ services:
   app:
     build: .
     restart: unless-stopped
+    networks:
+      - traefik
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.papagai.rule=Host(`${TRAEFIK_DOMAIN:?Set TRAEFIK_DOMAIN to your public domain}`)"
+      - "traefik.http.routers.papagai.entrypoints=websecure"
+      - "traefik.http.routers.papagai.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-letsencrypt}"
+      - "traefik.http.services.papagai.loadbalancer.server.port=${PORT:-3000}"
+      - "traefik.http.routers.papagai-http.rule=Host(`${TRAEFIK_DOMAIN:?Set TRAEFIK_DOMAIN to your public domain}`)"
+      - "traefik.http.routers.papagai-http.entrypoints=web"
+      - "traefik.http.routers.papagai-http.middlewares=redirect-https"
+      - "traefik.http.middlewares.redirect-https.redirectscheme.scheme=https"
     environment:
-      PORT: 3000
-      NODE_ENV: production
-      # Required — compose fails fast if unset (no weak defaults). See README.md and .env.example.
+      # Core application
+      PORT: ${PORT:-3000}
+      NODE_ENV: ${NODE_ENV:-production}
       APP_KEY: ${APP_KEY:?Set APP_KEY in your environment or a .env file next to this compose file}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in your environment or a .env file next to this compose file}
       BASE_URL: ${BASE_URL:?Set BASE_URL to your public application URL}
+      
+      # Database (internal service reference)
       DB_HOST: db
       DB_PORT: 5432
       DB_USER: papagai
       DB_PASS: papagai
       DB_NAME: papagai
       DATABASE_URL: postgresql://papagai:papagai@db:5432/papagai
+      
+      # Storage
       INSTANCES_DIR: /app/instances
       MEDIA_DIR: /app/media
+      MEDIA_URL_TTL_SECONDS: ${MEDIA_URL_TTL_SECONDS:-86400}
+      
+      # Cache (internal service reference)
       REDIS_URL: redis://redis:6379
+      
+      # CORS
+      CORS_ORIGIN: ${CORS_ORIGIN:-}
+      
+      # Webhooks
+      WEBHOOK_MAX_RETRIES: ${WEBHOOK_MAX_RETRIES:-3}
+      WEBHOOK_ALLOW_PRIVATE_HOSTS: ${WEBHOOK_ALLOW_PRIVATE_HOSTS:-false}
+      
+      # Rate limiting
+      AUTH_THROTTLE_TTL: ${AUTH_THROTTLE_TTL:-60}
+      AUTH_THROTTLE_LIMIT: ${AUTH_THROTTLE_LIMIT:-5}
     volumes:
       - media_data:/app/media
     ports:
@@ -59,6 +89,10 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+
+networks:
+  traefik:
+    external: true
 
 volumes:
   postgres_data:
