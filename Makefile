@@ -1,6 +1,6 @@
 .PHONY: dev prod up down restart logs build install test lint
 
-COMPOSE = docker-compose -f docker-compose.yml
+COMPOSE = docker compose -f docker-compose.yml
 COMPOSE_DEV = $(COMPOSE) -f docker-compose.dev.yml
 
 # Dev: hot-reload with mounted source
