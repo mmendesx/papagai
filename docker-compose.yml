@@ -55,12 +55,12 @@ services:
       BASE_URL: ${BASE_URL:?Set BASE_URL to your public application URL}
       
       # Database (internal service reference)
-      DB_HOST: db
+      DB_HOST: papagai-db
       DB_PORT: 5432
       DB_USER: papagai
       DB_PASS: papagai
       DB_NAME: papagai
-      DATABASE_URL: postgresql://papagai:papagai@db:5432/papagai
+      DATABASE_URL: postgresql://papagai:papagai@papagai-db:5432/papagai
       
       # Storage
       INSTANCES_DIR: /app/instances
