@@ -2,6 +2,8 @@ services:
   db:
     image: postgres:17-alpine
     restart: unless-stopped
+    networks:
+      - internal
     environment:
       POSTGRES_USER: papagai
       POSTGRES_PASSWORD: papagai
@@ -17,6 +19,8 @@ services:
   redis:
     image: redis:8-alpine
     restart: unless-stopped
+    networks:
+      - internal
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
@@ -31,6 +35,7 @@ services:
     restart: unless-stopped
     networks:
       - traefik
+      - internal
     depends_on:
       db:
         condition: service_healthy
@@ -55,12 +60,12 @@ services:
       BASE_URL: ${BASE_URL:?Set BASE_URL to your public application URL}
       
       # Database (internal service reference)
-      DB_HOST: papagai-db
+      DB_HOST: db
       DB_PORT: 5432
       DB_USER: papagai
       DB_PASS: papagai
       DB_NAME: papagai
-      DATABASE_URL: postgresql://papagai:papagai@papagai-db:5432/papagai
+      DATABASE_URL: postgresql://papagai:papagai@db:5432/papagai
       
       # Storage
       INSTANCES_DIR: /app/instances
@@ -93,6 +98,8 @@ services:
 networks:
   traefik:
     external: true
+  internal:
+    driver: bridge
 
 volumes:
   postgres_data:
