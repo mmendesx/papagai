@@ -99,6 +99,35 @@ function collectEnumValues(
   return composed.flatMap((entry) => collectEnumValues(document, entry));
 }
 
+function resolveObjectSchema(
+  document: OpenAPIObject,
+  schema: Record<string, any> | undefined,
+) {
+  const resolved = resolveSchema(document, schema);
+  if (!resolved) {
+    return undefined;
+  }
+
+  if (resolved.properties) {
+    return resolved;
+  }
+
+  const composed = [
+    ...(resolved.allOf ?? []),
+    ...(resolved.oneOf ?? []),
+    ...(resolved.anyOf ?? []),
+  ] as Array<Record<string, any>>;
+
+  for (const entry of composed) {
+    const entrySchema = resolveObjectSchema(document, entry);
+    if (entrySchema?.properties) {
+      return entrySchema;
+    }
+  }
+
+  return resolved;
+}
+
 describe('Swagger parity for AnyAuth and templates schema (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
@@ -224,5 +253,97 @@ describe('Swagger parity for AnyAuth and templates schema (e2e)', () => {
         'account_admin',
       ]),
     );
+  });
+
+  it('documents send-message media fields and examples', () => {
+    const operation =
+      openApiDocument.paths['/api/instances/{name}/messages']?.post;
+    expect(operation).toBeDefined();
+
+    const requestBody = operation?.requestBody as Record<string, any>;
+    const mediaType = requestBody?.content?.['application/json'] as
+      | Record<string, any>
+      | undefined;
+    const schema = resolveSchema(
+      openApiDocument,
+      mediaType?.schema as Record<string, any> | undefined,
+    );
+
+    expect(schema?.properties?.image).toBeDefined();
+    expect(schema?.properties?.audio).toBeDefined();
+    expect(schema?.properties?.video).toBeDefined();
+    expect(schema?.properties?.document).toBeDefined();
+    expect(schema?.properties?.sticker).toBeDefined();
+
+    const imageSchema = resolveObjectSchema(
+      openApiDocument,
+      schema?.properties?.image as Record<string, any> | undefined,
+    );
+    const documentSchema = resolveObjectSchema(
+      openApiDocument,
+      schema?.properties?.document as Record<string, any> | undefined,
+    );
+
+    expect(imageSchema?.properties).toEqual(
+      expect.objectContaining({
+        data: expect.any(Object),
+        mimetype: expect.any(Object),
+        link: expect.any(Object),
+      }),
+    );
+    expect(documentSchema?.properties).toEqual(
+      expect.objectContaining({
+        data: expect.any(Object),
+        mimetype: expect.any(Object),
+        link: expect.any(Object),
+        filename: expect.any(Object),
+      }),
+    );
+
+    expect(mediaType?.examples).toEqual(
+      expect.objectContaining({
+        text: expect.any(Object),
+        imageBase64: expect.any(Object),
+        imageUrl: expect.any(Object),
+        audioBase64: expect.any(Object),
+        videoUrl: expect.any(Object),
+        documentBase64: expect.any(Object),
+        documentUrl: expect.any(Object),
+        stickerBase64: expect.any(Object),
+        location: expect.any(Object),
+        reaction: expect.any(Object),
+        interactive: expect.any(Object),
+        contacts: expect.any(Object),
+      }),
+    );
+  });
+
+  it('documents metrics, events, upload, and API key operations', () => {
+    expect(
+      openApiDocument.paths['/api/instances/{name}/metrics']?.get?.responses?.[
+        '200'
+      ],
+    ).toBeDefined();
+    expect(
+      openApiDocument.paths['/api/instances/{name}/events']?.get?.responses?.[
+        '200'
+      ],
+    ).toBeDefined();
+    expect(
+      openApiDocument.paths['/api/instances/{name}/upload']?.post?.requestBody,
+    ).toBeDefined();
+    expect(
+      openApiDocument.paths['/api/instances/{name}/apikeys']?.post?.responses?.[
+        '201'
+      ],
+    ).toBeDefined();
+    expect(
+      openApiDocument.paths['/api/instances/{name}/apikeys']?.get?.responses?.[
+        '200'
+      ],
+    ).toBeDefined();
+    expect(
+      openApiDocument.paths['/api/auth/apikeys']?.get?.responses?.['200'],
+    ).toBeDefined();
   });
 });

@@ -512,9 +512,7 @@ export class ApikeysComponent implements OnInit {
       )
       .subscribe((result) => {
         if (result != null) {
-          // The newly created key is returned — add it to the list (without the raw key field for security)
-          const { key: _key, ...safeRecord } = result as ApiKeyRecord;
-          this.keys.update((current) => [safeRecord as ApiKeyRecord, ...current]);
+          this.loadKeys();
           this.alerts
             .open('Chave criada com sucesso.', {
               label: 'Sucesso',

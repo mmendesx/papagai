@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 
 export interface ApiKeyRecord {
   id: string;
@@ -32,12 +33,26 @@ export interface ApiKeyTemplateListResponse {
   templates: ApiKeyPermissionTemplate[];
 }
 
+type ApiKeyListResponse = ApiKeyRecord[] | { keys?: ApiKeyRecord[] };
+
+function withoutPlaintextKey(record: ApiKeyRecord): ApiKeyRecord {
+  const { key: _key, ...safeRecord } = record;
+  return safeRecord;
+}
+
+function normalizeApiKeyList(response: ApiKeyListResponse): ApiKeyRecord[] {
+  const rows = Array.isArray(response) ? response : response.keys ?? [];
+  return rows.map(withoutPlaintextKey);
+}
+
 @Injectable({ providedIn: 'root' })
 export class ApiKeysService {
   private readonly http = inject(HttpClient);
 
   listAccountKeys(): Observable<ApiKeyRecord[]> {
-    return this.http.get<ApiKeyRecord[]>('/api/auth/apikeys');
+    return this.http
+      .get<ApiKeyListResponse>('/api/auth/apikeys')
+      .pipe(map(normalizeApiKeyList));
   }
 
   createAccountKey(payload: CreateApiKeyPayload): Observable<ApiKeyRecord> {

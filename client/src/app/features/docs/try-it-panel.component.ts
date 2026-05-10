@@ -23,7 +23,14 @@ const TOKEN_KEY = 'papagai_access_token';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="try-head">
-      <button tuiButton type="button" size="s" appearance="secondary" (click)="toggleExpanded()">
+      <button
+        tuiButton
+        type="button"
+        size="s"
+        appearance="secondary"
+        [disabled]="!!endpoint().tryItDisabledReason"
+        (click)="toggleExpanded()"
+      >
         {{ expanded() ? 'Ocultar' : 'Testar' }}
       </button>
     </div>
@@ -291,6 +298,11 @@ export class TryItPanelComponent {
 
   send(): void {
     const ep = this.endpoint();
+    if (ep.tryItDisabledReason) {
+      this.result.set({ status: 0, ms: 0, body: ep.tryItDisabledReason });
+      return;
+    }
+
     const url = this.fullUrl();
     const t0 = performance.now();
     this.loading.set(true);

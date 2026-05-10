@@ -21,6 +21,7 @@ describe('InstancesService', () => {
     createInstance: jest.Mock;
     getInstance: jest.Mock;
     updateWebhookConfig: jest.Mock;
+    send: jest.Mock;
   };
   let mockConfigService: { get: jest.Mock };
   let mockMediaUrlService: { isSignedMediaUrl: jest.Mock };
@@ -30,6 +31,7 @@ describe('InstancesService', () => {
       createInstance: jest.fn().mockResolvedValue({ name: 'test-instance' }),
       getInstance: jest.fn(),
       updateWebhookConfig: jest.fn().mockResolvedValue({}),
+      send: jest.fn().mockResolvedValue({ key: { id: 'msg-1' } }),
     };
 
     mockConfigService = {
@@ -139,6 +141,56 @@ describe('InstancesService', () => {
         'my-papagai',
       );
       expect(result).toBe(fakeInstance);
+    });
+  });
+
+  describe('sendMessage', () => {
+    it('validates URL media links before sending', async () => {
+      (validateOrThrow as jest.Mock).mockResolvedValue(undefined);
+
+      await service.sendMessage('user-1', 'my-papagai', {
+        to: '5511999999999',
+        type: 'video',
+        video: { link: 'https://example.com/video.mp4' },
+      });
+
+      expect(validateOrThrow).toHaveBeenCalledWith(
+        'https://example.com/video.mp4',
+        expect.anything(),
+      );
+      expect(mockWhatsappService.send).toHaveBeenCalledWith(
+        'user-1',
+        'my-papagai',
+        '5511999999999',
+        {
+          video: { url: 'https://example.com/video.mp4' },
+          caption: undefined,
+        },
+      );
+    });
+
+    it('does not validate media links when inline data is present', async () => {
+      await service.sendMessage('user-1', 'my-papagai', {
+        to: '5511999999999',
+        type: 'image',
+        image: {
+          data: Buffer.from('image').toString('base64'),
+          mimetype: 'image/jpeg',
+          link: 'http://127.0.0.1/private.jpg',
+        },
+      });
+
+      expect(validateOrThrow).not.toHaveBeenCalled();
+      expect(mockWhatsappService.send).toHaveBeenCalledWith(
+        'user-1',
+        'my-papagai',
+        '5511999999999',
+        {
+          image: Buffer.from('image'),
+          mimetype: 'image/jpeg',
+          caption: undefined,
+        },
+      );
     });
   });
 });

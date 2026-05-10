@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import {
+  INestApplication,
+  UnprocessableEntityException,
+  ValidationPipe,
+} from '@nestjs/common';
 import { JwtModule, JwtService } from '@nestjs/jwt';
 import request from 'supertest';
 import { App } from 'supertest/types';
@@ -53,6 +57,12 @@ const mockMediaUrlService = {
   ),
 };
 
+function flattenErrors(
+  errors: Array<{ constraints?: Record<string, string> }>,
+) {
+  return errors.flatMap((error) => Object.values(error.constraints ?? {}));
+}
+
 describe('InstancesController', () => {
   let app: INestApplication;
   let token: string;
@@ -83,7 +93,12 @@ describe('InstancesController', () => {
 
     app = moduleFixture.createNestApplication();
     app.useGlobalPipes(
-      new ValidationPipe({ transform: true, whitelist: true }),
+      new ValidationPipe({
+        transform: true,
+        whitelist: true,
+        exceptionFactory: (errors) =>
+          new UnprocessableEntityException(flattenErrors(errors)),
+      }),
     );
     await app.init();
 
@@ -234,32 +249,32 @@ describe('InstancesController', () => {
       expect(res.body.limit).toBe(100);
     });
 
-    it('returns 400 when page=0', async () => {
+    it('returns 422 when page=0', async () => {
       await request(app.getHttpServer() as App)
         .get('/api/instances?page=0')
         .set('Authorization', `Bearer ${token}`)
-        .expect(400);
+        .expect(422);
     });
 
-    it('returns 400 when page=1.5 (decimal)', async () => {
+    it('returns 422 when page=1.5 (decimal)', async () => {
       await request(app.getHttpServer() as App)
         .get('/api/instances?page=1.5')
         .set('Authorization', `Bearer ${token}`)
-        .expect(400);
+        .expect(422);
     });
 
-    it('returns 400 when limit=0', async () => {
+    it('returns 422 when limit=0', async () => {
       await request(app.getHttpServer() as App)
         .get('/api/instances?limit=0')
         .set('Authorization', `Bearer ${token}`)
-        .expect(400);
+        .expect(422);
     });
 
-    it('returns 400 when limit=-3', async () => {
+    it('returns 422 when limit=-3', async () => {
       await request(app.getHttpServer() as App)
         .get('/api/instances?limit=-3')
         .set('Authorization', `Bearer ${token}`)
-        .expect(400);
+        .expect(422);
     });
 
     it('returns empty instances with correct total when page is beyond data', async () => {
@@ -470,6 +485,59 @@ describe('InstancesController', () => {
         undefined,
         undefined,
         ['message', 'qr'],
+      );
+    });
+  });
+
+  describe('POST /api/instances/:name/messages', () => {
+    it('rejects image payloads without link or data before service send', async () => {
+      await request(app.getHttpServer() as App)
+        .post('/api/instances/alpha/messages')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          to: '5511999999999',
+          type: 'image',
+          image: {},
+        })
+        .expect(422);
+
+      expect(mockService.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('rejects invalid base64 image data before service send', async () => {
+      await request(app.getHttpServer() as App)
+        .post('/api/instances/alpha/messages')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          to: '5511999999999',
+          type: 'image',
+          image: { data: 'not!!base64!!', mimetype: 'image/jpeg' },
+        })
+        .expect(422);
+
+      expect(mockService.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('passes URL media payloads through the send path', async () => {
+      mockService.sendMessage.mockResolvedValue({ key: { id: 'msg-1' } });
+
+      await request(app.getHttpServer() as App)
+        .post('/api/instances/alpha/messages')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          to: '5511999999999',
+          type: 'video',
+          video: { link: 'https://example.com/video.mp4' },
+        })
+        .expect(201);
+
+      expect(mockService.sendMessage).toHaveBeenCalledWith(
+        'test',
+        'alpha',
+        expect.objectContaining({
+          type: 'video',
+          video: { link: 'https://example.com/video.mp4' },
+        }),
       );
     });
   });

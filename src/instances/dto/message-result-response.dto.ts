@@ -1,15 +1,34 @@
 import { ApiProperty } from '@nestjs/swagger';
 
+export class MessageContactResponseDto {
+  @ApiProperty({ example: '5511999999999' })
+  input!: string;
+
+  @ApiProperty({ example: '5511999999999' })
+  wa_id!: string;
+}
+
+export class MessageIdResponseDto {
+  @ApiProperty({ example: 'BAE5A7B2B5E2491F' })
+  id!: string;
+}
+
 export class MessageResultResponseDto {
   @ApiProperty({
-    example: true,
-    description: 'Whether the message was sent successfully',
+    example: 'whatsapp',
+    description: 'Messaging product identifier',
   })
-  success: boolean;
+  messaging_product!: string;
 
   @ApiProperty({
-    example: 'BAE5A7B2B5E2491F',
-    description: 'WhatsApp message ID',
+    type: () => [MessageContactResponseDto],
+    description: 'Resolved recipient contact',
   })
-  messageId: string;
+  contacts!: MessageContactResponseDto[];
+
+  @ApiProperty({
+    type: () => [MessageIdResponseDto],
+    description: 'Sent message identifiers',
+  })
+  messages!: MessageIdResponseDto[];
 }

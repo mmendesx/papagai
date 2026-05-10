@@ -107,6 +107,25 @@ import { TryItPanelComponent } from './try-it-panel.component';
             </div>
           }
 
+          @if (endpoint().bodyExamples?.length) {
+            <div class="ep-section">
+              <h4 class="ep-section-title">Exemplos de corpo</h4>
+              <div class="example-list">
+                @for (example of endpoint().bodyExamples!; track example.title) {
+                  <div class="code-block-wrap">
+                    <div class="code-meta">
+                      <span class="lang-tag">{{ example.title }}</span>
+                      <button type="button" class="copy-btn" (click)="copy(example.json, example.title); $event.stopPropagation()">
+                        {{ copied() === example.title ? '✓ Copiado' : 'Copiar' }}
+                      </button>
+                    </div>
+                    <pre class="code-block"><code>{{ example.json }}</code></pre>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+
           <!-- Response example -->
           <div class="ep-section">
             <h4 class="ep-section-title">Resposta</h4>
@@ -151,7 +170,14 @@ import { TryItPanelComponent } from './try-it-panel.component';
           </div>
 
           <!-- Try it -->
-          <app-try-it-panel [endpoint]="endpoint()" />
+          @if (endpoint().tryItDisabledReason) {
+            <div class="manual-note">
+              <strong>Try It manual:</strong>
+              <span>{{ endpoint().tryItDisabledReason }}</span>
+            </div>
+          } @else {
+            <app-try-it-panel [endpoint]="endpoint()" />
+          }
         </div>
       }
     </article>
@@ -314,6 +340,12 @@ import { TryItPanelComponent } from './try-it-panel.component';
       }
       .param-desc { color: var(--color-on-surface-variant); line-height: 1.5; flex: 1; }
 
+      .example-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+
       /* Code blocks */
       .code-block-wrap {
         border-radius: var(--radius-lg);
@@ -385,6 +417,23 @@ import { TryItPanelComponent } from './try-it-panel.component';
         font-size: 0.8125rem;
         color: var(--color-on-surface-variant);
         line-height: 1.5;
+      }
+      .manual-note {
+        display: flex;
+        gap: 0.5rem;
+        align-items: flex-start;
+        padding: 0.75rem 0.875rem;
+        border: 1px solid color-mix(in srgb, var(--color-method-patch) 20%, var(--color-outline-variant));
+        border-radius: var(--radius-lg);
+        background: color-mix(in srgb, var(--color-warning-bg) 45%, transparent);
+        color: var(--color-on-surface-variant);
+        font-family: var(--font-sans);
+        font-size: 0.8125rem;
+        line-height: 1.5;
+      }
+      .manual-note strong {
+        color: var(--color-method-patch);
+        white-space: nowrap;
       }
     `,
   ],
