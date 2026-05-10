@@ -2,7 +2,8 @@
 
 COMPOSE = docker compose -f docker-compose.yml
 COMPOSE_DEV = $(COMPOSE) -f docker-compose.dev.yml
-COMPOSE_STAGE = docker compose -f docker-compose.stage.yml
+COMPOSE_PROD = docker compose -p papagai-prod -f docker-compose.yml
+COMPOSE_STAGE = docker compose -p papagai-stage -f docker-compose.stage.yml
 
 # Dev: hot-reload with mounted source
 dev:
@@ -13,10 +14,10 @@ dev/build:
 
 # Production
 prod:
-	$(COMPOSE) up -d
+	$(COMPOSE_PROD) up -d
 
 prod/build:
-	$(COMPOSE) up -d --build
+	$(COMPOSE_PROD) up -d --build
 
 # Staging
 stage:
@@ -36,13 +37,13 @@ stage/logs:
 
 # Infra only (db + redis, app runs locally)
 infra:
-	$(COMPOSE) up -d db redis
+	$(COMPOSE_PROD) up -d db redis
 
 down:
-	$(COMPOSE) down
+	$(COMPOSE_PROD) down
 
 down/v:
-	$(COMPOSE) down -v
+	$(COMPOSE_PROD) down -v
 
 restart:
 	$(COMPOSE_DEV) restart app
