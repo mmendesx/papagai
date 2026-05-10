@@ -35,6 +35,7 @@ import { ApiKeyResponseDto } from './dto/api-key-response.dto.js';
 import { ApiKeyTemplateListResponseDto } from './dto/api-key-template-response.dto.js';
 import {
   AccountApiKeyPermission,
+  AccountApiKeyTemplateId,
   listAccountApiKeyPermissionTemplates,
   resolvePermissionsTemplate,
 } from './api-key-permissions.js';
@@ -114,14 +115,21 @@ export class AuthController {
 
     const templatePermissions = dto.permissionsTemplate
       ? resolvePermissionsTemplate(dto.permissionsTemplate)
-      : undefined;
+      : resolvePermissionsTemplate(AccountApiKeyTemplateId.INSTANCE_MANAGER);
+
+    const requestedPermissions = dto.permissions ?? templatePermissions ?? [];
+    const finalPermissions = requestedPermissions.includes(
+      AccountApiKeyPermission.INSTANCES_CREATE,
+    )
+      ? requestedPermissions
+      : [...requestedPermissions, AccountApiKeyPermission.INSTANCES_CREATE];
 
     const expiresAt = dto.expiresAt ? new Date(dto.expiresAt) : undefined;
     const result = await this.apiKeyService.createAccountKey(
       req.user.sub,
       dto.name,
       expiresAt,
-      dto.permissions ?? templatePermissions,
+      finalPermissions,
     );
     return {
       id: result.id,
