@@ -1,5 +1,7 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
+ARG DATABASE_URL=postgresql://papagai:papagai@localhost:5432/papagai
+ENV DATABASE_URL=${DATABASE_URL}
 COPY package*.json ./
 RUN npm ci
 COPY client/.npmrc client/package*.json client/
@@ -10,6 +12,8 @@ RUN npm run build:all
 
 FROM node:22-alpine
 WORKDIR /app
+ARG DATABASE_URL=postgresql://papagai:papagai@localhost:5432/papagai
+ENV DATABASE_URL=${DATABASE_URL}
 RUN addgroup -S papagai && adduser -S papagai -G papagai
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/client/dist ./client/dist
