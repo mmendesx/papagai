@@ -4,6 +4,8 @@ services:
   db:
     image: postgres:17-alpine
     restart: unless-stopped
+    networks:
+      - internal
     environment:
       POSTGRES_USER: papagai
       POSTGRES_PASSWORD: papagai
@@ -19,6 +21,8 @@ services:
   redis:
     image: redis:8-alpine
     restart: unless-stopped
+    networks:
+      - internal
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
@@ -33,6 +37,7 @@ services:
     restart: unless-stopped
     networks:
       - traefik
+      - internal
     depends_on:
       db:
         condition: service_healthy
@@ -85,7 +90,7 @@ services:
     volumes:
       - media_data:/app/media
     ports:
-      - "3000:3000"
+      - "3000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
       interval: 30s
@@ -95,6 +100,8 @@ services:
 networks:
   traefik:
     external: true
+  internal:
+    driver: bridge
 
 volumes:
   postgres_data:
