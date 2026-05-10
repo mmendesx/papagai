@@ -442,7 +442,7 @@ export class CreateApiKeyDialogComponent {
     this.context.data?.scope ?? 'account'
   );
   readonly selectedInstance = signal<InstanceRow | null>(null);
-  readonly selectedTemplateId = signal<string>('');
+  readonly selectedTemplateId = signal<string>('instance_manager');
   readonly instancesRes = httpResource<InstancesListResponse>(() => '/api/instances', {
     defaultValue: { instances: [], total: 0, page: 1, limit: 20, totalPages: 0 },
   });
@@ -511,7 +511,7 @@ export class CreateApiKeyDialogComponent {
       }
 
       const preferredTemplate =
-        templates.find((template) => template.id === 'operator') ?? templates[0];
+        templates.find((template) => template.id === 'instance_manager') ?? templates[0];
       this.selectedTemplateId.set(preferredTemplate.id);
     });
   }
