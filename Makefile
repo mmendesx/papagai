@@ -1,7 +1,8 @@
-.PHONY: dev prod up down restart logs build install test lint
+.PHONY: dev prod stage up down restart logs build install test lint
 
 COMPOSE = docker compose -f docker-compose.yml
 COMPOSE_DEV = $(COMPOSE) -f docker-compose.dev.yml
+COMPOSE_STAGE = docker compose -f docker-compose.stage.yml
 
 # Dev: hot-reload with mounted source
 dev:
@@ -16,6 +17,22 @@ prod:
 
 prod/build:
 	$(COMPOSE) up -d --build
+
+# Staging
+stage:
+	$(COMPOSE_STAGE) up -d
+
+stage/build:
+	$(COMPOSE_STAGE) up -d --build
+
+stage/down:
+	$(COMPOSE_STAGE) down
+
+stage/down/v:
+	$(COMPOSE_STAGE) down -v
+
+stage/logs:
+	$(COMPOSE_STAGE) logs -f app
 
 # Infra only (db + redis, app runs locally)
 infra:
