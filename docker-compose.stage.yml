@@ -32,6 +32,7 @@ services:
     build: .
     restart: unless-stopped
     networks:
+      - default
       - traefik
     depends_on:
       db:
