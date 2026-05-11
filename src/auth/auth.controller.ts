@@ -117,12 +117,7 @@ export class AuthController {
       ? resolvePermissionsTemplate(dto.permissionsTemplate)
       : resolvePermissionsTemplate(AccountApiKeyTemplateId.INSTANCE_MANAGER);
 
-    const requestedPermissions = dto.permissions ?? templatePermissions ?? [];
-    const finalPermissions = requestedPermissions.includes(
-      AccountApiKeyPermission.INSTANCES_CREATE,
-    )
-      ? requestedPermissions
-      : [...requestedPermissions, AccountApiKeyPermission.INSTANCES_CREATE];
+    const finalPermissions = dto.permissions ?? templatePermissions ?? [];
 
     const expiresAt = dto.expiresAt ? new Date(dto.expiresAt) : undefined;
     const result = await this.apiKeyService.createAccountKey(
