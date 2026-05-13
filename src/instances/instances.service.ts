@@ -168,6 +168,10 @@ export class InstancesService {
     ];
 
     for (const media of mediaPayloads) {
+      if (typeof media?.data === 'string' && media.data.trim() !== '') {
+        continue;
+      }
+
       const link = media?.link;
       if (typeof link !== 'string' || link.trim() === '') {
         continue;

@@ -65,6 +65,14 @@ describe('MediaDto', () => {
     expect(await validate(dto)).toHaveLength(0);
   });
 
+  it('rejects base64 data without mimetype', async () => {
+    const dto = plainToInstance(MediaDto, {
+      data: Buffer.from('test').toString('base64'),
+    });
+    const errors = await validate(dto);
+    expect(errors.some((e) => e.property === 'mimetype')).toBe(true);
+  });
+
   it('rejects invalid base64 in data field', async () => {
     const dto = plainToInstance(MediaDto, { data: 'not!!base64!!' });
     const errors = await validate(dto);
@@ -117,6 +125,14 @@ describe('AudioDto', () => {
     expect(await validate(dto)).toHaveLength(0);
   });
 
+  it('rejects base64 data without mimetype', async () => {
+    const dto = plainToInstance(AudioDto, {
+      data: Buffer.from('test').toString('base64'),
+    });
+    const errors = await validate(dto);
+    expect(errors.some((e) => e.property === 'mimetype')).toBe(true);
+  });
+
   it('accepts ptt: true', async () => {
     const dto = plainToInstance(AudioDto, {
       link: 'https://example.com/audio.ogg',
@@ -157,6 +173,14 @@ describe('DocumentDto', () => {
     expect(await validate(dto)).toHaveLength(0);
   });
 
+  it('rejects base64 data without mimetype', async () => {
+    const dto = plainToInstance(DocumentDto, {
+      data: Buffer.from('test').toString('base64'),
+    });
+    const errors = await validate(dto);
+    expect(errors.some((e) => e.property === 'mimetype')).toBe(true);
+  });
+
   it('accepts optional filename', async () => {
     const dto = plainToInstance(DocumentDto, {
       link: 'https://example.com/file.pdf',
@@ -195,6 +219,14 @@ describe('StickerDto', () => {
       mimetype: 'image/webp',
     });
     expect(await validate(dto)).toHaveLength(0);
+  });
+
+  it('rejects base64 data without mimetype', async () => {
+    const dto = plainToInstance(StickerDto, {
+      data: Buffer.from('test').toString('base64'),
+    });
+    const errors = await validate(dto);
+    expect(errors.some((e) => e.property === 'mimetype')).toBe(true);
   });
 });
 
@@ -416,6 +448,48 @@ describe('MetaMessageDto', () => {
     const errors = await validate(dto, { validationError: { target: false } });
     const imageError = errors.find((e) => e.property === 'image');
     expect(imageError).toBeDefined();
+  });
+
+  it('rejects image messages without image payload', async () => {
+    const dto = plainToInstance(MetaMessageDto, {
+      to: '5511999999999',
+      type: 'image',
+    });
+    const errors = await validate(dto, { validationError: { target: false } });
+    expect(errors.some((e) => e.property === 'image')).toBe(true);
+  });
+
+  it('rejects image payloads without link or data', async () => {
+    const dto = plainToInstance(MetaMessageDto, {
+      to: '5511999999999',
+      type: 'image',
+      image: {},
+    });
+    const errors = await validate(dto, { validationError: { target: false } });
+    expect(errors.some((e) => e.property === 'image')).toBe(true);
+  });
+
+  it('rejects invalid base64 image data', async () => {
+    const dto = plainToInstance(MetaMessageDto, {
+      to: '5511999999999',
+      type: 'image',
+      image: { data: 'not!!base64!!', mimetype: 'image/jpeg' },
+    });
+    const errors = await validate(dto, { validationError: { target: false } });
+    expect(errors.some((e) => e.property === 'image')).toBe(true);
+  });
+
+  it('accepts image payloads that include both data and link', async () => {
+    const dto = plainToInstance(MetaMessageDto, {
+      to: '5511999999999',
+      type: 'image',
+      image: {
+        data: Buffer.from('image').toString('base64'),
+        mimetype: 'image/jpeg',
+        link: 'https://example.com/fallback.jpg',
+      },
+    });
+    expect(await validate(dto)).toHaveLength(0);
   });
 
   it('validates nested location latitude range', async () => {

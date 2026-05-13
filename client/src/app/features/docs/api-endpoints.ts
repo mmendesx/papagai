@@ -20,6 +20,11 @@ export interface ErrorDef {
 
 export type EndpointAuthType = 'none' | 'bearer' | 'apiKey' | 'bearer_or_apiKey';
 
+export interface BodyExampleDef {
+  title: string;
+  json: string;
+}
+
 export interface EndpointDef {
   id: string;
   method: HttpMethod;
@@ -33,6 +38,8 @@ export interface EndpointDef {
   responseExample: string;
   errorCodes: ErrorDef[];
   curlExample: string;
+  bodyExamples?: BodyExampleDef[];
+  tryItDisabledReason?: string;
   tryBody?: string;
   tryQuery?: string;
 }
@@ -72,6 +79,182 @@ export const WEBHOOK_PAYLOAD_EXAMPLES: { event: string; json: string }[] = [
   "event": "connected",
   "instance": "minha-instancia",
   "data": { "phoneNumber": "5511999999999" }
+}`,
+  },
+];
+
+const SEND_MESSAGE_BODY_EXAMPLES: BodyExampleDef[] = [
+  {
+    title: 'text',
+    json: `{
+  "to": "5511999999999@s.whatsapp.net",
+  "type": "text",
+  "text": { "body": "Hello from Papagai!" }
+}`,
+  },
+  {
+    title: 'image by URL',
+    json: `{
+  "to": "5511999999999@s.whatsapp.net",
+  "type": "image",
+  "image": {
+    "link": "https://example.com/photo.jpg",
+    "caption": "Photo by URL"
+  }
+}`,
+  },
+  {
+    title: 'image base64',
+    json: `{
+  "to": "5511999999999@s.whatsapp.net",
+  "type": "image",
+  "image": {
+    "data": "<base64-jpeg>",
+    "mimetype": "image/jpeg",
+    "caption": "Inline photo"
+  }
+}`,
+  },
+  {
+    title: 'audio URL and voice note',
+    json: `{
+  "to": "5511999999999@s.whatsapp.net",
+  "type": "audio",
+  "audio": {
+    "link": "https://example.com/audio.ogg",
+    "ptt": true
+  }
+}`,
+  },
+  {
+    title: 'audio base64',
+    json: `{
+  "to": "5511999999999@s.whatsapp.net",
+  "type": "audio",
+  "audio": {
+    "data": "<base64-ogg>",
+    "mimetype": "audio/ogg",
+    "ptt": false
+  }
+}`,
+  },
+  {
+    title: 'video URL',
+    json: `{
+  "to": "5511999999999@s.whatsapp.net",
+  "type": "video",
+  "video": {
+    "link": "https://example.com/video.mp4",
+    "caption": "Video by URL"
+  }
+}`,
+  },
+  {
+    title: 'video base64',
+    json: `{
+  "to": "5511999999999@s.whatsapp.net",
+  "type": "video",
+  "video": {
+    "data": "<base64-mp4>",
+    "mimetype": "video/mp4",
+    "caption": "Inline video"
+  }
+}`,
+  },
+  {
+    title: 'document URL',
+    json: `{
+  "to": "5511999999999@s.whatsapp.net",
+  "type": "document",
+  "document": {
+    "link": "https://example.com/report.pdf",
+    "filename": "report.pdf",
+    "caption": "Monthly report"
+  }
+}`,
+  },
+  {
+    title: 'document base64',
+    json: `{
+  "to": "5511999999999@s.whatsapp.net",
+  "type": "document",
+  "document": {
+    "data": "<base64-pdf>",
+    "mimetype": "application/pdf",
+    "filename": "report.pdf"
+  }
+}`,
+  },
+  {
+    title: 'sticker URL',
+    json: `{
+  "to": "5511999999999@s.whatsapp.net",
+  "type": "sticker",
+  "sticker": { "link": "https://example.com/sticker.webp" }
+}`,
+  },
+  {
+    title: 'sticker base64',
+    json: `{
+  "to": "5511999999999@s.whatsapp.net",
+  "type": "sticker",
+  "sticker": {
+    "data": "<base64-webp>",
+    "mimetype": "image/webp"
+  }
+}`,
+  },
+  {
+    title: 'location',
+    json: `{
+  "to": "5511999999999@s.whatsapp.net",
+  "type": "location",
+  "location": {
+    "latitude": -23.5505,
+    "longitude": -46.6333,
+    "name": "Sao Paulo"
+  }
+}`,
+  },
+  {
+    title: 'reaction',
+    json: `{
+  "to": "5511999999999@s.whatsapp.net",
+  "type": "reaction",
+  "reaction": {
+    "message_id": "BAE5...",
+    "emoji": "👍"
+  }
+}`,
+  },
+  {
+    title: 'interactive buttons',
+    json: `{
+  "to": "5511999999999@s.whatsapp.net",
+  "type": "interactive",
+  "interactive": {
+    "type": "button",
+    "body": { "text": "Choose an option" },
+    "action": {
+      "buttons": [
+        { "type": "reply", "reply": { "id": "yes", "title": "Yes" } },
+        { "type": "reply", "reply": { "id": "no", "title": "No" } }
+      ]
+    }
+  }
+}`,
+  },
+  {
+    title: 'contacts',
+    json: `{
+  "to": "5511999999999@s.whatsapp.net",
+  "type": "contacts",
+  "contacts": [
+    {
+      "name": { "formatted_name": "Support Bot" },
+      "phones": [{ "phone": "5511888888888", "type": "WORK" }]
+    }
+  ]
 }`,
   },
 ];
@@ -458,6 +641,30 @@ curl -sS "$BASE/api/auth/apikeys/templates" \\
   -H "Authorization: Bearer $TOKEN"`,
       },
       {
+        id: 'instances-metrics',
+        method: 'GET',
+        path: '/api/instances/:name/metrics',
+        title: 'Métricas da instância',
+        description: 'Retorna contadores em memória para mensagens enviadas, recebidas, conversas ativas e status do webhook.',
+        auth: 'bearer_or_apiKey',
+        pathParams: [{ name: 'name', placeholder: 'meu-papagai', description: 'Nome da instância.' }],
+        responseExample: `{
+  "instance": "meu-papagai",
+  "metrics": {
+    "messagesSent": 10,
+    "messagesReceived": 25,
+    "activeConversations": 5,
+    "webhookEnabled": true
+  }
+}`,
+        errorCodes: [
+          { status: 401, description: 'Não autorizado.' },
+          { status: 404, description: 'Instância não encontrada.' },
+        ],
+        curlExample: `curl -sS "$BASE/api/instances/meu-papagai/metrics" \\
+  -H "Authorization: Bearer $TOKEN"`,
+      },
+      {
         id: 'instances-qr',
         method: 'GET',
         path: '/api/instances/:name/qr',
@@ -601,26 +808,78 @@ curl -sS -X DELETE "$BASE/api/instances/meu-papagai/apikeys/9b1deb4d-3b7d-4f7f-8
         method: 'POST',
         path: '/api/instances/:name/messages',
         title: 'Enviar mensagem',
-        description: 'Envia uma mensagem pela instância indicada. O body segue o estilo da Meta Cloud API (type + payload).',
+        description:
+          'Envia uma mensagem pela instância indicada. O body segue o estilo da Meta Cloud API (type + payload). Mídias aceitam link HTTPS ou data base64 com mimetype; quando data e link existem, data é usada.',
         auth: 'bearer_or_apiKey',
         pathParams: [{ name: 'name', placeholder: 'meu-papagai', description: 'Nome da instância.' }],
         bodyParams: [
           { name: 'to', type: 'string', required: true, description: 'JID ou número do destinatário aceito pelo gateway.' },
           { name: 'type', type: 'string', required: true, description: 'Ex.: text, image, audio, video, document, sticker, location, contacts, reaction, interactive.' },
           { name: 'text', type: 'object', required: false, description: 'Para type text: { body: string }' },
-          { name: 'image', type: 'object', required: false, description: 'Payload de mídia conforme o transformer.' },
+          { name: 'image | video', type: 'object', required: false, description: '{ link } ou { data, mimetype }, com caption opcional.' },
+          { name: 'audio', type: 'object', required: false, description: '{ link } ou { data, mimetype }, com ptt opcional para voice note.' },
+          { name: 'document', type: 'object', required: false, description: '{ link } ou { data, mimetype }, com filename e caption opcionais.' },
+          { name: 'sticker', type: 'object', required: false, description: '{ link } ou { data, mimetype } para sticker WebP.' },
+          { name: 'location', type: 'object', required: false, description: '{ latitude, longitude, name? }.' },
+          { name: 'reaction', type: 'object', required: false, description: '{ message_id, emoji }.' },
+          { name: 'interactive', type: 'object', required: false, description: 'Payload interativo compatível com botões/listas.' },
+          { name: 'contacts', type: 'object[]', required: false, description: 'Lista de contatos no formato Meta.' },
         ],
         responseExample: `{
   "messaging_product": "whatsapp",
   "contacts": [{ "input": "5511999999999", "wa_id": "5511999999999" }],
   "messages": [{ "id": "…" }]
 }`,
-        errorCodes: [{ status: 400, description: 'Falha no envio ou payload inválido.' }],
-        curlExample: `curl -sS -X POST "$BASE/api/instances/meu-papagai/messages" \\
+        errorCodes: [
+          { status: 400, description: 'Falha no envio, instância inválida ou erro do WhatsApp.' },
+          { status: 401, description: 'Não autorizado.' },
+          { status: 422, description: 'Falha de validação, como mídia sem link/data ou base64 inválido.' },
+        ],
+        curlExample: `# Text
+curl -sS -X POST "$BASE/api/instances/meu-papagai/messages" \\
   -H "Authorization: Bearer $TOKEN" \\
   -H "Content-Type: application/json" \\
-  -d '{"to":"5511999999999@s.whatsapp.net","type":"text","text":{"body":"Olá!"}}'`,
+  -d '{"to":"5511999999999@s.whatsapp.net","type":"text","text":{"body":"Olá!"}}'
+
+# Base64 image
+curl -sS -X POST "$BASE/api/instances/meu-papagai/messages" \\
+  -H "X-Api-Key: $API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"to":"5511999999999@s.whatsapp.net","type":"image","image":{"data":"<base64-jpeg>","mimetype":"image/jpeg","caption":"Inline photo"}}'
+
+# URL document
+curl -sS -X POST "$BASE/api/instances/meu-papagai/messages" \\
+  -H "Authorization: Bearer $TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{"to":"5511999999999@s.whatsapp.net","type":"document","document":{"link":"https://example.com/report.pdf","filename":"report.pdf"}}'`,
+        bodyExamples: SEND_MESSAGE_BODY_EXAMPLES,
         tryBody: '{\n  "to": "5511999999999@s.whatsapp.net",\n  "type": "text",\n  "text": { "body": "Olá da API!" }\n}',
+      },
+      {
+        id: 'messages-upload',
+        method: 'POST',
+        path: '/api/instances/:name/upload',
+        title: 'Upload de mídia',
+        description:
+          'Recebe multipart/form-data com campo file e retorna uma URL assinada para uso posterior em payloads de mídia por link. O composer do painel usa base64 inline; este endpoint é para integrações externas.',
+        auth: 'bearer_or_apiKey',
+        pathParams: [{ name: 'name', placeholder: 'meu-papagai', description: 'Nome da instância.' }],
+        bodyParams: [
+          { name: 'file', type: 'binary', required: true, description: 'Arquivo de até 16 MB. Tipos aceitos: JPEG, PNG, WebP, GIF, MP4, OGG, MPEG e AAC.' },
+        ],
+        responseExample: `{
+  "url": "http://localhost:3000/uploads/meu-papagai/7d9f-file.jpg?token=..."
+}`,
+        errorCodes: [
+          { status: 400, description: 'Arquivo ausente ou tipo não permitido.' },
+          { status: 401, description: 'Não autorizado.' },
+          { status: 404, description: 'Instância não encontrada.' },
+          { status: 413, description: 'Arquivo maior que 16 MB.' },
+        ],
+        curlExample: `curl -sS -X POST "$BASE/api/instances/meu-papagai/upload" \\
+  -H "Authorization: Bearer $TOKEN" \\
+  -F "file=@./photo.jpg"`,
+        tryItDisabledReason: 'Upload multipart/form-data não é executado pelo Try It. Use o curl manual acima.',
       },
     ],
   },
@@ -668,6 +927,94 @@ curl -sS -X DELETE "$BASE/api/instances/meu-papagai/apikeys/9b1deb4d-3b7d-4f7f-8
         errorCodes: [{ status: 400, description: 'Falha ao carregar conversas.' }],
         curlExample: `curl -sS "$BASE/api/instances/meu-papagai/chats?include_messages=false" \\
   -H "Authorization: Bearer $TOKEN"`,
+      },
+      {
+        id: 'chat-messages',
+        method: 'GET',
+        path: '/api/instances/:name/chats/:chatId/messages',
+        tryQuery: 'limit=100',
+        title: 'Listar mensagens da conversa',
+        description: 'Retorna o histórico recente de uma conversa. chatId aceita número puro ou JID completo; limit é limitado entre 1 e 500.',
+        auth: 'bearer_or_apiKey',
+        pathParams: [
+          { name: 'name', placeholder: 'meu-papagai', description: 'Nome da instância.' },
+          { name: 'chatId', placeholder: '5511999999999', description: 'Número puro ou JID completo da conversa.' },
+        ],
+        queryParams: [
+          { name: 'limit', type: 'number', required: false, description: 'Quantidade de mensagens (1-500, padrão 100).' },
+        ],
+        responseExample: `{
+  "instance": "meu-papagai",
+  "chatId": "5511999999999@s.whatsapp.net",
+  "total": 1,
+  "messages": [
+    {
+      "id": "msg-1",
+      "fromMe": false,
+      "timestamp": 1710000000000,
+      "type": "text",
+      "body": "Hello"
+    }
+  ]
+}`,
+        errorCodes: [
+          { status: 400, description: 'chatId inválido ou falha ao carregar mensagens.' },
+          { status: 401, description: 'Não autorizado.' },
+          { status: 404, description: 'Instância não encontrada.' },
+        ],
+        curlExample: `curl -sS "$BASE/api/instances/meu-papagai/chats/5511999999999/messages?limit=100" \\
+  -H "Authorization: Bearer $TOKEN"`,
+      },
+      {
+        id: 'chat-read',
+        method: 'POST',
+        path: '/api/instances/:name/chats/:chatId/read',
+        title: 'Marcar conversa como lida',
+        description: 'Zera o contador de não lidas para a conversa informada.',
+        auth: 'bearer_or_apiKey',
+        pathParams: [
+          { name: 'name', placeholder: 'meu-papagai', description: 'Nome da instância.' },
+          { name: 'chatId', placeholder: '5511999999999', description: 'Número puro ou JID completo da conversa.' },
+        ],
+        responseExample: `{
+  "ok": true
+}`,
+        errorCodes: [
+          { status: 401, description: 'Não autorizado.' },
+          { status: 404, description: 'Instância não encontrada.' },
+        ],
+        curlExample: `curl -sS -X POST "$BASE/api/instances/meu-papagai/chats/5511999999999/read" \\
+  -H "Authorization: Bearer $TOKEN"`,
+      },
+      {
+        id: 'instance-events',
+        method: 'GET',
+        path: '/api/instances/:name/events',
+        title: 'Stream de eventos da instância',
+        description:
+          'Abre um stream SSE com eventos chat_updated, chat_read, history_synced e heartbeat a cada 25 segundos. Mantenha a conexão aberta e reconecte em falhas de rede.',
+        auth: 'bearer_or_apiKey',
+        pathParams: [{ name: 'name', placeholder: 'meu-papagai', description: 'Nome da instância.' }],
+        responseExample: `event: chat_updated
+data: {
+  "type": "chat_updated",
+  "chatId": "5511999999999@s.whatsapp.net",
+  "timestamp": 1710000000000,
+  "source": "incoming",
+  "chat": { "...": "ChatSummary" },
+  "message": { "...": "StoredMessage" }
+}
+
+event: heartbeat
+data: { "type": "heartbeat", "timestamp": 1710000025000 }`,
+        errorCodes: [
+          { status: 401, description: 'Não autorizado.' },
+          { status: 404, description: 'Instância não encontrada.' },
+        ],
+        curlExample: `curl -N "$BASE/api/instances/meu-papagai/events" \\
+  -H "Authorization: Bearer $TOKEN" \\
+  -H "Accept: text/event-stream"`,
+        tryItDisabledReason: 'Streams SSE ficam abertos continuamente. Use curl -N ou EventSource/fetch-event-source no cliente.',
       },
     ],
   },

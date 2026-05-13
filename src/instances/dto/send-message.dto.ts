@@ -7,6 +7,8 @@ import {
   IsBoolean,
   IsNumber,
   IsBase64,
+  IsArray,
+  IsDefined,
   Min,
   Max,
   MaxLength,
@@ -52,7 +54,8 @@ export class MediaDto {
   data?: string;
 
   @ApiPropertyOptional({ example: 'image/jpeg' })
-  @IsOptional()
+  @ValidateIf((o) => Boolean(o.data))
+  @IsNotEmpty({ message: 'mimetype is required when data is provided' })
   @IsString()
   @MaxLength(128)
   mimetype?: string;
@@ -79,7 +82,8 @@ export class AudioDto {
   data?: string;
 
   @ApiPropertyOptional({ example: 'audio/mpeg' })
-  @IsOptional()
+  @ValidateIf((o) => Boolean(o.data))
+  @IsNotEmpty({ message: 'mimetype is required when data is provided' })
   @IsString()
   @MaxLength(128)
   mimetype?: string;
@@ -108,7 +112,8 @@ export class DocumentDto {
   data?: string;
 
   @ApiPropertyOptional({ example: 'application/pdf' })
-  @IsOptional()
+  @ValidateIf((o) => Boolean(o.data))
+  @IsNotEmpty({ message: 'mimetype is required when data is provided' })
   @IsString()
   @MaxLength(128)
   mimetype?: string;
@@ -140,7 +145,8 @@ export class StickerDto {
   data?: string;
 
   @ApiPropertyOptional({ example: 'image/webp' })
-  @IsOptional()
+  @ValidateIf((o) => Boolean(o.data))
+  @IsNotEmpty({ message: 'mimetype is required when data is provided' })
   @IsString()
   @MaxLength(128)
   mimetype?: string;
@@ -233,7 +239,8 @@ export class MetaMessageDto {
     type: () => TextBodyDto,
     description: 'Required when type=text',
   })
-  @IsOptional()
+  @ValidateIf((o) => o.type === MessageType.text)
+  @IsDefined()
   @ValidateNested()
   @Type(() => TextBodyDto)
   text?: TextBodyDto;
@@ -242,7 +249,8 @@ export class MetaMessageDto {
     type: () => MediaDto,
     description: 'Required when type=image',
   })
-  @IsOptional()
+  @ValidateIf((o) => o.type === MessageType.image)
+  @IsDefined()
   @ValidateNested()
   @Type(() => MediaDto)
   image?: MediaDto;
@@ -251,7 +259,8 @@ export class MetaMessageDto {
     type: () => MediaDto,
     description: 'Required when type=video',
   })
-  @IsOptional()
+  @ValidateIf((o) => o.type === MessageType.video)
+  @IsDefined()
   @ValidateNested()
   @Type(() => MediaDto)
   video?: MediaDto;
@@ -260,7 +269,8 @@ export class MetaMessageDto {
     type: () => AudioDto,
     description: 'Required when type=audio',
   })
-  @IsOptional()
+  @ValidateIf((o) => o.type === MessageType.audio)
+  @IsDefined()
   @ValidateNested()
   @Type(() => AudioDto)
   audio?: AudioDto;
@@ -269,7 +279,8 @@ export class MetaMessageDto {
     type: () => DocumentDto,
     description: 'Required when type=document',
   })
-  @IsOptional()
+  @ValidateIf((o) => o.type === MessageType.document)
+  @IsDefined()
   @ValidateNested()
   @Type(() => DocumentDto)
   document?: DocumentDto;
@@ -278,7 +289,8 @@ export class MetaMessageDto {
     type: () => StickerDto,
     description: 'Required when type=sticker',
   })
-  @IsOptional()
+  @ValidateIf((o) => o.type === MessageType.sticker)
+  @IsDefined()
   @ValidateNested()
   @Type(() => StickerDto)
   sticker?: StickerDto;
@@ -287,7 +299,8 @@ export class MetaMessageDto {
     type: () => LocationDto,
     description: 'Required when type=location',
   })
-  @IsOptional()
+  @ValidateIf((o) => o.type === MessageType.location)
+  @IsDefined()
   @ValidateNested()
   @Type(() => LocationDto)
   location?: LocationDto;
@@ -296,7 +309,8 @@ export class MetaMessageDto {
     type: () => ReactionDto,
     description: 'Required when type=reaction',
   })
-  @IsOptional()
+  @ValidateIf((o) => o.type === MessageType.reaction)
+  @IsDefined()
   @ValidateNested()
   @Type(() => ReactionDto)
   reaction?: ReactionDto;
@@ -305,7 +319,8 @@ export class MetaMessageDto {
     type: () => InteractiveDto,
     description: 'Required when type=interactive',
   })
-  @IsOptional()
+  @ValidateIf((o) => o.type === MessageType.interactive)
+  @IsDefined()
   @ValidateNested()
   @Type(() => InteractiveDto)
   interactive?: InteractiveDto;
@@ -315,6 +330,8 @@ export class MetaMessageDto {
     items: { type: 'object' },
     description: 'Required when type=contacts',
   })
-  @IsOptional()
+  @ValidateIf((o) => o.type === MessageType.contacts)
+  @IsDefined()
+  @IsArray()
   contacts?: any[];
 }

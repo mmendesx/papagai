@@ -5,6 +5,7 @@ import {
   Component,
   DestroyRef,
   computed,
+  effect,
   inject,
   signal,
 } from '@angular/core';
@@ -13,6 +14,7 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom, timer } from 'rxjs';
 import { filter, map, switchMap, takeWhile, tap } from 'rxjs/operators';
+import { fetchEventSource } from '@microsoft/fetch-event-source';
 import { HeaderActionsService } from '../../shared/header-actions.service';
 import { InstanceTabsComponent } from './instance-tabs.component';
 
@@ -39,7 +41,6 @@ type StatusResponse = {
   };
 };
 
-// TODO: Replace with real metrics signal once backend exposes /metrics endpoint
 interface InstanceMetrics {
   messagesSent: number | null;
   messagesReceived: number | null;
@@ -47,12 +48,30 @@ interface InstanceMetrics {
   webhookEnabled: boolean | null;
 }
 
-// TODO: Populate recentActivity signal when backend exposes activity feed endpoint
 interface RecentActivityItem {
   id: string;
   type: string;
   description: string;
   timestamp: string;
+}
+
+interface DashboardRealtimeEvent {
+  type?: 'chat_updated' | 'chat_read' | 'history_synced' | 'heartbeat';
+  chatId?: string;
+  timestamp?: number;
+  source?: 'incoming' | 'outgoing' | string;
+  chat?: {
+    id: string;
+    name?: string | null;
+    lastMessage?: string | null;
+  };
+  message?: {
+    id?: string;
+    body?: string | null;
+    fromMe?: boolean;
+    type?: string;
+    sender?: string | null;
+  };
 }
 
 const EMPTY_METRICS: InstanceMetrics = {
@@ -61,6 +80,10 @@ const EMPTY_METRICS: InstanceMetrics = {
   activeConversations: null,
   webhookEnabled: null,
 };
+const TOKEN_KEY = 'papagai_access_token';
+const ACTIVITY_LIMIT = 20;
+const STREAM_RETRY_DELAY_MS = 2000;
+const MS_EPOCH_THRESHOLD = 1_000_000_000_000;
 
 @Component({
   selector: 'app-instance-detail',
@@ -238,6 +261,11 @@ const EMPTY_METRICS: InstanceMetrics = {
           <!-- ATIVIDADE RECENTE section -->
           <section class="content-section" aria-label="Atividade recente">
             <h2 class="section-label" aria-label="Seção: Atividade recente">ATIVIDADE RECENTE</h2>
+            @if (activityStreamError()) {
+              <p class="activity-stream-note" role="status">
+                Atualização em tempo real indisponível. Tentando reconectar…
+              </p>
+            }
             @if (recentActivity().length > 0) {
               <div class="activity-list">
                 @for (item of recentActivity(); track item.id) {
@@ -257,7 +285,6 @@ const EMPTY_METRICS: InstanceMetrics = {
                 <p class="activity-empty-text">
                   Nenhuma atividade registrada ainda. As mensagens recebidas e eventos aparecerão aqui.
                 </p>
-                <span class="activity-soon-pill" aria-label="Em breve">Em breve</span>
               </div>
             }
           </section>
@@ -579,6 +606,11 @@ const EMPTY_METRICS: InstanceMetrics = {
       .activity-item:last-child { border-bottom: none; }
       .activity-desc { color: var(--color-on-surface); }
       .activity-time { color: var(--color-on-surface-variant); font-size: 0.75rem; white-space: nowrap; }
+      .activity-stream-note {
+        margin: 0 0 0.75rem;
+        color: var(--color-on-surface-variant);
+        font-size: 0.75rem;
+      }
 
       .activity-empty {
         position: relative;
@@ -603,20 +635,6 @@ const EMPTY_METRICS: InstanceMetrics = {
         max-width: 36ch;
         line-height: 1.5;
       }
-      .activity-soon-pill {
-        display: inline-flex;
-        align-items: center;
-        padding: 0.125rem 0.5rem;
-        background: color-mix(in srgb, var(--color-on-surface-variant) 8%, transparent);
-        border: 1px solid color-mix(in srgb, var(--color-on-surface-variant) 15%, transparent);
-        border-radius: var(--radius-full);
-        font-size: 0.6875rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: var(--color-on-surface-variant);
-      }
-
       /* ── QR state ──────────────────────────────────────────── */
       .qr-layout {
         flex: 1;
@@ -737,17 +755,38 @@ export class InstanceDetailComponent {
   readonly qrData = signal<QrResponse | null>(null);
   readonly status = signal<StatusResponse | null>(null);
 
-  // Live metrics from GET /api/instances/:name/metrics, polled every 10s
+  // Live metrics from GET /api/instances/:name/metrics.
   private readonly metricsRes = httpResource<{ instance: string; metrics: InstanceMetrics }>(() => {
     const n = this.name();
     return n && this.qrData()?.status === 'connected'
       ? `/api/instances/${encodeURIComponent(n)}/metrics`
       : undefined;
   });
-  readonly metrics = computed<InstanceMetrics>(() => this.metricsRes.value()?.metrics ?? EMPTY_METRICS);
+  private readonly lastMetrics = signal<InstanceMetrics>(EMPTY_METRICS);
+  private readonly metricsSyncEffect = effect(() => {
+    const next = this.metricsRes.value()?.metrics;
+    if (next) {
+      this.lastMetrics.set(next);
+    }
+  });
+  readonly metrics = computed<InstanceMetrics>(() => this.lastMetrics());
 
-  // TODO: Populate this signal when backend exposes an activity feed endpoint for the instance
   readonly recentActivity = signal<RecentActivityItem[]>([]);
+  readonly activityStreamError = signal(false);
+
+  private streamAbortController: AbortController | null = null;
+  private readonly streamEffect = effect((onCleanup) => {
+    const instanceName = this.name();
+    const connected = this.qrData()?.status === 'connected';
+
+    if (!instanceName || !connected) {
+      this.stopActivityStream();
+      return;
+    }
+
+    this.startActivityStream(instanceName);
+    onCleanup(() => this.stopActivityStream());
+  });
 
   private static readonly STATUS_LABELS: Record<string, string> = {
     connected:    'Conectado',
@@ -779,7 +818,10 @@ export class InstanceDetailComponent {
   constructor() {
     const headerActions = inject(HeaderActionsService);
     headerActions.clearActions();
-    inject(DestroyRef).onDestroy(() => headerActions.clearActions());
+    inject(DestroyRef).onDestroy(() => {
+      this.stopActivityStream();
+      headerActions.clearActions();
+    });
 
     // QR polling: stops once connected
     this.route.paramMap
@@ -832,5 +874,156 @@ export class InstanceDetailComponent {
     if (h > 0) return `${h}h ${m % 60}m`;
     if (m > 0) return `${m}m`;
     return `${s}s`;
+  }
+
+  private startActivityStream(instanceName: string): void {
+    this.stopActivityStream();
+
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token) {
+      this.activityStreamError.set(true);
+      return;
+    }
+
+    const controller = new AbortController();
+    this.streamAbortController = controller;
+    this.activityStreamError.set(false);
+
+    void fetchEventSource(
+      `/api/instances/${encodeURIComponent(instanceName)}/events`,
+      {
+        method: 'GET',
+        signal: controller.signal,
+        openWhenHidden: true,
+        headers: {
+          Accept: 'text/event-stream',
+          Authorization: `Bearer ${token}`,
+        },
+        onopen: (response) => {
+          if (response.ok) {
+            this.activityStreamError.set(false);
+            return Promise.resolve();
+          }
+          this.activityStreamError.set(true);
+          if (response.status === 401 || response.status === 403) {
+            throw new Error('Unauthorized activity stream');
+          }
+          throw new Error(`Failed to open activity stream (${response.status})`);
+        },
+        onmessage: (event) => {
+          this.handleActivityEvent(event.data, event.event);
+        },
+        onclose: () => {
+          if (controller.signal.aborted) return;
+          this.activityStreamError.set(true);
+          throw new Error('Activity stream closed unexpectedly');
+        },
+        onerror: (error) => {
+          if (controller.signal.aborted) return;
+          this.activityStreamError.set(true);
+          const msg = error instanceof Error ? error.message : String(error);
+          if (msg.includes('Unauthorized activity stream')) {
+            this.stopActivityStream();
+            return;
+          }
+          return STREAM_RETRY_DELAY_MS;
+        },
+      },
+    ).catch(() => undefined);
+  }
+
+  private stopActivityStream(): void {
+    if (this.streamAbortController) {
+      this.streamAbortController.abort();
+      this.streamAbortController = null;
+    }
+  }
+
+  private handleActivityEvent(rawData: string, eventType?: string): void {
+    if (!rawData) return;
+
+    let parsed: DashboardRealtimeEvent | null = null;
+    try {
+      parsed = JSON.parse(rawData) as DashboardRealtimeEvent;
+    } catch {
+      return;
+    }
+
+    if (!parsed) return;
+
+    const type = parsed.type ?? eventType;
+    if (!type) return;
+    if (type === 'heartbeat') return;
+
+    const item = this.mapActivityItem(parsed, type);
+    if (!item) return;
+
+    this.activityStreamError.set(false);
+    this.recentActivity.update((current) => [item, ...current].slice(0, ACTIVITY_LIMIT));
+
+    if (type === 'chat_updated' || type === 'chat_read' || type === 'history_synced') {
+      this.metricsRes.reload();
+    }
+  }
+
+  private mapActivityItem(
+    event: DashboardRealtimeEvent,
+    type: string,
+  ): RecentActivityItem | null {
+    const timestamp = this.toEpochMs(event.timestamp);
+    const chatName = event.chat?.name || event.chatId || event.chat?.id || 'conversa';
+
+    if (type === 'chat_updated') {
+      const direction = event.message?.fromMe || event.source === 'outgoing'
+        ? 'Mensagem enviada'
+        : 'Mensagem recebida';
+      const preview = this.activityPreview(event.message?.body ?? event.chat?.lastMessage ?? null);
+      return {
+        id: `${type}-${event.message?.id ?? event.chatId ?? timestamp}-${timestamp}`,
+        type,
+        description: preview ? `${direction} em ${chatName}: ${preview}` : `${direction} em ${chatName}`,
+        timestamp: this.formatActivityTime(timestamp),
+      };
+    }
+
+    if (type === 'chat_read') {
+      return {
+        id: `${type}-${event.chatId ?? timestamp}-${timestamp}`,
+        type,
+        description: `Conversa marcada como lida: ${chatName}`,
+        timestamp: this.formatActivityTime(timestamp),
+      };
+    }
+
+    if (type === 'history_synced') {
+      return {
+        id: `${type}-${event.chatId ?? timestamp}-${timestamp}`,
+        type,
+        description: event.chatId
+          ? `Histórico sincronizado para ${chatName}`
+          : 'Histórico de conversas sincronizado',
+        timestamp: this.formatActivityTime(timestamp),
+      };
+    }
+
+    return null;
+  }
+
+  private activityPreview(value: string | null): string {
+    const preview = (value ?? '').trim();
+    if (!preview) return '';
+    return preview.length > 80 ? `${preview.slice(0, 77)}...` : preview;
+  }
+
+  private formatActivityTime(timestamp: number): string {
+    return new Intl.DateTimeFormat('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(timestamp));
+  }
+
+  private toEpochMs(timestamp?: number): number {
+    if (!timestamp) return Date.now();
+    return timestamp > MS_EPOCH_THRESHOLD ? timestamp : timestamp * 1000;
   }
 }

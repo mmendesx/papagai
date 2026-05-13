@@ -111,6 +111,15 @@ curl -sS -X POST "$BASE/api/auth/apikeys" \\
                   </div>
                 }
               </div>
+              <h3 class="card-subheading card-subheading--spaced">Exemplos de payload</h3>
+              @for (example of webhookPayloadExamples; track example.event) {
+                <div class="code-block-wrap wh-example">
+                  <div class="code-meta">
+                    <span class="lang-tag">{{ example.event }}</span>
+                  </div>
+                  <pre class="code-block"><code>{{ example.json }}</code></pre>
+                </div>
+              }
             </div>
           }
 
@@ -335,6 +344,8 @@ curl -sS -X POST "$BASE/api/auth/apikeys" \\
         color: var(--color-on-surface-variant);
         line-height: 1.5;
       }
+      .card-subheading--spaced { margin-top: 1.25rem; }
+      .wh-example { margin-top: 0.625rem; }
 
       /* Endpoints list */
       .endpoints-list { display: flex; flex-direction: column; gap: 0.625rem; }

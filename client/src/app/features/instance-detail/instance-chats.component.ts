@@ -74,6 +74,13 @@ interface SendMessageResponse {
   messages?: Array<{ id?: string }>;
 }
 
+type SendMessagePayload = {
+  messaging_product: 'whatsapp';
+  to: string;
+  type: 'text' | 'image' | 'audio' | 'video' | 'document' | 'reaction' | 'interactive';
+  [key: string]: unknown;
+};
+
 interface ChatRealtimeEvent {
   type: 'chat_updated' | 'chat_read' | 'history_synced' | 'heartbeat';
   chatId?: string;
@@ -111,6 +118,27 @@ const FALLBACK_REFRESH_INTERVAL_MS = 30000;
 const STREAM_RETRY_DELAY_MS = 2000;
 const RELOAD_COALESCE_MS = 250;
 const MS_EPOCH_THRESHOLD = 1_000_000_000_000;
+const MAX_ATTACHMENT_SIZE_BYTES = 16 * 1024 * 1024;
+const IMAGE_ATTACHMENT_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const VIDEO_ATTACHMENT_TYPES = ['video/mp4'];
+const AUDIO_ATTACHMENT_TYPES = ['audio/ogg', 'audio/mpeg', 'audio/aac'];
+const DOCUMENT_ATTACHMENT_TYPES = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'text/plain',
+  'text/csv',
+];
+const ALLOWED_ATTACHMENT_TYPES = [
+  ...IMAGE_ATTACHMENT_TYPES,
+  ...VIDEO_ATTACHMENT_TYPES,
+  ...AUDIO_ATTACHMENT_TYPES,
+  ...DOCUMENT_ATTACHMENT_TYPES,
+];
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -2690,14 +2718,11 @@ export class InstanceChatsComponent {
     input.value = '';
     if (!file) return;
 
-    const MAX_SIZE = 16 * 1024 * 1024;
-    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/mp4', 'audio/ogg', 'audio/mpeg', 'audio/aac'];
-
-    if (file.size > MAX_SIZE) {
+    if (file.size > MAX_ATTACHMENT_SIZE_BYTES) {
       void firstValueFrom(this.alerts.open('O arquivo excede o limite de 16 MB', { appearance: 'negative', label: 'Erro' }));
       return;
     }
-    if (!ALLOWED_TYPES.includes(file.type)) {
+    if (!ALLOWED_ATTACHMENT_TYPES.includes(file.type)) {
       void firstValueFrom(this.alerts.open('Tipo de arquivo não permitido', { appearance: 'negative', label: 'Erro' }));
       return;
     }
@@ -2755,14 +2780,12 @@ export class InstanceChatsComponent {
     if (attachment) {
       // Step 1: Convert file to base64
       const ab = await attachment.arrayBuffer();
-      const bytes = new Uint8Array(ab);
-      let binary = '';
-      for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-      const b64 = btoa(binary);
+      const b64 = this.arrayBufferToBase64(ab);
 
       // Step 2: Build payload based on MIME type
       const mime = attachment.type;
-      let payload: Record<string, unknown>;
+      const mediaUrl = `data:${mime};base64,${b64}`;
+      let payload: SendMessagePayload;
       let optimisticBody: string;
 
       if (mime.startsWith('audio/')) {
@@ -2770,7 +2793,7 @@ export class InstanceChatsComponent {
           messaging_product: 'whatsapp',
           to,
           type: 'audio',
-          audio: { data: b64, mimetype: attachment.type, ptt: false },
+          audio: { data: b64, mimetype: mime, ptt: false },
         };
         optimisticBody = `[Áudio: ${attachment.name}]`;
       } else if (mime === 'video/mp4') {
@@ -2778,16 +2801,29 @@ export class InstanceChatsComponent {
           messaging_product: 'whatsapp',
           to,
           type: 'video',
-          video: { data: b64, mimetype: attachment.type, caption: body || undefined },
+          video: { data: b64, mimetype: mime, caption: body || undefined },
         };
         optimisticBody = body ? body : `[Vídeo: ${attachment.name}]`;
+      } else if (DOCUMENT_ATTACHMENT_TYPES.includes(mime)) {
+        payload = {
+          messaging_product: 'whatsapp',
+          to,
+          type: 'document',
+          document: {
+            data: b64,
+            mimetype: mime,
+            filename: attachment.name,
+            caption: body || undefined,
+          },
+        };
+        optimisticBody = body ? body : `[Documento: ${attachment.name}]`;
       } else {
         // image/* (jpeg, png, webp, gif)
         payload = {
           messaging_product: 'whatsapp',
           to,
           type: 'image',
-          image: { data: b64, mimetype: attachment.type, caption: body || undefined },
+          image: { data: b64, mimetype: mime, caption: body || undefined },
         };
         optimisticBody = body ? body : `[Imagem: ${attachment.name}]`;
       }
@@ -2798,8 +2834,8 @@ export class InstanceChatsComponent {
         body: optimisticBody,
         fromMe: true,
         timestamp: sentAt,
-        type: payload['type'] as string,
-        mediaUrl: `data:${attachment.type};base64,${b64}`,
+        type: payload.type,
+        mediaUrl,
       };
       this.localMessages.update((msgs) => [...msgs, optimisticMsg]);
 
@@ -2836,15 +2872,11 @@ export class InstanceChatsComponent {
             msgs.map((m) => m.id === optimisticMsg.id ? { ...m, id: sentId } : m),
           );
         } else {
-          this.localMessages.update((msgs) =>
-            msgs.filter((m) => m.id !== optimisticMsg.id),
-          );
+          this.removeOptimisticMessage(optimisticMsg.id);
         }
       } catch {
         // Interceptor shows error toast. Roll back optimistic message.
-        this.localMessages.update((msgs) =>
-          msgs.filter((m) => m.id !== optimisticMsg.id),
-        );
+        this.removeOptimisticMessage(optimisticMsg.id);
       } finally {
         this.sending.set(false);
       }
@@ -2902,18 +2934,35 @@ export class InstanceChatsComponent {
           ),
         );
       } else {
-        this.localMessages.update((msgs) =>
-          msgs.filter((m) => m.id !== optimisticMsg.id),
-        );
+        this.removeOptimisticMessage(optimisticMsg.id);
       }
     } catch {
       // Interceptor shows error toast. Roll back optimistic message.
-      this.localMessages.update((msgs) =>
-        msgs.filter((m) => m.id !== optimisticMsg.id),
-      );
+      this.removeOptimisticMessage(optimisticMsg.id);
     } finally {
       this.sending.set(false);
     }
+  }
+
+  private arrayBufferToBase64(buffer: ArrayBuffer): string {
+    const bytes = new Uint8Array(buffer);
+    const chunkSize = 0x8000;
+    let binary = '';
+
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      const chunk = bytes.subarray(i, i + chunkSize);
+      for (let j = 0; j < chunk.length; j++) {
+        binary += String.fromCharCode(chunk[j]);
+      }
+    }
+
+    return btoa(binary);
+  }
+
+  private removeOptimisticMessage(messageId: string): void {
+    this.localMessages.update((msgs) =>
+      msgs.filter((m) => m.id !== messageId),
+    );
   }
 
   private startRealtimeStream(instanceName: string): void {

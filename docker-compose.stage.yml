@@ -1,17 +1,15 @@
-name: papagai-prod
+name: papagai-stage
 
 services:
   db:
     image: postgres:17-alpine
     restart: unless-stopped
-    networks:
-      - internal
     environment:
       POSTGRES_USER: papagai
       POSTGRES_PASSWORD: papagai
       POSTGRES_DB: papagai
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - stage_postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U papagai"]
       interval: 5s
@@ -21,11 +19,9 @@ services:
   redis:
     image: redis:8-alpine
     restart: unless-stopped
-    networks:
-      - internal
     command: redis-server --appendonly yes
     volumes:
-      - redis_data:/data
+      - stage_redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -38,7 +34,6 @@ services:
     networks:
       - default
       - traefik
-      - internal
     depends_on:
       db:
         condition: service_healthy
@@ -46,52 +41,43 @@ services:
         condition: service_healthy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.papagai.rule=Host(`${TRAEFIK_DOMAIN:?Set TRAEFIK_DOMAIN to your public domain}`)"
-      - "traefik.http.routers.papagai.entrypoints=websecure"
-      - "traefik.http.routers.papagai.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-letsencrypt}"
-      - "traefik.http.services.papagai.loadbalancer.server.port=${PORT:-3000}"
-      - "traefik.http.routers.papagai-http.rule=Host(`${TRAEFIK_DOMAIN:?Set TRAEFIK_DOMAIN to your public domain}`)"
-      - "traefik.http.routers.papagai-http.entrypoints=web"
-      - "traefik.http.routers.papagai-http.middlewares=redirect-https"
+      - "traefik.http.routers.papagai-stage.rule=Host(`stage.papagai.icto.io`)"
+      - "traefik.http.routers.papagai-stage.entrypoints=websecure"
+      - "traefik.http.routers.papagai-stage.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-letsencrypt}"
+      - "traefik.http.services.papagai-stage.loadbalancer.server.port=${PORT:-3000}"
+      - "traefik.http.routers.papagai-stage-http.rule=Host(`stage.papagai.icto.io`)"
+      - "traefik.http.routers.papagai-stage-http.entrypoints=web"
+      - "traefik.http.routers.papagai-stage-http.middlewares=redirect-https"
       - "traefik.http.middlewares.redirect-https.redirectscheme.scheme=https"
     environment:
-      # Core application
       PORT: ${PORT:-3000}
       NODE_ENV: ${NODE_ENV:-production}
-      APP_KEY: ${APP_KEY:?Set APP_KEY in your environment or a .env file next to this compose file}
-      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in your environment or a .env file next to this compose file}
-      BASE_URL: ${BASE_URL:?Set BASE_URL to your public application URL}
-      
-      # Database (internal service reference)
+      APP_KEY: ${APP_KEY:?Set APP_KEY in your stage environment}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in your stage environment}
+      BASE_URL: ${BASE_URL:-https://stage.papagai.icto.io}
+
       DB_HOST: db
       DB_PORT: 5432
       DB_USER: papagai
       DB_PASS: papagai
       DB_NAME: papagai
       DATABASE_URL: postgresql://papagai:papagai@db:5432/papagai
-      
-      # Storage
+
       INSTANCES_DIR: /app/instances
       MEDIA_DIR: /app/media
       MEDIA_URL_TTL_SECONDS: ${MEDIA_URL_TTL_SECONDS:-86400}
-      
-      # Cache (internal service reference)
+
       REDIS_URL: redis://redis:6379
-      
-      # CORS
-      CORS_ORIGIN: ${CORS_ORIGIN:-}
-      
-      # Webhooks
+
+      CORS_ORIGIN: ${CORS_ORIGIN:-https://stage.papagai.icto.io}
+
       WEBHOOK_MAX_RETRIES: ${WEBHOOK_MAX_RETRIES:-3}
       WEBHOOK_ALLOW_PRIVATE_HOSTS: ${WEBHOOK_ALLOW_PRIVATE_HOSTS:-false}
-      
-      # Rate limiting
+
       AUTH_THROTTLE_TTL: ${AUTH_THROTTLE_TTL:-60}
       AUTH_THROTTLE_LIMIT: ${AUTH_THROTTLE_LIMIT:-5}
     volumes:
-      - media_data:/app/media
-    ports:
-      - "3000"
+      - stage_media_data:/app/media
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
       interval: 30s
@@ -101,10 +87,8 @@ services:
 networks:
   traefik:
     external: true
-  internal:
-    driver: bridge
 
 volumes:
-  postgres_data:
-  redis_data:
-  media_data:
+  stage_postgres_data:
+  stage_redis_data:
+  stage_media_data:

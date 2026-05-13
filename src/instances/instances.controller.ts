@@ -53,6 +53,8 @@ import { InstanceStatusResponseDto } from './dto/instance-status-response.dto.js
 import { MessageResultResponseDto } from './dto/message-result-response.dto.js';
 import { UploadResponseDto } from './dto/upload-response.dto.js';
 import { MediaUrlService } from '../media/media-url.service.js';
+import { InstanceMetricsResponseDto } from './dto/metrics-response.dto.js';
+import { ChatEventResponseDto } from './dto/chat-event-response.dto.js';
 
 export const ALLOWED_WEBHOOK_EVENTS = [
   'message',
@@ -132,8 +134,141 @@ export class InstancesController {
     description: 'Instance name',
     example: 'my-instance',
   })
+  @ApiBody({
+    type: MetaMessageDto,
+    examples: {
+      text: {
+        summary: 'Text message',
+        value: {
+          to: '5511999999999',
+          type: 'text',
+          text: { body: 'Hello from Papagai!' },
+        },
+      },
+      imageBase64: {
+        summary: 'Image with inline base64 data',
+        value: {
+          to: '5511999999999',
+          type: 'image',
+          image: {
+            data: '<base64-encoded-content>',
+            mimetype: 'image/jpeg',
+            caption: 'Optional caption',
+          },
+        },
+      },
+      imageUrl: {
+        summary: 'Image by URL',
+        value: {
+          to: '5511999999999',
+          type: 'image',
+          image: {
+            link: 'https://example.com/image.jpg',
+            caption: 'Optional caption',
+          },
+        },
+      },
+      audioBase64: {
+        summary: 'Audio with inline base64 data',
+        value: {
+          to: '5511999999999',
+          type: 'audio',
+          audio: {
+            data: '<base64-encoded-content>',
+            mimetype: 'audio/ogg',
+            ptt: false,
+          },
+        },
+      },
+      videoUrl: {
+        summary: 'Video by URL',
+        value: {
+          to: '5511999999999',
+          type: 'video',
+          video: { link: 'https://example.com/video.mp4' },
+        },
+      },
+      documentBase64: {
+        summary: 'Document with inline base64 data',
+        value: {
+          to: '5511999999999',
+          type: 'document',
+          document: {
+            data: '<base64-encoded-content>',
+            mimetype: 'application/pdf',
+            filename: 'report.pdf',
+          },
+        },
+      },
+      documentUrl: {
+        summary: 'Document by URL',
+        value: {
+          to: '5511999999999',
+          type: 'document',
+          document: {
+            link: 'https://example.com/report.pdf',
+            filename: 'report.pdf',
+          },
+        },
+      },
+      stickerBase64: {
+        summary: 'Sticker with inline base64 data',
+        value: {
+          to: '5511999999999',
+          type: 'sticker',
+          sticker: {
+            data: '<base64-encoded-content>',
+            mimetype: 'image/webp',
+          },
+        },
+      },
+      location: {
+        summary: 'Location message',
+        value: {
+          to: '5511999999999',
+          type: 'location',
+          location: { latitude: -23.5505, longitude: -46.6333 },
+        },
+      },
+      reaction: {
+        summary: 'Reaction message',
+        value: {
+          to: '5511999999999',
+          type: 'reaction',
+          reaction: { message_id: 'BAE5...', emoji: '👍' },
+        },
+      },
+      interactive: {
+        summary: 'Interactive button message',
+        value: {
+          to: '5511999999999',
+          type: 'interactive',
+          interactive: {
+            type: 'button',
+            body: { text: 'Choose an option' },
+            action: {
+              buttons: [{ reply: { id: 'yes', title: 'Yes' } }],
+            },
+          },
+        },
+      },
+      contacts: {
+        summary: 'Contacts message',
+        value: {
+          to: '5511999999999',
+          type: 'contacts',
+          contacts: [
+            {
+              name: { formatted_name: 'John Doe' },
+              phones: [{ phone: '5511999999999' }],
+            },
+          ],
+        },
+      },
+    },
+  })
   @ApiResponse({
-    status: 200,
+    status: 201,
     description: 'Message sent',
     type: MessageResultResponseDto,
   })
@@ -143,6 +278,7 @@ export class InstancesController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Instance not found' })
+  @ApiResponse({ status: 422, description: 'Validation error' })
   @Post(':name/messages')
   async sendMessage(
     @Req() req: Request,
@@ -285,13 +421,21 @@ export class InstancesController {
     }
   }
 
-  @ApiOperation({ summary: 'Stream chat updates for this instance (SSE)' })
+  @ApiOperation({
+    summary: 'Stream chat updates for this instance (SSE)',
+    description:
+      'Returns a text/event-stream with chat_updated, chat_read, history_synced, and heartbeat events.',
+  })
   @ApiParam({
     name: 'name',
     description: 'Instance name',
     example: 'my-instance',
   })
-  @ApiResponse({ status: 200, description: 'SSE stream with chat updates' })
+  @ApiResponse({
+    status: 200,
+    description: 'SSE stream with ChatEventResponseDto event payloads',
+    type: ChatEventResponseDto,
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Instance not found' })
   @Sse(':name/events')
@@ -436,7 +580,11 @@ export class InstancesController {
     description: 'Instance name',
     example: 'my-instance',
   })
-  @ApiResponse({ status: 200, description: 'Instance metrics' })
+  @ApiResponse({
+    status: 200,
+    description: 'Instance metrics',
+    type: InstanceMetricsResponseDto,
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Instance not found' })
   @Get(':name/metrics')
@@ -576,7 +724,11 @@ export class InstancesController {
     }
   }
 
-  @ApiOperation({ summary: 'Upload a media file for use in messages' })
+  @ApiOperation({
+    summary: 'Upload a media file for use in messages',
+    description:
+      'Optional compatibility endpoint for URL-based media sends. The dashboard composer sends inline base64 directly to the message endpoint.',
+  })
   @ApiConsumes('multipart/form-data')
   @ApiParam({
     name: 'name',
