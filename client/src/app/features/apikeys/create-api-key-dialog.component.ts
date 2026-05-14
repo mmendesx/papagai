@@ -49,22 +49,11 @@ interface InstancesListResponse {
   imports: [FormsModule, ...TuiTextfield, ...TuiDataList, ...TuiSelect],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div style="padding: 1.5rem; min-width: 400px; max-width: 500px;">
+    <div class="app-dialog">
       @if (!createdKey()) {
-        <!-- ── Form step ─────────────────────────────────── -->
-        <h2
-          style="
-          font-size: 1.25rem;
-          font-weight: 300;
-          margin: 0 0 1.5rem;
-          font-family: 'Figtree', sans-serif;
-          color: var(--tui-text-primary);
-        "
-        >
-          Nova chave API
-        </h2>
+        <h2 class="app-dialog__title">Nova chave API</h2>
 
-        <div style="display: flex; flex-direction: column; gap: 1rem;">
+        <div class="app-form">
           <!-- Name -->
           <tui-textfield>
             <label tuiLabel>Nome da chave</label>
@@ -79,8 +68,8 @@ interface InstancesListResponse {
           </tui-textfield>
 
           <!-- Scope -->
-          <div>
-            <p class="field-label">Escopo</p>
+          <div class="app-form__section">
+            <p class="app-form__section-title">Escopo</p>
             <div style="display: flex; gap: 0.75rem;">
               <label
                 class="scope-option"
@@ -152,14 +141,13 @@ interface InstancesListResponse {
               <tui-textfield>
                 <label tuiLabel>Template de permissao</label>
                 <input
-                  tuiTextfield
                   tuiSelect
                   placeholder="Selecione um template"
                   [(ngModel)]="selectedTemplateIdModel"
                   [ngModelOptions]="{ standalone: true }"
                 />
                 <ng-container *tuiTextfieldDropdown>
-                  <tui-data-list>
+                  <tui-data-list class="app-select-dropdown">
                     @for (
                       template of templatesRes.value().templates;
                       track template.id
@@ -173,7 +161,7 @@ interface InstancesListResponse {
               </tui-textfield>
 
               @if (selectedTemplate(); as template) {
-                <p class="template-hint">{{ template.description }}</p>
+                <p class="app-form__hint">{{ template.description }}</p>
               }
             }
           }
@@ -195,14 +183,13 @@ interface InstancesListResponse {
               <tui-textfield>
                 <label tuiLabel>Instância</label>
                 <input
-                  tuiTextfield
                   tuiSelect
                   placeholder="Selecione uma instância"
                   [(ngModel)]="selectedInstanceModel"
                   [ngModelOptions]="{ standalone: true }"
                 />
                 <ng-container *tuiTextfieldDropdown>
-                  <tui-data-list>
+                  <tui-data-list class="app-select-dropdown">
                     @for (
                       instance of instancesRes.value().instances;
                       track instance.name
@@ -230,15 +217,13 @@ interface InstancesListResponse {
         </div>
 
         <!-- Footer -->
-        <div
-          style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem;"
-        >
-          <button type="button" class="cancel-btn" (click)="cancel()">
+        <div class="app-form__actions">
+          <button type="button" class="app-btn app-btn--secondary" (click)="cancel()">
             Cancelar
           </button>
           <button
             type="button"
-            class="gradient-btn"
+            class="app-btn app-btn--primary"
             [disabled]="!canSubmit() || busy()"
             (click)="submit()"
           >
@@ -251,17 +236,7 @@ interface InstancesListResponse {
         </div>
       } @else {
         <!-- ── Key reveal step ───────────────────────────── -->
-        <h2
-          style="
-          font-size: 1.25rem;
-          font-weight: 300;
-          margin: 0 0 0.75rem;
-          font-family: 'Figtree', sans-serif;
-          color: var(--tui-text-primary);
-        "
-        >
-          Chave criada
-        </h2>
+        <h2 class="app-dialog__title key-created-title">Chave criada</h2>
 
         <div class="warning-banner" role="alert">
           <svg
@@ -283,7 +258,7 @@ interface InstancesListResponse {
         </div>
 
         <div style="margin-top: 1rem;">
-          <p class="field-label">Sua chave API</p>
+          <p class="app-form__section-title">Sua chave API</p>
           <div class="key-reveal-row">
             <input
               type="text"
@@ -338,10 +313,8 @@ interface InstancesListResponse {
         </div>
 
         <!-- Footer -->
-        <div
-          style="display: flex; justify-content: flex-end; margin-top: 1.5rem;"
-        >
-          <button type="button" class="gradient-btn" (click)="done()">
+        <div class="app-form__actions">
+          <button type="button" class="app-btn app-btn--primary" (click)="done()">
             Concluir
           </button>
         </div>
@@ -350,14 +323,8 @@ interface InstancesListResponse {
   `,
   styles: [
     `
-      .field-label {
-        font-size: 0.75rem;
-        font-weight: 300;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: var(--tui-text-secondary);
-        margin: 0 0 0.5rem;
-        font-family: 'Figtree', sans-serif;
+      .key-created-title {
+        margin-bottom: 0.75rem;
       }
 
       .scope-option {
@@ -463,42 +430,6 @@ interface InstancesListResponse {
         border-color: var(--color-outline);
       }
 
-      .cancel-btn {
-        padding: 0.5rem 1.25rem;
-        border-radius: var(--radius-lg);
-        border: 1px solid var(--color-outline-variant);
-        background: transparent;
-        font-family: 'Figtree', sans-serif;
-        font-weight: 200;
-        font-size: 0.875rem;
-        cursor: pointer;
-        color: var(--color-on-surface);
-        transition: border-color var(--duration-fast) var(--ease-default);
-      }
-      .cancel-btn:hover {
-        border-color: var(--color-outline);
-      }
-
-      .gradient-btn {
-        padding: 0.5rem 1.25rem;
-        border-radius: var(--radius-lg);
-        border: none;
-        background: var(--color-primary);
-        color: var(--color-on-primary);
-        font-family: 'Figtree', sans-serif;
-        font-weight: 200;
-        font-size: 0.875rem;
-        cursor: pointer;
-        transition: opacity var(--duration-fast) var(--ease-default);
-      }
-      .gradient-btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-      .gradient-btn:not(:disabled):hover {
-        opacity: 0.9;
-      }
-
       .instance-msg {
         font-size: 0.8125rem;
         color: var(--color-on-surface-variant);
@@ -507,14 +438,6 @@ interface InstancesListResponse {
       }
       .instance-msg--error {
         color: var(--color-error);
-      }
-
-      .template-hint {
-        margin: 0.375rem 0 0;
-        font-size: 0.75rem;
-        color: var(--color-on-surface-variant);
-        font-family: 'Figtree', sans-serif;
-        line-height: 1.45;
       }
 
       @keyframes ec-shimmer {

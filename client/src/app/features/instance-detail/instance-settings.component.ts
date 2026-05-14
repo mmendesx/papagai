@@ -115,7 +115,7 @@ type WebhookResponse = {
           <p class="loading-text">Carregando configurações…</p>
         }
 
-        <form class="webhook-form" (ngSubmit)="saveWebhook()" aria-label="Formulário de webhook"
+        <form class="webhook-form app-form" (ngSubmit)="saveWebhook()" aria-label="Formulário de webhook"
               [@expandCollapse]="webhookLoading() ? 'closed' : 'open'">
           <label class="toggle-row">
             <input tuiSwitch type="checkbox"
@@ -151,7 +151,7 @@ type WebhookResponse = {
           </div>
 
           <fieldset class="events-fieldset">
-            <legend class="events-legend">Eventos</legend>
+            <legend class="events-legend app-form__section-title">Eventos</legend>
             <div class="events-grid">
               @for (ev of availableEvents; track ev) {
                 <label class="event-row">
@@ -165,7 +165,7 @@ type WebhookResponse = {
             </div>
           </fieldset>
 
-          <div class="form-footer">
+          <div class="form-footer app-form__actions">
             <button tuiButton type="submit" size="s" appearance="primary"
                     [disabled]="webhookSaving()">
               {{ webhookSaving() ? 'Salvando…' : 'Salvar configurações' }}
@@ -260,8 +260,6 @@ type WebhookResponse = {
 
       /* ── Webhook form ──────────────────────────────────────── */
       .webhook-form {
-        display: flex;
-        flex-direction: column;
         gap: 1rem;
       }
       .toggle-row {
@@ -286,10 +284,6 @@ type WebhookResponse = {
         gap: 0.5rem;
       }
       .events-legend {
-        font-size: 0.6875rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.07em;
         color: var(--color-on-surface-variant);
         margin-bottom: 0.25rem;
         float: left;
@@ -312,9 +306,8 @@ type WebhookResponse = {
         color: var(--color-on-surface);
       }
       .form-footer {
-        display: flex;
-        justify-content: flex-end;
         padding-top: 0.25rem;
+        margin-top: 0;
       }
       .loading-text { color: var(--tui-text-secondary); font-size: 0.875rem; }
 

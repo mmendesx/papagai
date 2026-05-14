@@ -61,7 +61,7 @@
         "@nestjs/throttler": "^6.5.0",
         "@prisma/client": "^6.0.0",
         "@whiskeysockets/baileys": "npm:whaileys@6.4.10",
-        "axios": "^1.15.0",
+        "axios": "^1.15.2",
         "bcryptjs": "^3.0.3",
         "bullmq": "^5.76.2",
         "class-transformer": "^0.5.1",
@@ -110,11 +110,14 @@
         "picomatch": "4.0.4",
         "music-metadata": "11.12.3",
         "lodash": "4.18.1",
-        "axios": "^1.15.0",
+        "axios": "^1.15.2",
         "glob": "^13.0.0",
         "inflight": "^1.0.6",
         "follow-redirects": "1.16.0",
-        "protobufjs": "7.5.5"
+        "fast-uri": "^3.1.2",
+        "protobufjs": "^7.5.6",
+        "@protobufjs/utf8": "^1.1.1",
+        "protobufjs-cli": "^1.2.1"
     },
     "jest": {
         "moduleFileExtensions": [

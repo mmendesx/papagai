@@ -24,9 +24,16 @@ import { firstValueFrom, timer } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { fetchEventSource } from '@microsoft/fetch-event-source';
 import { InstanceTabsComponent } from './instance-tabs.component';
-import { getAvatarColor } from '../../shared/avatar-colors';
 import { TuiAlertService } from '@taiga-ui/core';
 import { DatePipe } from '@angular/common';
+import { ChatAvatarComponent } from './chat/chat-avatar.component';
+import { ChatListItemComponent } from './chat/chat-list-item.component';
+import {
+  ChatListItemModel,
+  formatPhoneNumber,
+  resolvePrimaryLabel,
+  resolveSecondaryLabel,
+} from './chat/chat-identity.utils';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -44,14 +51,7 @@ interface ChatsResponse {
   chats: ChatItem[];
 }
 
-interface ChatItem {
-  id: string;
-  name?: string;
-  isGroup?: boolean;
-  lastMessage?: string;
-  timestamp?: number;
-  unreadCount?: number;
-}
+interface ChatItem extends ChatListItemModel {}
 
 // TODO: Replace with real shape once backend exposes per-chat message endpoint
 interface MessageItem {
@@ -145,7 +145,7 @@ const ALLOWED_ATTACHMENT_TYPES = [
 @Component({
   selector: 'app-instance-chats',
   standalone: true,
-  imports: [InstanceTabsComponent, DatePipe],
+  imports: [InstanceTabsComponent, DatePipe, ChatAvatarComponent, ChatListItemComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   animations: [
     trigger('messageIn', [
@@ -256,41 +256,17 @@ const ALLOWED_ATTACHMENT_TYPES = [
               <ul class="chat-list" role="list">
                 @for (chat of filteredChats(); track chat.id) {
                   <li role="listitem" [@chatListItem]>
-                    <button
-                      type="button"
-                      class="chat-row"
-                      [class.chat-row--selected]="selectedId() === chat.id"
-                      (click)="selectChat(chat)"
-                      [attr.aria-pressed]="selectedId() === chat.id"
-                      [attr.aria-label]="'Abrir conversa com ' + formatChatName(chat)"
+                    <app-chat-list-item
+                      [chat]="chat"
+                      [selected]="selectedId() === chat.id"
+                      (select)="selectChat(chat)"
                     >
-                      <!-- Avatar badge -->
-                      <span
-                        class="chat-avatar"
-                        [style.background]="avatarStyle(chatInitials(chat)).bg"
-                        [style.color]="avatarStyle(chatInitials(chat)).text"
-                        aria-hidden="true"
-                      >
-                        {{ chatInitials(chat) }}
-                      </span>
-
-                      <!-- Main content -->
-                      <span class="chat-content">
-                        <span class="chat-name">{{ formatChatName(chat) }}</span>
-                        @if (chat.lastMessage) {
-                          <span class="chat-preview">{{ chat.lastMessage }}</span>
-                        }
-                      </span>
-
-                      <!-- Right meta -->
-                      <span class="chat-meta">
                         @if ((chat.unreadCount ?? 0) > 0) {
                           <span class="chat-unread-count" aria-label="Mensagens não lidas">{{ chat.unreadCount }}</span>
                         } @else if (chat.timestamp) {
                           <span class="chat-time">{{ formatRelativeTime(chat.timestamp) }}</span>
                         }
-                      </span>
-                    </button>
+                    </app-chat-list-item>
                   </li>
                 }
               </ul>
@@ -329,16 +305,13 @@ const ALLOWED_ATTACHMENT_TYPES = [
               </button>
 
               <!-- Avatar + name -->
-              <span
-                class="chat-avatar chat-avatar--header"
-                [style.background]="selectedChat() ? avatarStyle(chatInitials(selectedChat()!)).bg : ''"
-                [style.color]="selectedChat() ? avatarStyle(chatInitials(selectedChat()!)).text : ''"
-                aria-hidden="true"
-              >{{ selectedChat() ? chatInitials(selectedChat()!) : '' }}</span>
+              @if (selectedChat(); as chat) {
+                <app-chat-avatar [chat]="chat" variant="header" />
+              }
 
               <span class="thread-header-info">
-                <span class="thread-header-name">{{ selectedChat() ? formatChatName(selectedChat()!) : '' }}</span>
-                <span class="thread-header-id">{{ stripJidSuffix(selectedId() ?? '') }}</span>
+                <span class="thread-header-name">{{ selectedChat() ? primaryChatLabel(selectedChat()!) : '' }}</span>
+                <span class="thread-header-id">{{ selectedChat() ? secondaryChatLabel(selectedChat()!) : fallbackChatIdLabel(selectedId() ?? '') }}</span>
               </span>
 
             </header>
@@ -1097,89 +1070,7 @@ const ALLOWED_ATTACHMENT_TYPES = [
       padding: 0.25rem 0;
     }
 
-    /* Chat row button */
-    .chat-row {
-      width: 100%;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.625rem 0.875rem;
-      border: none;
-      border-left: 2px solid transparent;
-      background: transparent;
-      cursor: pointer;
-      text-align: left;
-      font-family: var(--font-sans);
-      transition: background var(--duration-fast) var(--ease-default),
-                  border-left-color var(--duration-fast) var(--ease-default);
-      min-height: 0;
-    }
-    .chat-row:hover {
-      background: var(--color-surface-container-low);
-    }
-    .chat-row--selected {
-      background: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface-container-lowest));
-      border-left-color: var(--color-primary);
-    }
-    .chat-row:focus-visible {
-      outline: 2px solid var(--color-primary);
-      outline-offset: -2px;
-    }
-
-    /* Chat avatar circle */
-    .chat-avatar {
-      width: 2.625rem;
-      height: 2.625rem;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.8125rem;
-      font-weight: 700;
-      flex-shrink: 0;
-      font-feature-settings: "tnum";
-      position: relative;
-    }
-    .chat-avatar--header {
-      width: 2.25rem;
-      height: 2.25rem;
-      font-size: 0.75rem;
-    }
-    /* Chat content */
-    .chat-content {
-      flex: 1;
-      min-width: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 0.1rem;
-    }
-    .chat-name {
-      font-size: 0.875rem;
-      font-weight: 600;
-      color: var(--color-on-surface);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      display: block;
-    }
-    .chat-preview {
-      font-size: 0.75rem;
-      font-weight: 400;
-      color: var(--color-on-surface-variant);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      display: block;
-    }
-
     /* Chat meta (time) */
-    .chat-meta {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 0.25rem;
-      flex-shrink: 0;
-    }
     .chat-time {
       font-size: 0.6875rem;
       color: var(--color-on-surface-variant);
@@ -2287,7 +2178,9 @@ export class InstanceChatsComponent {
 
     if (!q) return byTab;
     return byTab.filter((c) => {
-      const haystack = `${c.name ?? ''} ${c.id ?? ''}`.toLowerCase();
+      const primary = resolvePrimaryLabel(c);
+      const secondary = resolveSecondaryLabel(c) ?? '';
+      const haystack = `${primary} ${secondary} ${c.name ?? ''} ${c.displayName ?? ''} ${c.phoneNumber ?? ''} ${c.id ?? ''}`.toLowerCase();
       return haystack.includes(q);
     });
   });
@@ -3137,26 +3030,16 @@ export class InstanceChatsComponent {
     return `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
   });
 
-  chatInitials(chat: ChatItem): string {
-    const name = chat.name ?? chat.id ?? '';
-    return name
-      .split(/[@\s]/)
-      .map((p: string) => p[0])
-      .slice(0, 2)
-      .join('')
-      .toUpperCase() || '?';
+  primaryChatLabel(chat: ChatItem): string {
+    return resolvePrimaryLabel(chat);
   }
 
-  formatChatName(chat: ChatItem): string {
-    const name: string = chat.name ?? chat.id ?? '';
-    return name
-      .replace(/@s\.whatsapp\.net$/, '')
-      .replace(/@g\.us$/, ' (grupo)')
-      .replace(/@[\w.-]+$/, '');
+  secondaryChatLabel(chat: ChatItem): string {
+    return resolveSecondaryLabel(chat) ?? formatPhoneNumber(chat.phoneNumber, chat.jid ?? chat.id);
   }
 
-  stripJidSuffix(jid: string): string {
-    return jid.replace(/@[\w.-]+$/, '');
+  fallbackChatIdLabel(jid: string): string {
+    return formatPhoneNumber(undefined, jid);
   }
 
   formatRelativeTime(timestamp: number): string {
@@ -3174,10 +3057,6 @@ export class InstanceChatsComponent {
     if (months < 1) return `há ${days}d`;
     if (months === 1) return 'há 1 mês';
     return `há ${months} meses`;
-  }
-
-  avatarStyle(initials: string): { bg: string; text: string } {
-    return getAvatarColor(initials);
   }
 
   private scrollToBottom(): void {

@@ -1,55 +1,55 @@
 # Dependency Overrides
 
-This document records every `overrides` entry applied in the project's `package.json` files. Each entry forces a specific transitive dependency version to remediate a known CVE or advisory where a direct upgrade is not yet feasible. Entries are reviewed whenever the direct consumer is upgraded and the override may be dropped.
+This file tracks active `overrides` entries used for security remediation.
 
----
+Last verified: 2026-05-14
 
-## Backend (`package.json`)
+## Backend (`/package.json`)
 
-_Date added: 2026-04-07_
+### Active overrides
 
-### Applied overrides
+| Package | Forced version | Rationale |
+|---|---|---|
+| `path-to-regexp` | `8.4.2` | Keep patched transitive version for Nest-related path matching. |
+| `picomatch` | `4.0.4` | Keep patched transitive matcher version. |
+| `music-metadata` | `11.12.3` | Keep patched transitive parser version. |
+| `lodash` | `4.18.1` | Keep patched transitive utility version. |
+| `axios` | `^1.15.2` | Resolves current axios advisories reported against `1.15.0/1.15.1`. |
+| `follow-redirects` | `1.16.0` | Keep patched redirect handling version. |
+| `fast-uri` | `^3.1.2` | Resolves transitive `fast-uri` advisories. |
+| `@protobufjs/utf8` | `^1.1.1` | Resolves utf8 advisory chained through protobuf tooling. |
+| `protobufjs` | `^7.5.6` | Resolves protobufjs advisory set affecting `<=7.5.5`. |
+| `protobufjs-cli` | `^1.2.1` | Resolves protobuf CLI advisories affecting `<=1.2.0`. |
+| `glob` | `^13.0.0` | Keeps deprecated transitive chain pinned to maintained version. |
+| `inflight` | `^1.0.6` | Keeps compatibility pin used by existing toolchain. |
 
-| Package | Forced version | CVE(s) / Advisory | Reason not upgraded directly |
-|---|---|---|---|
-| `path-to-regexp` | `8.4.2` | ReDoS in 8.0.0–8.3.0 | Direct consumer is `@nestjs/serve-static`; upgrading serve-static requires a NestJS major version bump |
-| `picomatch` | `4.0.4` | Incorrect regex in 4.0.0–4.0.3 | Transitive via multiple tools; direct upgrade would require major dep changes |
-| `music-metadata` | `11.12.3` | High severity in ≤11.12.1 | Transitive; override is a safe patch |
-| `lodash` | `4.18.1` | Prototype pollution in ≤4.17.23 | Transitive via `@nestjs/config`; upgrading config requires a major version bump |
-| `axios` | `^1.15.0` | GHSA-jr5f-v2jv-69x6, GHSA-43fc-jf86-j433 | `whaileys` pins an older axios range; a direct upstream fix requires a patched whaileys release |
-| `follow-redirects` | `1.16.0` | GHSA-r4q5-vmmm-2653 | Transitive via axios/http tooling; patch-level override |
-| `protobufjs` | `7.5.5` | GHSA-xq3m-2v4x-88gg | Transitive via `whaileys`/`libsignal`; no patched whaileys release available |
+### Verification result
 
-#### axios override — extended rationale
+- Command: `npm audit --audit-level=moderate`
+- Result (2026-05-14): `0 vulnerabilities`
 
-- **Date added**: 2026-04-07
-- **CVEs remediated**: [GHSA-jr5f-v2jv-69x6](https://github.com/advisories/GHSA-jr5f-v2jv-69x6), [GHSA-43fc-jf86-j433](https://github.com/advisories/GHSA-43fc-jf86-j433) — both rated high severity
-- **Root cause**: `whaileys` 6.4.9 declares `axios ^0.24.0` as a direct dependency. npm resolves this to the newest version satisfying that range (≤0.30.2), which carries the two CVEs above. The whaileys fork has no released patch.
-- **Why the override is safe**: The whaileys source only calls `axios.get(url, { responseType, headers })`. This call signature is unchanged in axios 1.x. No interceptors, no `CancelToken`, no `axios.create()` with deprecated config, and no other breaking-change usage patterns were found in the whaileys source.
-- **When to re-evaluate**: Remove this override when the whaileys fork drops its `^0.24.0` pin, or when the project migrates to upstream `@whiskeysockets/baileys`.
+## Client (`/client/package.json`)
 
-### Residual risks
+### Active overrides
 
-`npm audit --audit-level=moderate` currently reports no known backend vulnerabilities.
+| Package | Forced version | Rationale |
+|---|---|---|
+| `minimatch` | `10.2.5` | Keep patched transitive minimatch version. |
+| `serialize-javascript` | `7.0.5` | Keep patched serialization dependency. |
+| `tar` | `7.5.13` | Keep patched tar version. |
+| `vite` | `6.4.2` | Keep patched Vite line used by toolchain dependencies. |
+| `follow-redirects` | `1.16.0` | Keep patched redirect handling version. |
+| `postcss` | `8.5.10` | Keep patched PostCSS version. |
+| `uuid` | `14.0.0` | Keep patched UUID chain. |
+| `fast-uri` | `^3.1.2` | Resolves transitive `fast-uri` advisories. |
+| `ip-address` | `^10.1.1` | Resolves transitive `ip-address` advisory. |
+| `@babel/plugin-transform-modules-systemjs` | `^7.29.4` | Resolves advisory affecting `<=7.29.3`. |
+| `karma > glob` | `7.2.3` | Required for Karma 6.4 file-list compatibility; newer `glob` breaks the client unit test runner. |
+| `karma > minimatch` | `3.1.2` | Required for Karma 6.4 CommonJS compatibility; newer `minimatch` breaks exclusion matching. |
 
----
+### Verification result
 
-## Client (`client/package.json`)
-
-_Date added: 2026-04-07_
-
-### Applied overrides
-
-| Package | Forced version | CVE(s) / Advisory | Reason not upgraded directly |
-|---|---|---|---|
-| `minimatch` | `10.2.5` | ReDoS in 10.0.0–10.2.2 | Transitive via Angular CLI toolchain |
-| `serialize-javascript` | `7.0.5` | XSS in ≤7.0.4 | Transitive via Angular build toolchain |
-| `tar` | `7.5.13` | Path traversal in ≤7.5.10 | Transitive via Angular CLI |
-| `vite` | `6.4.2` | High severity in ≤6.4.1 | Patch available in 6.x; Angular 19 confirmed compatible |
-| `follow-redirects` | `1.16.0` | GHSA-r4q5-vmmm-2653 | Transitive via Karma/http-proxy |
-| `postcss` | `8.5.10` | GHSA-qx2v-qp2m-jg93 | Transitive via Angular build toolchain |
-| `uuid` | `14.0.0` | GHSA-w5hq-g745-h8pq | Transitive via webpack-dev-server/sockjs |
-
-### Residual risks
-
-`npm audit --audit-level=moderate` currently reports no known client vulnerabilities.
+- Command: `npm audit --audit-level=moderate`
+- Result (2026-05-14): `3 high severity vulnerabilities`
+- Residual risk: the remaining findings are dev-only Karma test-runner dependencies (`karma` -> `glob`/`minimatch`). They are kept because forcing patched `glob`/`minimatch` versions breaks Karma 6.4 at runtime. Production dependencies remain covered by the other overrides above.
+- Follow-up: migrate client unit tests away from Karma or upgrade to a Karma-compatible dependency line when available, then remove the scoped `karma` overrides.

@@ -6,7 +6,6 @@ import {
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { TuiAlertService } from '@taiga-ui/core';
-import { TuiTextfieldDropdownDirective } from '@taiga-ui/core/components/textfield';
 import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus';
 import { EMPTY } from 'rxjs';
 import { CreateApiKeyDialogComponent } from './create-api-key-dialog.component';
@@ -42,32 +41,34 @@ describe(CreateApiKeyDialogComponent.name, () => {
     http.verify();
   });
 
-  it('projects the account template options through the Taiga textfield dropdown', () => {
+  it('projects the account template options through the Taiga textfield dropdown', async () => {
     fixture.detectChanges();
     flushInstances();
     flushTemplates();
+    await fixture.whenStable();
     fixture.detectChanges();
 
-    const dropdowns = fixture.debugElement.queryAll(
-      By.directive(TuiTextfieldDropdownDirective),
-    );
+    const text = fixture.nativeElement.textContent as string;
 
-    expect(dropdowns.length).toBe(1);
+    expect(text).toContain('Template de permissao');
+    expect(text).toContain('Manage instances');
   });
 
-  it('projects the instance options through the Taiga textfield dropdown', () => {
+  it('projects the instance options through the Taiga textfield dropdown', async () => {
     fixture.detectChanges();
     flushInstances();
     flushTemplates();
+    await fixture.whenStable();
 
     fixture.componentInstance.scope.set('instance');
     fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
 
-    const dropdowns = fixture.debugElement.queryAll(
-      By.directive(TuiTextfieldDropdownDirective),
-    );
+    const text = fixture.nativeElement.textContent as string;
 
-    expect(dropdowns.length).toBe(1);
+    expect(text).toContain('Instância');
+    expect(fixture.componentInstance.instancesRes.value().instances[0].name).toBe('main');
   });
 
   it('keeps account key payloads using the selected permission template', async () => {

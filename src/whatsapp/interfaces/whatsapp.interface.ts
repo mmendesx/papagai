@@ -91,7 +91,10 @@ export interface WebhookData {
 
 export interface ChatInfo {
   id: string;
+  jid?: string;
   phoneNumber: string;
+  displayName?: string;
+  profilePictureUrl?: string | null;
   pushName: string;
   name?: string;
   unreadCount: number;

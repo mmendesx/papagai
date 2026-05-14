@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { animate, query, stagger, style, transition, trigger } from '@angular/animations';
 import { TuiAlertService, TuiDialogService } from '@taiga-ui/core';
+import { TuiConfirmService } from '@taiga-ui/kit/components/confirm';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { firstValueFrom } from 'rxjs';
 import { ApiKeyRecord, ApiKeysService } from '../../core/services/api-keys.service';
@@ -49,10 +50,11 @@ import { CreateApiKeyDialogComponent } from './create-api-key-dialog.component';
               <tr>
                 <th>Nome</th>
                 <th>Escopo</th>
-                <th>Prefixo</th>
+                <th>Status</th>
                 <th>Criada em</th>
                 <th>Último uso</th>
                 <th>Expira em</th>
+                <th>Permissões</th>
                 <th aria-label="Ações"></th>
               </tr>
             </thead>
@@ -61,10 +63,11 @@ import { CreateApiKeyDialogComponent } from './create-api-key-dialog.component';
                 <tr class="skeleton-row" aria-hidden="true">
                   <td><div class="ec-skeleton skel-name"></div></td>
                   <td><div class="ec-skeleton skel-badge"></div></td>
+                  <td><div class="ec-skeleton skel-badge"></div></td>
+                  <td><div class="ec-skeleton skel-date"></div></td>
+                  <td><div class="ec-skeleton skel-date"></div></td>
+                  <td><div class="ec-skeleton skel-date"></div></td>
                   <td><div class="ec-skeleton skel-prefix"></div></td>
-                  <td><div class="ec-skeleton skel-date"></div></td>
-                  <td><div class="ec-skeleton skel-date"></div></td>
-                  <td><div class="ec-skeleton skel-date"></div></td>
                   <td><div class="ec-skeleton skel-action"></div></td>
                 </tr>
               }
@@ -111,10 +114,11 @@ import { CreateApiKeyDialogComponent } from './create-api-key-dialog.component';
               <tr>
                 <th scope="col">Nome</th>
                 <th scope="col">Escopo</th>
-                <th scope="col">Prefixo</th>
+                <th scope="col">Status</th>
                 <th scope="col">Criada em</th>
                 <th scope="col">Último uso</th>
                 <th scope="col">Expira em</th>
+                <th scope="col">Permissões</th>
                 <th scope="col" aria-label="Ações"></th>
               </tr>
             </thead>
@@ -135,34 +139,42 @@ import { CreateApiKeyDialogComponent } from './create-api-key-dialog.component';
                     </span>
                   </td>
                   <td>
-                    <code class="key-prefix">{{ key.prefix }}</code>
+                    <span class="badge" [class.badge--ok]="getStatus(key) === 'Ativa'" [class.badge--warn]="getStatus(key) === 'Expirada'" [class.badge--muted]="getStatus(key) === 'Revogada'">
+                      {{ getStatus(key) }}
+                    </span>
                   </td>
                   <td class="cell-date">{{ formatDate(key.createdAt) }}</td>
                   <td class="cell-date">{{ key.lastUsedAt ? formatDate(key.lastUsedAt) : '—' }}</td>
                   <td class="cell-date">{{ key.expiresAt ? formatDate(key.expiresAt) : 'Nunca' }}</td>
+                  <td class="cell-permissions">{{ permissionSummary(key) }}</td>
                   <td class="cell-actions">
-                    @if (revokingId() === key.id) {
-                      <!-- Inline confirmation -->
-                      <div class="confirm-row">
-                        <span class="confirm-label">Revogar?</span>
-                        <button type="button" class="negative-btn" (click)="confirmRevoke(key.id)">Sim</button>
-                        <button type="button" class="cancel-btn" (click)="revokingId.set(null)">Não</button>
-                      </div>
-                    } @else {
-                      <button
-                        type="button"
-                        class="revoke-btn"
-                        (click)="requestRevoke(key.id)"
-                        [attr.aria-label]="'Revogar chave ' + key.name"
-                      >
-                        Revogar
-                      </button>
-                    }
+                    <button type="button" class="revoke-btn" (click)="requestRevoke(key)" [attr.aria-label]="'Revogar chave ' + key.name">
+                      Revogar
+                    </button>
                   </td>
                 </tr>
               }
             </tbody>
           </table>
+        </div>
+
+        <div class="keys-mobile-list">
+          @for (key of keys(); track key.id) {
+            <article class="key-mobile-card">
+              <div class="key-mobile-head">
+                <strong class="key-name">{{ key.name }}</strong>
+                <span class="badge" [class.badge--ok]="getStatus(key) === 'Ativa'" [class.badge--warn]="getStatus(key) === 'Expirada'" [class.badge--muted]="getStatus(key) === 'Revogada'">{{ getStatus(key) }}</span>
+              </div>
+              <p class="key-mobile-meta"><code class="key-prefix">{{ key.prefix }}</code> · Conta</p>
+              <p class="key-mobile-meta">Permissões: {{ permissionSummary(key) }}</p>
+              <p class="key-mobile-meta">Expira: {{ key.expiresAt ? formatDate(key.expiresAt) : 'Nunca' }}</p>
+              <p class="key-mobile-meta">Último uso: {{ key.lastUsedAt ? formatDate(key.lastUsedAt) : '—' }}</p>
+              <p class="key-mobile-meta">Criada: {{ formatDate(key.createdAt) }}</p>
+              <div class="key-mobile-actions">
+                <button type="button" class="revoke-btn" (click)="requestRevoke(key)">Revogar</button>
+              </div>
+            </article>
+          }
         </div>
       }
 
@@ -219,34 +231,6 @@ import { CreateApiKeyDialogComponent } from './create-api-key-dialog.component';
     .revoke-btn:hover {
       background: var(--color-error-container);
     }
-
-    .negative-btn {
-      padding: 0.3125rem 0.625rem;
-      border-radius: var(--radius-md);
-      border: 1px solid var(--color-error-container);
-      background: var(--color-error-container);
-      color: var(--color-on-error-container);
-      font-family: 'Figtree', sans-serif;
-      font-weight: 500;
-      font-size: 0.75rem;
-      cursor: pointer;
-      transition: opacity var(--duration-fast) var(--ease-default);
-    }
-    .negative-btn:hover { opacity: 0.85; }
-
-    .cancel-btn {
-      padding: 0.3125rem 0.625rem;
-      border-radius: var(--radius-md);
-      border: 1px solid var(--color-outline-variant);
-      background: transparent;
-      color: var(--color-on-surface-variant);
-      font-family: 'Figtree', sans-serif;
-      font-weight: 400;
-      font-size: 0.75rem;
-      cursor: pointer;
-      transition: border-color var(--duration-fast) var(--ease-default);
-    }
-    .cancel-btn:hover { border-color: var(--color-outline); }
 
     /* ── Table shell ──────────────────────────────────────── */
     .table-shell {
@@ -325,8 +309,11 @@ import { CreateApiKeyDialogComponent } from './create-api-key-dialog.component';
       white-space: nowrap;
     }
 
-    .cell-actions {
+    .cell-actions,
+    .cell-permissions {
       text-align: right;
+    }
+    .cell-actions {
       white-space: nowrap;
     }
 
@@ -345,22 +332,47 @@ import { CreateApiKeyDialogComponent } from './create-api-key-dialog.component';
       background: var(--color-secondary-container);
       color: var(--color-on-secondary-container);
     }
+    .badge--ok {
+      background: color-mix(in srgb, var(--color-success) 18%, transparent);
+      color: var(--color-success-strong);
+    }
+    .badge--warn {
+      background: color-mix(in srgb, var(--color-warning) 15%, transparent);
+      color: var(--color-warning);
+    }
     .badge--muted {
       background: var(--color-surface-container);
       color: var(--color-on-surface-variant);
     }
 
-    /* ── Inline revoke confirmation ───────────────────────── */
-    .confirm-row {
-      display: flex;
-      align-items: center;
-      gap: 0.375rem;
-      justify-content: flex-end;
+    .keys-mobile-list {
+      display: none;
+      flex-direction: column;
+      gap: 0.75rem;
+      padding: 0.5rem;
     }
-    .confirm-label {
+    .key-mobile-card {
+      border: 1px solid var(--color-outline-variant);
+      border-radius: var(--radius-lg);
+      background: var(--color-surface-container-lowest);
+      padding: 0.875rem;
+    }
+    .key-mobile-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .key-mobile-meta {
+      margin: 0.25rem 0;
       font-size: 0.75rem;
       color: var(--color-on-surface-variant);
-      white-space: nowrap;
+    }
+    .key-mobile-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 0.75rem;
     }
 
     /* ── Skeleton rows ────────────────────────────────────── */
@@ -446,20 +458,15 @@ import { CreateApiKeyDialogComponent } from './create-api-key-dialog.component';
 
     /* ── Responsive: collapse table on narrow screens ─────── */
     @media (max-width: 768px) {
-      .keys-table th:nth-child(4),
-      .keys-table th:nth-child(5),
-      .keys-table th:nth-child(6),
-      .keys-table td:nth-child(4),
-      .keys-table td:nth-child(5),
-      .keys-table td:nth-child(6) {
-        display: none;
-      }
+      .table-shell { display: none; }
+      .keys-mobile-list { display: flex; }
     }
   `],
 })
 export class ApikeysComponent implements OnInit {
   private readonly apiKeysService = inject(ApiKeysService);
   private readonly dialogs = inject(TuiDialogService);
+  private readonly confirm = inject(TuiConfirmService);
   private readonly alerts = inject(TuiAlertService);
   private readonly injector = inject(Injector);
   private readonly headerActions = inject(HeaderActionsService);
@@ -467,8 +474,6 @@ export class ApikeysComponent implements OnInit {
   readonly keys = signal<ApiKeyRecord[]>([]);
   readonly loading = signal(false);
   readonly error = signal(false);
-  readonly revokingId = signal<string | null>(null);
-
   constructor() {
     this.headerActions.setActions([
       {
@@ -524,12 +529,26 @@ export class ApikeysComponent implements OnInit {
       });
   }
 
-  requestRevoke(id: string): void {
-    this.revokingId.set(id);
+  requestRevoke(key: ApiKeyRecord): void {
+    const keyRef = key.prefix ? `${key.name} (${key.prefix})` : key.name;
+    this.confirm.withConfirm({
+      label: 'Revogar chave API',
+      size: 's',
+      data: {
+        content: `Você está revogando ${keyRef}. Essa ação não pode ser desfeita.`,
+        yes: 'Revogar chave',
+        no: 'Cancelar',
+        appearance: 'negative',
+      },
+    }).subscribe((ok) => {
+      if (!ok) {
+        return;
+      }
+      void this.confirmRevoke(key.id);
+    });
   }
 
   async confirmRevoke(id: string): Promise<void> {
-    this.revokingId.set(null);
     try {
       await firstValueFrom(this.apiKeysService.revokeAccountKey(id));
       this.keys.update((current) => current.filter((k) => k.id !== id));
@@ -562,5 +581,22 @@ export class ApikeysComponent implements OnInit {
     } catch {
       return iso;
     }
+  }
+
+  getStatus(key: ApiKeyRecord): 'Ativa' | 'Expirada' | 'Revogada' {
+    if (!key.enabled) {
+      return 'Revogada';
+    }
+    if (key.expiresAt && new Date(key.expiresAt).getTime() < Date.now()) {
+      return 'Expirada';
+    }
+    return 'Ativa';
+  }
+
+  permissionSummary(key: ApiKeyRecord): string {
+    if (key.permissions?.length) {
+      return `${key.permissions.length} permissões`;
+    }
+    return key.permissionsTemplate ?? 'Template padrão';
   }
 }

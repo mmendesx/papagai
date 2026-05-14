@@ -36,12 +36,15 @@ const TOKEN_KEY = 'papagai_access_token';
     </div>
     @if (expanded()) {
       <div class="try-panel">
-        <p class="try-url">
-          <span class="method">{{ endpoint().method }}</span>
-          <code>{{ fullUrl() }}</code>
-        </p>
+        <header class="try-header">
+          <p class="try-url">
+            <span class="method">{{ endpoint().method }}</span>
+            <code>{{ fullUrl() }}</code>
+          </p>
+        </header>
         @if (pathParamNames().length > 0) {
-          <div class="params">
+          <section class="try-section params">
+            <h5>Parâmetros de rota</h5>
             @for (name of pathParamNames(); track name) {
               <tui-textfield>
                 <label tuiLabel>Path: {{ name }}</label>
@@ -54,9 +57,10 @@ const TOKEN_KEY = 'papagai_access_token';
                 />
               </tui-textfield>
             }
-          </div>
+          </section>
         }
-        <div class="auth-controls">
+        <section class="try-section auth-controls">
+          <h5>Autenticação</h5>
           <label class="auth-label" for="try-auth-mode-{{ endpoint().id }}">Autenticação</label>
           <select
             class="auth-select"
@@ -68,7 +72,7 @@ const TOKEN_KEY = 'papagai_access_token';
             <option value="bearer">Bearer token</option>
             <option value="apiKey">API key (X-Api-Key)</option>
           </select>
-        </div>
+        </section>
         @if (authMode() === 'bearer') {
           <tui-textfield>
             <label tuiLabel>Bearer token</label>
@@ -128,11 +132,16 @@ const TOKEN_KEY = 'papagai_access_token';
       .try-panel {
         margin-top: 0.75rem;
         padding: 1rem;
-        border-radius: var(--radius-lg);
-        background: var(--tui-background-neutral-1);
+        border-radius: 8px;
+        border: 1px solid var(--color-outline-variant);
+        background: var(--color-surface-container-lowest);
         display: flex;
         flex-direction: column;
         gap: 0.75rem;
+      }
+      .try-header {
+        border-bottom: 1px solid var(--color-outline-variant);
+        padding-bottom: 0.625rem;
       }
       .try-url {
         margin: 0;
@@ -155,6 +164,13 @@ const TOKEN_KEY = 'papagai_access_token';
         flex-direction: column;
         gap: 0.5rem;
       }
+      .try-section h5 {
+        margin: 0 0 0.5rem;
+        font-size: 0.6875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--color-on-surface-variant);
+      }
       .auth-controls {
         display: flex;
         flex-direction: column;
@@ -167,10 +183,10 @@ const TOKEN_KEY = 'papagai_access_token';
       .auth-select {
         width: 100%;
         box-sizing: border-box;
-        border: 1px solid var(--tui-border-normal);
+        border: 1px solid var(--color-outline-variant);
         border-radius: var(--radius-md);
-        background: var(--tui-background-elevation-1);
-        color: var(--tui-text-primary);
+        background: var(--color-surface-container-low);
+        color: var(--color-on-surface);
         padding: 0.5rem 0.75rem;
         font: var(--tui-font-text-m);
       }
@@ -185,9 +201,9 @@ const TOKEN_KEY = 'papagai_access_token';
         font-size: 0.8125rem;
         padding: 0.5rem 0.75rem;
         border-radius: var(--radius-md);
-        border: 1px solid var(--tui-border-normal);
-        background: var(--tui-background-elevation-1);
-        color: var(--tui-text-primary);
+        border: 1px solid var(--color-outline-variant);
+        background: var(--color-surface-container-low);
+        color: var(--color-on-surface);
         resize: vertical;
         min-height: 6rem;
       }
@@ -196,7 +212,7 @@ const TOKEN_KEY = 'papagai_access_token';
         gap: 0.5rem;
       }
       .result {
-        border-radius: var(--radius-md);
+        border-radius: 6px;
         border: 1px solid var(--tui-status-positive);
         overflow: hidden;
       }

@@ -158,6 +158,9 @@ describe('InstancesService', () => {
         'https://example.com/video.mp4',
         expect.anything(),
       );
+      expect(mockConfigService.get).toHaveBeenCalledWith(
+        'mediaAllowPrivateHosts',
+      );
       expect(mockWhatsappService.send).toHaveBeenCalledWith(
         'user-1',
         'my-papagai',
@@ -190,6 +193,30 @@ describe('InstancesService', () => {
           mimetype: 'image/jpeg',
           caption: undefined,
         },
+      );
+    });
+
+    it('keeps media private hosts blocked when only webhook private hosts are enabled', async () => {
+      (validateOrThrow as jest.Mock).mockRejectedValue(
+        new WebhookUrlInvalidError('Private hosts are not allowed'),
+      );
+      mockConfigService.get.mockImplementation((key: string) => {
+        if (key === 'webhookAllowPrivateHosts') return true;
+        if (key === 'mediaAllowPrivateHosts') return false;
+        return false;
+      });
+
+      await expect(
+        service.sendMessage('user-1', 'my-papagai', {
+          to: '5511999999999',
+          type: 'image',
+          image: { link: 'http://127.0.0.1/private.jpg' },
+        }),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(validateOrThrow).toHaveBeenCalledWith(
+        'http://127.0.0.1/private.jpg',
+        { allowPrivate: false },
       );
     });
   });

@@ -6,7 +6,8 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "test:ci": "ng test --watch=false --progress=false"
   },
   "private": true,
   "dependencies": {
@@ -52,11 +53,16 @@
     "serialize-javascript": "7.0.5",
     "tar": "7.5.13",
     "vite": "6.4.2",
-    "glob": "^13.0.0",
-    "inflight": "^1.0.6",
+    "karma": {
+      "glob": "7.2.3",
+      "minimatch": "3.1.2"
+    },
     "follow-redirects": "1.16.0",
     "postcss": "8.5.10",
-    "uuid": "14.0.0"
+    "uuid": "14.0.0",
+    "fast-uri": "^3.1.2",
+    "ip-address": "^10.1.1",
+    "@babel/plugin-transform-modules-systemjs": "^7.29.4"
   },
   "devDependencies": {
     "@angular-devkit/build-angular": "^19.2.23",

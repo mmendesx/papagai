@@ -569,6 +569,28 @@ describe('ChatStoreService', () => {
       const svc = new ChatStoreService(redis);
       expect(svc.getChats('nobody', 'ghost')).toEqual([]);
     });
+
+    it('stores displayName and falls back phoneNumber from JID', () => {
+      const redis = makeMockRedis();
+      const svc = new ChatStoreService(redis);
+
+      svc.recordIncoming(
+        USER,
+        INSTANCE,
+        makeMsg({
+          id: 'name-1',
+          remoteJid: '5511999999999:20@s.whatsapp.net',
+          pushName: 'Maria Silva',
+        }),
+      );
+
+      const chats = svc.getChats(USER, INSTANCE);
+      expect(chats[0].jid).toBe('5511999999999:20@s.whatsapp.net');
+      expect(chats[0].displayName).toBe('Maria Silva');
+      expect(chats[0].name).toBe('Maria Silva');
+      expect(chats[0].phoneNumber).toBe('5511999999999');
+      expect(chats[0].profilePictureUrl).toBeNull();
+    });
   });
 
   describe('getMessages', () => {
@@ -702,8 +724,11 @@ describe('ChatStoreService', () => {
     it('restores chats and counters from Redis', async () => {
       const chatSummary = {
         id: '5511999999999@s.whatsapp.net',
+        jid: '5511999999999@s.whatsapp.net',
         phoneNumber: '5511999999999',
+        displayName: 'Alice',
         name: 'Alice',
+        profilePictureUrl: null,
         isGroup: false,
         lastMessage: 'Restored',
         lastMessageAt: 1700000000000,
@@ -771,8 +796,11 @@ describe('ChatStoreService', () => {
             return Promise.resolve({
               '5511999999999@s.whatsapp.net': JSON.stringify({
                 id: '5511999999999@s.whatsapp.net',
+                jid: '5511999999999@s.whatsapp.net',
                 phoneNumber: '5511999999999',
+                displayName: null,
                 name: null,
+                profilePictureUrl: null,
                 isGroup: false,
                 lastMessage: 'old',
                 lastMessageAt: 1000,

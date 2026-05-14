@@ -24,6 +24,9 @@ export default () => ({
   webhookAllowPrivateHosts:
     process.env.WEBHOOK_ALLOW_PRIVATE_HOSTS === 'true' &&
     process.env.NODE_ENV === 'development',
+  mediaAllowPrivateHosts:
+    process.env.MEDIA_ALLOW_PRIVATE_HOSTS === 'true' &&
+    process.env.NODE_ENV === 'development',
   authThrottleTtl: parseInt(process.env.AUTH_THROTTLE_TTL ?? '60', 10),
   authThrottleLimit: parseInt(process.env.AUTH_THROTTLE_LIMIT ?? '5', 10),
   // These individual DB_* vars are used by docker-compose health-checks and any

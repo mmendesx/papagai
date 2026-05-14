@@ -13,6 +13,7 @@ export interface ApiKeyRecord {
   createdAt: string;
   lastUsedAt?: string;
   permissions?: string[];
+  permissionsTemplate?: string;
 }
 
 export interface CreateApiKeyPayload {

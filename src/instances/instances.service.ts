@@ -186,7 +186,7 @@ export class InstancesService {
     }
 
     const allowPrivate =
-      this.configService.get<boolean>('webhookAllowPrivateHosts') ?? false;
+      this.configService.get<boolean>('mediaAllowPrivateHosts') ?? false;
     try {
       await validateOrThrow(url, { allowPrivate });
     } catch (error) {

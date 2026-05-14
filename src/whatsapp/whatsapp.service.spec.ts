@@ -607,6 +607,69 @@ describe('WhatsappService', () => {
     });
   });
 
+  describe('chat summary mapping', () => {
+    it('prefers display name and keeps compatibility fields', () => {
+      const instance = buildMockInstance({ name: 'chatInstance' });
+      (service as any).instances.set(`${TEST_USER_ID}:chatInstance`, instance);
+      const mockChatStore = (service as any).chatStore as jest.Mocked<
+        Partial<ChatStoreService>
+      >;
+      (mockChatStore.getChats as jest.Mock).mockReturnValue([
+        {
+          id: '5511999999999@s.whatsapp.net',
+          jid: '5511999999999@s.whatsapp.net',
+          phoneNumber: '5511999999999',
+          displayName: 'Maria Silva',
+          name: 'Maria Silva',
+          profilePictureUrl: 'https://cdn.example/avatar.jpg',
+          isGroup: false,
+          lastMessage: 'Oi',
+          lastMessageAt: 1710000000000,
+          unreadCount: 2,
+        },
+      ]);
+
+      const result = service.getChats(TEST_USER_ID, 'chatInstance', false);
+
+      expect(result[0]).toMatchObject({
+        id: '5511999999999@s.whatsapp.net',
+        jid: '5511999999999@s.whatsapp.net',
+        phoneNumber: '5511999999999',
+        displayName: 'Maria Silva',
+        name: 'Maria Silva',
+        pushName: 'Maria Silva',
+        profilePictureUrl: 'https://cdn.example/avatar.jpg',
+      });
+    });
+
+    it('falls back to phone number when display name is missing', () => {
+      const instance = buildMockInstance({ name: 'chatInstance2' });
+      (service as any).instances.set(`${TEST_USER_ID}:chatInstance2`, instance);
+      const mockChatStore = (service as any).chatStore as jest.Mocked<
+        Partial<ChatStoreService>
+      >;
+      (mockChatStore.getChats as jest.Mock).mockReturnValue([
+        {
+          id: '5511888888888@s.whatsapp.net',
+          jid: '5511888888888@s.whatsapp.net',
+          phoneNumber: '5511888888888',
+          displayName: null,
+          name: null,
+          profilePictureUrl: null,
+          isGroup: false,
+          lastMessage: 'Hello',
+          lastMessageAt: 1710000001000,
+          unreadCount: 0,
+        },
+      ]);
+
+      const result = service.getChats(TEST_USER_ID, 'chatInstance2', false);
+      expect(result[0].name).toBe('5511888888888');
+      expect(result[0].pushName).toBe('5511888888888');
+      expect(result[0].profilePictureUrl).toBeNull();
+    });
+  });
+
   describe('ICT-1 — cross-device outgoing body extraction via messages.upsert', () => {
     async function getMessagesUpsertHandler(): Promise<(payload: any) => void> {
       await service.createInstance(TEST_USER_ID, 'upsertInstance');

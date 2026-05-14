@@ -20,44 +20,24 @@ import { TuiCheckbox } from '@taiga-ui/kit/components/checkbox';
   imports: [ReactiveFormsModule, FormsModule, ...TuiTextfield, TuiSwitch, TuiCheckbox],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div style="padding: 1.5rem; min-width: 400px; max-width: 500px;">
+    <div class="app-dialog">
 
-      <!-- Header -->
-      <h2 style="
-        font-size: 1.25rem;
-        font-weight: 300;
-        margin: 0 0 1.5rem;
-        font-family: 'Figtree', sans-serif;
-        color: var(--tui-text-primary);
-      ">Criar instância</h2>
+      <h2 class="app-dialog__title">Criar instância</h2>
 
-      <form [formGroup]="form" (ngSubmit)="submit()">
+      <form [formGroup]="form" (ngSubmit)="submit()" class="app-form">
 
-        <!-- Section 1: Basic info -->
-        <div style="margin-bottom: 1.5rem;">
-          <h4 class="section-label">Informações básicas</h4>
+        <div class="app-form__section">
+          <h4 class="app-form__section-title">Informações básicas</h4>
           <tui-textfield>
             <label tuiLabel>Nome da instância</label>
             <input tuiTextfield type="text" formControlName="name" autocomplete="off" />
           </tui-textfield>
         </div>
 
-        <!-- Section 2: Webhook -->
-        <div style="
-          border-top: 1px solid var(--color-outline-variant);
-          padding-top: 1rem;
-          margin-bottom: 1.5rem;
-        ">
-          <h4 class="section-label">Webhook</h4>
+        <div class="app-form__section app-form__section--split">
+          <h4 class="app-form__section-title">Webhook</h4>
 
-          <!-- Enable toggle -->
-          <label style="
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            cursor: pointer;
-            padding: 0.25rem 0 0.75rem;
-          ">
+          <label class="toggle-row">
             <input
               tuiSwitch
               type="checkbox"
@@ -65,42 +45,29 @@ import { TuiCheckbox } from '@taiga-ui/kit/components/checkbox';
               (ngModelChange)="webhookEnabled.set($event)"
               [ngModelOptions]="{ standalone: true }"
             />
-            <span style="font-weight: 300; font-family: 'Figtree', sans-serif;">Ativar webhook</span>
+            <span class="toggle-label">Ativar webhook</span>
           </label>
 
           @if (webhookEnabled()) {
-            <!-- Webhook URL -->
-            <div style="margin-bottom: 0.75rem;">
+            <div>
               <tui-textfield>
                 <label tuiLabel>URL do Webhook</label>
                 <input tuiTextfield type="url" formControlName="webhook" autocomplete="off" />
               </tui-textfield>
             </div>
 
-            <!-- Webhook headers -->
-            <div style="margin-bottom: 0.5rem;">
+            <div>
               <tui-textfield>
                 <label tuiLabel>Headers do Webhook (JSON)</label>
                 <input tuiTextfield type="text" formControlName="webhookHeadersJson" autocomplete="off" />
               </tui-textfield>
             </div>
 
-            <!-- Events subsection -->
-            <div style="
-              border-top: 1px solid var(--color-outline-variant);
-              padding-top: 0.75rem;
-              margin-top: 0.75rem;
-            ">
-              <h5 class="section-label" style="font-size: 0.7rem; margin-bottom: 0.5rem;">Eventos</h5>
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+            <div class="events-section">
+              <h5 class="app-form__section-title">Eventos</h5>
+              <div class="events-grid">
                 @for (ev of availableEvents; track ev) {
-                  <label style="
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    cursor: pointer;
-                    padding: 0.25rem 0;
-                  ">
+                  <label class="event-row">
                     <input
                       tuiCheckbox
                       type="checkbox"
@@ -108,12 +75,7 @@ import { TuiCheckbox } from '@taiga-ui/kit/components/checkbox';
                       (ngModelChange)="toggleEvent(ev)"
                       [ngModelOptions]="{ standalone: true }"
                     />
-                    <span style="
-                      font-size: 0.8125rem;
-                      font-weight: 300;
-                      font-family: 'Figtree', sans-serif;
-                      color: var(--tui-text-primary);
-                    ">{{ ev }}</span>
+                    <span class="event-label">{{ ev }}</span>
                   </label>
                 }
               </div>
@@ -121,17 +83,16 @@ import { TuiCheckbox } from '@taiga-ui/kit/components/checkbox';
           }
         </div>
 
-        <!-- Footer -->
-        <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+        <div class="app-form__actions">
           <button
             type="button"
             (click)="cancel()"
-            class="cancel-btn"
+            class="app-btn app-btn--secondary"
           >Cancelar</button>
           <button
             type="submit"
             [disabled]="form.invalid || busy()"
-            class="gradient-btn"
+            class="app-btn app-btn--primary"
           >
             @if (busy()) { Criando… } @else { Criar }
           </button>
@@ -142,53 +103,45 @@ import { TuiCheckbox } from '@taiga-ui/kit/components/checkbox';
   `,
   styles: [
     `
-      .section-label {
-        font-size: 0.75rem;
-        font-weight: 300;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: var(--tui-text-secondary);
-        margin: 0 0 0.75rem;
-        font-family: 'Figtree', sans-serif;
+      .app-form__section--split {
+        border-top: 1px solid var(--color-outline-variant);
+        padding-top: 1rem;
       }
 
-      .cancel-btn {
-        padding: 0.5rem 1.25rem;
-        border-radius: var(--radius-lg);
-        border: 1px solid var(--color-outline-variant);
-        background: transparent;
-        font-family: 'Figtree', sans-serif;
-        font-weight: 200;
-        font-size: 0.875rem;
+      .toggle-row {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
         cursor: pointer;
+      }
+
+      .toggle-label {
+        font: 500 0.875rem/1.2 var(--font-sans);
         color: var(--color-on-surface);
-        transition: border-color var(--duration-fast) var(--ease-default);
       }
 
-      .cancel-btn:hover {
-        border-color: var(--color-outline);
+      .events-section {
+        border-top: 1px solid var(--color-outline-variant);
+        padding-top: 0.75rem;
       }
 
-      .gradient-btn {
-        padding: 0.5rem 1.25rem;
-        border-radius: var(--radius-lg);
-        border: none;
-        background: var(--color-primary);
-        color: var(--color-on-primary);
-        font-family: 'Figtree', sans-serif;
-        font-weight: 200;
-        font-size: 0.875rem;
+      .events-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.5rem;
+      }
+
+      .event-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
         cursor: pointer;
-        transition: opacity var(--duration-fast) var(--ease-default);
+        padding: 0.25rem 0;
       }
 
-      .gradient-btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-
-      .gradient-btn:not(:disabled):hover {
-        opacity: 0.9;
+      .event-label {
+        font: 400 0.8125rem/1.2 var(--font-sans);
+        color: var(--color-on-surface);
       }
     `,
   ],

@@ -6,8 +6,11 @@ export const REDIS_CLIENT = 'REDIS_CLIENT';
 
 export interface ChatSummary {
   id: string;
+  jid: string;
   phoneNumber: string;
+  displayName: string | null;
   name: string | null;
+  profilePictureUrl: string | null;
   isGroup: boolean;
   lastMessage: string | null;
   lastMessageAt: number;
@@ -84,6 +87,10 @@ function isIgnoredJid(jid: string): boolean {
   if (!jid) return true;
   if (jid === 'status@broadcast') return true;
   return IGNORED_JID_SUFFIXES.some((s) => jid.endsWith(s));
+}
+
+function jidToPhoneNumber(jid: string): string {
+  return jid.split('@')[0].split(':')[0].replace(/\+/g, '');
 }
 
 /**
@@ -295,8 +302,12 @@ export class ChatStoreService {
     const existing = store.chats.get(chatId);
     const chat: ChatSummary = {
       id: chatId,
-      phoneNumber: chatId.split('@')[0],
-      name: msg.pushName ?? existing?.name ?? null,
+      jid: chatId,
+      phoneNumber: jidToPhoneNumber(chatId),
+      displayName:
+        msg.pushName ?? existing?.displayName ?? existing?.name ?? null,
+      name: msg.pushName ?? existing?.displayName ?? existing?.name ?? null,
+      profilePictureUrl: existing?.profilePictureUrl ?? null,
       isGroup,
       lastMessage: body,
       lastMessageAt: timestamp,
@@ -356,8 +367,11 @@ export class ChatStoreService {
     const existing = store.chats.get(chatId);
     const chat: ChatSummary = {
       id: chatId,
-      phoneNumber: chatId.split('@')[0],
-      name: existing?.name ?? null,
+      jid: chatId,
+      phoneNumber: jidToPhoneNumber(chatId),
+      displayName: existing?.displayName ?? existing?.name ?? null,
+      name: existing?.displayName ?? existing?.name ?? null,
+      profilePictureUrl: existing?.profilePictureUrl ?? null,
       isGroup,
       lastMessage: body,
       lastMessageAt: timestamp,
@@ -441,8 +455,21 @@ export class ChatStoreService {
       if (!existing || (historyTs && historyTs > existing.lastMessageAt)) {
         const summary: ChatSummary = {
           id: chatId,
-          phoneNumber: chatId.split('@')[0],
-          name: chat.name ?? chat.notify ?? existing?.name ?? null,
+          jid: chatId,
+          phoneNumber: jidToPhoneNumber(chatId),
+          displayName:
+            chat.name ??
+            chat.notify ??
+            existing?.displayName ??
+            existing?.name ??
+            null,
+          name:
+            chat.name ??
+            chat.notify ??
+            existing?.displayName ??
+            existing?.name ??
+            null,
+          profilePictureUrl: chat.imgUrl ?? existing?.profilePictureUrl ?? null,
           isGroup: chatId.includes('@g.us'),
           lastMessage:
             chat.lastMessage?.message?.conversation ??

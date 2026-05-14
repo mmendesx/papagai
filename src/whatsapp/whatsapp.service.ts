@@ -545,9 +545,12 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
     const summaries = this.chatStore.getChats(userId, instanceName);
     return summaries.map((s) => ({
       id: s.id,
+      jid: s.jid,
       phoneNumber: s.phoneNumber,
-      pushName: s.name ?? '',
-      name: s.name ?? undefined,
+      displayName: s.displayName ?? undefined,
+      profilePictureUrl: s.profilePictureUrl,
+      pushName: s.displayName ?? s.name ?? s.phoneNumber,
+      name: s.displayName ?? s.name ?? s.phoneNumber,
       unreadCount: s.unreadCount,
       lastMessage: s.lastMessage ?? undefined,
       timestamp: s.lastMessageAt,

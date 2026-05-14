@@ -22,9 +22,32 @@ import { TryItPanelComponent } from './try-it-panel.component';
     ])
   ],
   template: `
-    <article class="ep-card" [class.ep-card--open]="expanded()">
-      <!-- Card header: always visible, clickable -->
-      <button type="button" class="ep-header" (click)="toggleExpanded()" [attr.aria-expanded]="expanded()">
+    <article class="ep-card" [class.ep-card--open]="expanded()" [class.ep-card--detail]="detailMode()">
+      @if (detailMode()) {
+        <div class="ep-header ep-header--static">
+          <div class="ep-method-wrap">
+            <span [class]="badgeClass()">{{ endpoint().method }}</span>
+          </div>
+          <div class="ep-info">
+            <code class="ep-path">
+              @for (part of pathParts(); track $index) {
+                @if (part.startsWith(':')) {
+                  <span class="path-param">{{ part }}</span>
+                } @else {
+                  {{ part }}
+                }
+              }
+            </code>
+            <span class="ep-title">{{ endpoint().title }}</span>
+          </div>
+          <div class="ep-right">
+            @for (chip of authChips(); track chip) {
+              <span class="auth-chip">{{ chip }}</span>
+            }
+          </div>
+        </div>
+      } @else {
+        <button type="button" class="ep-header" (click)="toggleExpanded()" [attr.aria-expanded]="expanded()">
         <div class="ep-method-wrap">
           <span [class]="badgeClass()">{{ endpoint().method }}</span>
         </div>
@@ -50,7 +73,8 @@ import { TryItPanelComponent } from './try-it-panel.component';
             </svg>
           </span>
         </div>
-      </button>
+        </button>
+      }
 
       <!-- Expanded body -->
       @if (expanded()) {
@@ -176,7 +200,9 @@ import { TryItPanelComponent } from './try-it-panel.component';
               <span>{{ endpoint().tryItDisabledReason }}</span>
             </div>
           } @else {
-            <app-try-it-panel [endpoint]="endpoint()" />
+            <div class="try-it-shell">
+              <app-try-it-panel [endpoint]="endpoint()" />
+            </div>
           }
         </div>
       }
@@ -198,6 +224,7 @@ import { TryItPanelComponent } from './try-it-panel.component';
         border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-outline-variant));
         box-shadow: 0 4px 16px color-mix(in srgb, var(--color-primary) 8%, transparent);
       }
+      .ep-card--detail { box-shadow: none; }
 
       .ep-header {
         width: 100%;
@@ -214,6 +241,8 @@ import { TryItPanelComponent } from './try-it-panel.component';
         transition: background var(--duration-fast) var(--ease-default);
       }
       .ep-header:hover { background: var(--color-surface-container-low); }
+      .ep-header--static { cursor: default; }
+      .ep-header--static:hover { background: transparent; }
       .ep-card--open .ep-header {
         background: color-mix(in srgb, var(--color-primary) 3%, transparent);
         border-bottom: 1px solid var(--color-outline-variant);
@@ -435,11 +464,19 @@ import { TryItPanelComponent } from './try-it-panel.component';
         color: var(--color-method-patch);
         white-space: nowrap;
       }
+      .try-it-shell {
+        border: 1px solid var(--color-outline-variant);
+        border-radius: var(--radius-lg);
+        padding: 0.625rem;
+        background: color-mix(in srgb, var(--color-surface-container-low) 70%, transparent);
+      }
     `,
   ],
 })
 export class EndpointCardComponent {
   readonly endpoint = input.required<EndpointDef>();
+  readonly forceExpanded = input(false);
+  readonly detailMode = input(false);
 
   private readonly docsNav = inject(DocsNavigationService);
 
@@ -447,6 +484,11 @@ export class EndpointCardComponent {
 
   constructor() {
     effect(() => {
+      if (this.forceExpanded()) {
+        this.expanded.set(true);
+        return;
+      }
+
       const targetId = this.docsNav.targetEndpointId();
       if (targetId && targetId === this.endpoint().id) {
         this.expanded.set(true);
@@ -458,6 +500,9 @@ export class EndpointCardComponent {
   readonly copied = signal<string | null>(null);
 
   toggleExpanded(): void {
+    if (this.forceExpanded()) {
+      return;
+    }
     this.expanded.update((v) => !v);
   }
 
