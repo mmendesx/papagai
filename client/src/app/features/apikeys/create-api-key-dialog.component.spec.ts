@@ -106,15 +106,13 @@ describe(CreateApiKeyDialogComponent.name, () => {
     fixture.detectChanges();
     flushInstances();
     flushTemplates();
+    await fixture.whenStable();
 
     fixture.componentInstance.scope.set('instance');
     fixture.componentInstance.keyName.set('Instance key');
-    fixture.componentInstance.selectedInstanceModel = {
-      name: 'main',
-      connected: true,
-      phoneNumber: null,
-    };
+    fixture.componentInstance.selectedInstanceModel = 'main';
     fixture.detectChanges();
+    await fixture.whenStable();
 
     const submit = fixture.componentInstance.submit();
 
@@ -131,6 +129,24 @@ describe(CreateApiKeyDialogComponent.name, () => {
       createdAt: '2026-05-13T00:00:00.000Z',
     });
     await submit;
+  });
+
+  it('stores the selected instance as a displayable name instead of an object', async () => {
+    fixture.detectChanges();
+    flushInstances();
+    flushTemplates();
+    await fixture.whenStable();
+
+    fixture.componentInstance.selectedInstanceModel = {
+      name: 'main',
+      connected: true,
+      phoneNumber: null,
+    };
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(fixture.componentInstance.selectedInstanceModel).toBe('main');
+    expect(fixture.componentInstance.selectedInstance()?.name).toBe('main');
   });
 
   function flushInstances(): void {

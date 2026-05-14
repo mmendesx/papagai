@@ -194,7 +194,7 @@ interface InstancesListResponse {
                       instance of instancesRes.value().instances;
                       track instance.name
                     ) {
-                      <button tuiOption new [value]="instance" type="button">
+                      <button tuiOption new [value]="instance.name" type="button">
                         {{ instance.name }}
                       </button>
                     }
@@ -474,7 +474,7 @@ export class CreateApiKeyDialogComponent {
   readonly scope = signal<'account' | 'instance'>(
     this.context.data?.scope ?? 'account',
   );
-  readonly selectedInstance = signal<InstanceRow | null>(null);
+  readonly selectedInstanceName = signal('');
   readonly selectedTemplateId = signal<string>('instance_manager');
   readonly instancesRes = httpResource<InstancesListResponse>(
     () => '/api/instances',
@@ -514,17 +514,26 @@ export class CreateApiKeyDialogComponent {
           (template) => template.id === this.selectedTemplateId(),
         ) ?? null,
   );
+  readonly selectedInstance = computed(
+    () =>
+      this.instancesRes
+        .value()
+        .instances.find((instance) => instance.name === this.selectedInstanceName()) ??
+      null,
+  );
   readonly expiresAt = signal('');
   readonly busy = signal(false);
   readonly createdKey = signal<ApiKeyRecord | null>(null);
   readonly copied = signal(false);
 
-  /** Two-way binding bridge for TuiSelect ngModel ↔ selectedInstance signal */
-  get selectedInstanceModel(): InstanceRow | null {
-    return this.selectedInstance();
+  /** Two-way binding bridge for TuiSelect ngModel ↔ selected instance name */
+  get selectedInstanceModel(): string {
+    return this.selectedInstanceName();
   }
-  set selectedInstanceModel(value: InstanceRow | null) {
-    this.selectedInstance.set(value);
+  set selectedInstanceModel(value: string | InstanceRow | null) {
+    this.selectedInstanceName.set(
+      typeof value === 'string' ? value : value?.name ?? '',
+    );
   }
 
   get selectedTemplateIdModel(): string {
@@ -540,7 +549,7 @@ export class CreateApiKeyDialogComponent {
       const target = this.context.data?.instanceName;
       if (!target) return;
       const match = list.find((i) => i.name === target) ?? null;
-      this.selectedInstance.set(match);
+      this.selectedInstanceName.set(match?.name ?? '');
     });
 
     effect(() => {
