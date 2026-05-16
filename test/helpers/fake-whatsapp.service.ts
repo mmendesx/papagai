@@ -6,6 +6,7 @@ import { ChatRealtimeEvent } from '../../src/whatsapp/chat-store.service';
 interface FakeInstance {
   name: string;
   userId: string;
+  provider: 'web';
   connected: boolean;
   startTime: number;
   webhookUrl: string | null;
@@ -41,6 +42,7 @@ export class FakeWhatsappService implements OnModuleInit, OnModuleDestroy {
     const inst: FakeInstance = {
       name,
       userId,
+      provider: 'web',
       connected: false,
       startTime: Date.now(),
       webhookUrl: webhookUrl ?? null,
@@ -55,12 +57,14 @@ export class FakeWhatsappService implements OnModuleInit, OnModuleDestroy {
       create: {
         userId,
         name,
+        provider: 'web',
         webhookUrl: inst.webhookUrl,
         webhookHeaders: inst.webhookHeaders,
         webhookEnabled: inst.webhookEnabled,
         webhookEvents: inst.webhookEvents,
       },
       update: {
+        provider: 'web',
         webhookUrl: inst.webhookUrl,
         webhookHeaders: inst.webhookHeaders,
         webhookEnabled: inst.webhookEnabled,
@@ -81,9 +85,19 @@ export class FakeWhatsappService implements OnModuleInit, OnModuleDestroy {
       .filter(([key]) => key.startsWith(`${userId}:`))
       .map(([, inst]) => ({
         name: inst.name,
+        provider: 'web' as const,
         connected: inst.connected,
         startTime: inst.startTime,
         webhookEnabled: inst.webhookEnabled,
+        capabilities: {
+          qr: true,
+          sendMessages: true,
+          receiveMessages: true,
+          chatHistorySync: true,
+          contactLookup: true,
+          markRead: true,
+          templates: true,
+        },
         phoneNumber: null,
         webhook: {
           url: inst.webhookUrl,

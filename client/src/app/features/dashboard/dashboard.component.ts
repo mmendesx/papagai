@@ -8,7 +8,14 @@ import {
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { ResourceStatus } from '@angular/core';
-import { animate, query, stagger, style, transition, trigger } from '@angular/animations';
+import {
+  animate,
+  query,
+  stagger,
+  style,
+  transition,
+  trigger,
+} from '@angular/animations';
 import { TuiDialogService } from '@taiga-ui/core';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { CreateInstanceDialogComponent } from './create-instance-dialog.component';
@@ -17,6 +24,16 @@ import { getAvatarColor } from '../../shared/avatar-colors';
 
 export interface InstanceRow {
   name: string;
+  provider?: 'web' | 'wba';
+  capabilities?: {
+    qr: boolean;
+    sendMessages: boolean;
+    receiveMessages: boolean;
+    chatHistorySync: boolean;
+    contactLookup: boolean;
+    markRead: boolean;
+    templates: boolean;
+  };
   connected: boolean;
   startTime: number;
   webhookEnabled: boolean;
@@ -40,18 +57,28 @@ interface InstancesListResponse {
   animations: [
     trigger('staggerCards', [
       transition(':enter', [
-        query(':enter', [
-          style({ opacity: 0, transform: 'translateY(16px)' }),
-          stagger('60ms', [
-            animate('350ms cubic-bezier(0, 0, 0.2, 1)', style({ opacity: 1, transform: 'translateY(0)' })),
-          ]),
-        ], { optional: true }),
+        query(
+          ':enter',
+          [
+            style({ opacity: 0, transform: 'translateY(16px)' }),
+            stagger('60ms', [
+              animate(
+                '350ms cubic-bezier(0, 0, 0.2, 1)',
+                style({ opacity: 1, transform: 'translateY(0)' }),
+              ),
+            ]),
+          ],
+          { optional: true },
+        ),
       ]),
     ]),
     trigger('fadeInUp', [
       transition(':enter', [
         style({ opacity: 0, transform: 'translateY(12px)' }),
-        animate('300ms cubic-bezier(0, 0, 0.2, 1)', style({ opacity: 1, transform: 'translateY(0)' })),
+        animate(
+          '300ms cubic-bezier(0, 0, 0.2, 1)',
+          style({ opacity: 1, transform: 'translateY(0)' }),
+        ),
       ]),
     ]),
   ],
@@ -75,7 +102,9 @@ interface InstancesListResponse {
     @else if (instancesRes.status() === ResourceStatus.Error) {
       <div class="status-message" @fadeInUp>
         <p class="error-text">Falha ao carregar instâncias</p>
-        <button (click)="reload()" class="gradient-btn" type="button">Tentar novamente</button>
+        <button (click)="reload()" class="gradient-btn" type="button">
+          Tentar novamente
+        </button>
       </div>
     }
 
@@ -87,7 +116,9 @@ interface InstancesListResponse {
         </div>
         <h3 class="empty-heading">Nenhuma instância ainda</h3>
         <p class="empty-body">Crie sua primeira instância para começar</p>
-        <button (click)="openCreate()" class="gradient-btn" type="button">Criar instância</button>
+        <button (click)="openCreate()" class="gradient-btn" type="button">
+          Criar instância
+        </button>
       </div>
     }
 
@@ -96,64 +127,120 @@ interface InstancesListResponse {
       <div class="instance-grid" @staggerCards>
         @for (inst of data.instances; track inst.name) {
           @let avatar = avatarStyle(inst.name);
-          <div class="instance-card"
-               role="link"
-               tabindex="0"
-               [class.is-online]="inst.connected"
-               [attr.aria-label]="'Abrir instância ' + inst.name"
-               (click)="navigateToInstance(inst.name)"
-               (keydown.enter)="navigateToInstance(inst.name)"
-               (keydown.space)="$event.preventDefault(); navigateToInstance(inst.name)">
+          <div
+            class="instance-card"
+            role="link"
+            tabindex="0"
+            [class.is-online]="inst.connected"
+            [attr.aria-label]="'Abrir instância ' + inst.name"
+            (click)="navigateToInstance(inst.name)"
+            (keydown.enter)="navigateToInstance(inst.name)"
+            (keydown.space)="
+              $event.preventDefault(); navigateToInstance(inst.name)
+            "
+          >
             <span class="card-glow" aria-hidden="true"></span>
 
             <div class="card-top">
-              <div class="card-avatar"
-                   [style.background]="avatar.bg"
-                   [style.color]="avatar.text"
-                   aria-hidden="true">{{ initials(inst.name) }}</div>
+              <div
+                class="card-avatar"
+                [style.background]="avatar.bg"
+                [style.color]="avatar.text"
+                aria-hidden="true"
+              >
+                {{ initials(inst.name) }}
+              </div>
               <div class="card-identity">
                 <span class="card-name">{{ inst.name }}</span>
+                <span class="card-phone card-phone--muted">
+                  {{ inst.provider === 'wba' ? 'WBA' : 'Web' }}
+                </span>
                 @if (inst.phoneNumber) {
-                  <span class="card-phone">{{ formatPhone(inst.phoneNumber) }}</span>
-                } @else {
-                  <span class="card-phone card-phone--muted">Sem número</span>
+                  <span class="card-phone">{{
+                    formatPhone(inst.phoneNumber)
+                  }}</span>
                 }
               </div>
-              <span class="status-pill" [class.status-pill--on]="inst.connected">
-                <span class="status-dot" [class.status-dot--pulse]="inst.connected" aria-hidden="true"></span>
+              <span
+                class="status-pill"
+                [class.status-pill--on]="inst.connected"
+              >
+                <span
+                  class="status-dot"
+                  [class.status-dot--pulse]="inst.connected"
+                  aria-hidden="true"
+                ></span>
                 {{ inst.connected ? 'Online' : 'Offline' }}
               </span>
             </div>
 
             <div class="card-meta">
               <span class="meta-item">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-                  <circle cx="12" cy="12" r="9"/>
-                  <path stroke-linecap="round" d="M12 7v5l3 2"/>
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="9" />
+                  <path stroke-linecap="round" d="M12 7v5l3 2" />
                 </svg>
-                {{ inst.connected
-                    ? (isConnecting(inst.startTime) ? 'Conectando...' : formatUptime(inst.startTime))
-                    : offlineLabel(inst.startTime) }}
+                {{
+                  inst.connected
+                    ? isConnecting(inst.startTime)
+                      ? 'Conectando...'
+                      : formatUptime(inst.startTime)
+                    : offlineLabel(inst.startTime)
+                }}
               </span>
               <span class="meta-sep" aria-hidden="true"></span>
-              <span class="webhook-badge"
-                    [class.webhook-badge--on]="inst.webhookEnabled"
-                    [class.webhook-badge--off]="!inst.webhookEnabled">
+              <span
+                class="webhook-badge"
+                [class.webhook-badge--on]="inst.webhookEnabled"
+                [class.webhook-badge--off]="!inst.webhookEnabled"
+              >
                 <span class="webhook-dot" aria-hidden="true"></span>
                 {{ inst.webhookEnabled ? 'Webhook ativo' : 'Webhook inativo' }}
               </span>
             </div>
 
             <div class="card-footer" role="group" aria-label="Ações rápidas">
-              <button class="footer-btn" type="button"
-                      (click)="openInstance($event, inst.name)">Abrir</button>
-              <button class="footer-btn footer-btn--icon" type="button"
-                      (click)="openSettings($event, inst.name)"
-                      title="Configurações"
-                      aria-label="Configurações da instância">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+              <button
+                class="footer-btn"
+                type="button"
+                (click)="openInstance($event, inst.name)"
+              >
+                Abrir
+              </button>
+              <button
+                class="footer-btn footer-btn--icon"
+                type="button"
+                (click)="openSettings($event, inst.name)"
+                title="Configurações"
+                aria-label="Configurações da instância"
+              >
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  aria-hidden="true"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                  />
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
                 </svg>
               </button>
             </div>
@@ -182,7 +269,9 @@ interface InstancesListResponse {
         cursor: pointer;
         transition: opacity var(--duration-fast) var(--ease-default);
       }
-      .gradient-btn:hover { opacity: 0.88; }
+      .gradient-btn:hover {
+        opacity: 0.88;
+      }
 
       /* ── Grid ────────────────────────────────────────────── */
       .instance-grid {
@@ -235,7 +324,11 @@ interface InstancesListResponse {
         border-color: var(--color-outline);
       }
       .instance-card.is-online:hover {
-        border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-outline-variant));
+        border-color: color-mix(
+          in srgb,
+          var(--color-primary) 45%,
+          var(--color-outline-variant)
+        );
       }
       .instance-card:focus-visible {
         outline: 2px solid var(--color-primary);
@@ -256,7 +349,9 @@ interface InstancesListResponse {
         transition: opacity var(--duration-normal) var(--ease-default);
         pointer-events: none;
       }
-      .instance-card.is-online .card-glow { opacity: 1; }
+      .instance-card.is-online .card-glow {
+        opacity: 1;
+      }
 
       /* Top row */
       .card-top {
@@ -297,9 +392,12 @@ interface InstancesListResponse {
         font-size: 0.75rem;
         font-weight: 400;
         color: var(--color-on-surface-variant);
-        font-feature-settings: "tnum";
+        font-feature-settings: 'tnum';
       }
-      .card-phone--muted { font-style: italic; opacity: 0.7; }
+      .card-phone--muted {
+        font-style: italic;
+        opacity: 0.7;
+      }
 
       /* Status pill */
       .status-pill {
@@ -318,7 +416,11 @@ interface InstancesListResponse {
       }
       .status-pill--on {
         background: color-mix(in srgb, var(--color-primary) 10%, transparent);
-        color: color-mix(in srgb, var(--color-primary) 85%, var(--color-on-surface));
+        color: color-mix(
+          in srgb,
+          var(--color-primary) 85%,
+          var(--color-on-surface)
+        );
       }
       .status-dot {
         width: 6px;
@@ -327,15 +429,27 @@ interface InstancesListResponse {
         background: var(--color-on-surface-variant);
         flex-shrink: 0;
       }
-      .status-pill--on .status-dot { background: var(--color-success); }
+      .status-pill--on .status-dot {
+        background: var(--color-success);
+      }
       .status-dot--pulse {
-        box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-success) 55%, transparent);
+        box-shadow: 0 0 0 0
+          color-mix(in srgb, var(--color-success) 55%, transparent);
         animation: pulse 1.8s var(--ease-default) infinite;
       }
       @keyframes pulse {
-        0%   { box-shadow: 0 0 0 0   color-mix(in srgb, var(--color-success) 50%, transparent); }
-        70%  { box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-success)  0%, transparent); }
-        100% { box-shadow: 0 0 0 0   color-mix(in srgb, var(--color-success)  0%, transparent); }
+        0% {
+          box-shadow: 0 0 0 0
+            color-mix(in srgb, var(--color-success) 50%, transparent);
+        }
+        70% {
+          box-shadow: 0 0 0 6px
+            color-mix(in srgb, var(--color-success) 0%, transparent);
+        }
+        100% {
+          box-shadow: 0 0 0 0
+            color-mix(in srgb, var(--color-success) 0%, transparent);
+        }
       }
 
       /* Meta row */
@@ -355,7 +469,10 @@ interface InstancesListResponse {
         color: var(--color-on-surface-variant);
         white-space: nowrap;
       }
-      .meta-item svg { flex-shrink: 0; opacity: 0.7; }
+      .meta-item svg {
+        flex-shrink: 0;
+        opacity: 0.7;
+      }
       .meta-sep {
         width: 1px;
         height: 12px;
@@ -376,7 +493,11 @@ interface InstancesListResponse {
       }
       .webhook-badge--on {
         background: color-mix(in srgb, var(--color-success) 12%, transparent);
-        color: color-mix(in srgb, var(--color-success) 80%, var(--color-on-surface));
+        color: color-mix(
+          in srgb,
+          var(--color-success) 80%,
+          var(--color-on-surface)
+        );
       }
       .webhook-badge--off {
         background: var(--color-surface-container);
@@ -436,9 +557,9 @@ interface InstancesListResponse {
         border-radius: var(--radius-md);
         background: linear-gradient(
           90deg,
-          rgba(20,20,19,.05) 0%,
-          rgba(20,20,19,.10) 50%,
-          rgba(20,20,19,.05) 100%
+          rgba(20, 20, 19, 0.05) 0%,
+          rgba(20, 20, 19, 0.1) 50%,
+          rgba(20, 20, 19, 0.05) 100%
         );
         background-size: 200% 100%;
         animation: shimmer 2s linear infinite;
@@ -461,8 +582,12 @@ interface InstancesListResponse {
       }
 
       @keyframes shimmer {
-        from { background-position: -200% 0; }
-        to   { background-position:  200% 0; }
+        from {
+          background-position: -200% 0;
+        }
+        to {
+          background-position: 200% 0;
+        }
       }
 
       /* ── Empty state ─────────────────────────────────────── */
@@ -528,9 +653,19 @@ export class DashboardComponent {
 
   readonly ResourceStatus = ResourceStatus;
 
-  readonly instancesRes = httpResource<InstancesListResponse>(() => '/api/instances', {
-    defaultValue: { total: 0, instances: [], message: '', page: 1, limit: 20, totalPages: 0 },
-  });
+  readonly instancesRes = httpResource<InstancesListResponse>(
+    () => '/api/instances',
+    {
+      defaultValue: {
+        total: 0,
+        instances: [],
+        message: '',
+        page: 1,
+        limit: 20,
+        totalPages: 0,
+      },
+    },
+  );
 
   constructor() {
     this.headerActions.setActions([
@@ -599,11 +734,11 @@ export class DashboardComponent {
     const digits = raw.replace(/\D/g, '');
     if (digits.length === 13) {
       // +55 XX 9XXXX-XXXX (Brazilian mobile)
-      return `+${digits.slice(0,2)} ${digits.slice(2,4)} ${digits.slice(4,9)}-${digits.slice(9)}`;
+      return `+${digits.slice(0, 2)} ${digits.slice(2, 4)} ${digits.slice(4, 9)}-${digits.slice(9)}`;
     }
     if (digits.length === 12) {
       // +55 XX XXXX-XXXX (Brazilian landline)
-      return `+${digits.slice(0,2)} ${digits.slice(2,4)} ${digits.slice(4,8)}-${digits.slice(8)}`;
+      return `+${digits.slice(0, 2)} ${digits.slice(2, 4)} ${digits.slice(4, 8)}-${digits.slice(8)}`;
     }
     return `+${digits}`;
   }
@@ -612,7 +747,9 @@ export class DashboardComponent {
     const cleaned = (name ?? '').replace(/[^a-z0-9]/gi, ' ').trim();
     if (!cleaned) return '?';
     const parts = cleaned.split(/\s+/);
-    return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? parts[0]?.[1] ?? '')).toUpperCase();
+    return (
+      (parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? parts[0]?.[1] ?? '')
+    ).toUpperCase();
   }
 
   avatarStyle(name: string): { bg: string; text: string } {

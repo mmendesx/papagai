@@ -29,10 +29,20 @@ type InstanceRecord = {
   id: number;
   userId: string;
   name: string;
+  provider: 'web' | 'wba';
   webhookUrl: string | null;
   webhookHeaders: Record<string, string>;
   webhookEnabled: boolean;
   webhookEvents: string[];
+  wbaPhoneNumberId: string | null;
+  wbaBusinessAccountId: string | null;
+  wbaDisplayPhoneNumber: string | null;
+  wbaAccessTokenEncrypted: string | null;
+  wbaAppSecretEncrypted: string | null;
+  wbaWebhookVerifyTokenEncrypted: string | null;
+  wbaWebhookConfiguredAt: Date | null;
+  wbaLastHealthCheckAt: Date | null;
+  wbaLastHealthCheckStatus: string | null;
   createdAt: Date;
 };
 
@@ -201,10 +211,45 @@ export class InMemoryPrismaService {
   };
 
   readonly instanceConfig = {
-    findMany: () =>
-      Promise.resolve(
-        [...this.instances.values()].map((instance) => ({ ...instance })),
-      ),
+    findMany: ({
+      where,
+      select,
+      orderBy,
+    }: {
+      where?: Partial<{
+        userId: string;
+        provider: 'web' | 'wba';
+        wbaWebhookVerifyTokenEncrypted: { not: null };
+      }>;
+      select?: SelectShape;
+      orderBy?: { createdAt?: 'asc' | 'desc' };
+    } = {}) => {
+      let list = [...this.instances.values()];
+      if (where?.userId !== undefined) {
+        list = list.filter((instance) => instance.userId === where.userId);
+      }
+      if (where?.provider !== undefined) {
+        list = list.filter((instance) => instance.provider === where.provider);
+      }
+      if (where?.wbaWebhookVerifyTokenEncrypted?.not === null) {
+        list = list.filter(
+          (instance) => instance.wbaWebhookVerifyTokenEncrypted !== null,
+        );
+      }
+      if (orderBy?.createdAt === 'desc') {
+        list = list.sort(
+          (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+        );
+      }
+      if (orderBy?.createdAt === 'asc') {
+        list = list.sort(
+          (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
+        );
+      }
+      return Promise.resolve(
+        list.map((instance) => applySelect(instance, select)),
+      );
+    },
 
     findUnique: ({
       where,
@@ -220,13 +265,42 @@ export class InMemoryPrismaService {
       return Promise.resolve(record ? applySelect(record, select) : null);
     },
 
+    findFirst: ({
+      where,
+      select,
+    }: {
+      where: Partial<{
+        provider: 'web' | 'wba';
+        wbaPhoneNumberId: string;
+      }>;
+      select?: SelectShape;
+    }) => {
+      const record = [...this.instances.values()].find((instance) => {
+        if (
+          where.provider !== undefined &&
+          instance.provider !== where.provider
+        ) {
+          return false;
+        }
+        if (
+          where.wbaPhoneNumberId !== undefined &&
+          instance.wbaPhoneNumberId !== where.wbaPhoneNumberId
+        ) {
+          return false;
+        }
+        return true;
+      });
+      return Promise.resolve(record ? applySelect(record, select) : null);
+    },
+
     upsert: ({
       where,
       create,
       update,
     }: {
       where: { userId_name: { userId: string; name: string } };
-      create: Omit<InstanceRecord, 'id' | 'createdAt'>;
+      create: Pick<InstanceRecord, 'userId' | 'name'> &
+        Partial<Omit<InstanceRecord, 'id' | 'createdAt' | 'userId' | 'name'>>;
       update: Partial<InstanceRecord>;
     }) => {
       const existing = this.findInstance(
@@ -242,10 +316,69 @@ export class InMemoryPrismaService {
         id: this.nextInstanceId++,
         userId: create.userId,
         name: create.name,
+        provider: create.provider ?? 'web',
         webhookUrl: create.webhookUrl ?? null,
         webhookHeaders: create.webhookHeaders ?? {},
         webhookEnabled: create.webhookEnabled ?? false,
         webhookEvents: create.webhookEvents ?? [],
+        wbaPhoneNumberId: create.wbaPhoneNumberId ?? null,
+        wbaBusinessAccountId: create.wbaBusinessAccountId ?? null,
+        wbaDisplayPhoneNumber: create.wbaDisplayPhoneNumber ?? null,
+        wbaAccessTokenEncrypted: create.wbaAccessTokenEncrypted ?? null,
+        wbaAppSecretEncrypted: create.wbaAppSecretEncrypted ?? null,
+        wbaWebhookVerifyTokenEncrypted:
+          create.wbaWebhookVerifyTokenEncrypted ?? null,
+        wbaWebhookConfiguredAt: create.wbaWebhookConfiguredAt ?? null,
+        wbaLastHealthCheckAt: create.wbaLastHealthCheckAt ?? null,
+        wbaLastHealthCheckStatus: create.wbaLastHealthCheckStatus ?? null,
+        createdAt: new Date(),
+      };
+      this.instances.set(record.id, record);
+      return Promise.resolve({ ...record });
+    },
+
+    create: ({
+      data,
+    }: {
+      data: Pick<InstanceRecord, 'userId' | 'name'> &
+        Partial<Omit<InstanceRecord, 'id' | 'createdAt' | 'userId' | 'name'>>;
+    }) => {
+      const existing = this.findInstance(data.userId, data.name);
+      if (existing) {
+        throw p2002(
+          'Unique constraint failed on the fields: (`user_id`,`name`)',
+        );
+      }
+      if (
+        data.wbaPhoneNumberId &&
+        [...this.instances.values()].some(
+          (instance) => instance.wbaPhoneNumberId === data.wbaPhoneNumberId,
+        )
+      ) {
+        throw p2002(
+          'Unique constraint failed on the fields: (`wba_phone_number_id`)',
+        );
+      }
+
+      const record: InstanceRecord = {
+        id: this.nextInstanceId++,
+        userId: data.userId,
+        name: data.name,
+        provider: data.provider ?? 'web',
+        webhookUrl: data.webhookUrl ?? null,
+        webhookHeaders: data.webhookHeaders ?? {},
+        webhookEnabled: data.webhookEnabled ?? false,
+        webhookEvents: data.webhookEvents ?? [],
+        wbaPhoneNumberId: data.wbaPhoneNumberId ?? null,
+        wbaBusinessAccountId: data.wbaBusinessAccountId ?? null,
+        wbaDisplayPhoneNumber: data.wbaDisplayPhoneNumber ?? null,
+        wbaAccessTokenEncrypted: data.wbaAccessTokenEncrypted ?? null,
+        wbaAppSecretEncrypted: data.wbaAppSecretEncrypted ?? null,
+        wbaWebhookVerifyTokenEncrypted:
+          data.wbaWebhookVerifyTokenEncrypted ?? null,
+        wbaWebhookConfiguredAt: data.wbaWebhookConfiguredAt ?? null,
+        wbaLastHealthCheckAt: data.wbaLastHealthCheckAt ?? null,
+        wbaLastHealthCheckStatus: data.wbaLastHealthCheckStatus ?? null,
         createdAt: new Date(),
       };
       this.instances.set(record.id, record);
@@ -265,6 +398,40 @@ export class InMemoryPrismaService {
       }
       Object.assign(existing, data);
       return Promise.resolve({ count: 1 });
+    },
+
+    update: ({
+      where,
+      data,
+    }: {
+      where: { userId_name: { userId: string; name: string } };
+      data: Partial<InstanceRecord>;
+    }) => {
+      const existing = this.findInstance(
+        where.userId_name.userId,
+        where.userId_name.name,
+      );
+      if (!existing) {
+        throw new Error('Instance not found');
+      }
+      Object.assign(existing, data);
+      return Promise.resolve({ ...existing });
+    },
+
+    delete: ({
+      where,
+    }: {
+      where: { userId_name: { userId: string; name: string } };
+    }) => {
+      const existing = this.findInstance(
+        where.userId_name.userId,
+        where.userId_name.name,
+      );
+      if (!existing) {
+        throw new Error('Instance not found');
+      }
+      this.instances.delete(existing.id);
+      return Promise.resolve({ ...existing });
     },
 
     deleteMany: ({ where }: { where: { userId?: string; name?: string } }) => {

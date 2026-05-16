@@ -527,4 +527,25 @@ describe('MetaMessageDto', () => {
     });
     expect(await validate(dto)).toHaveLength(0);
   });
+
+  it('rejects template messages without template payload', async () => {
+    const dto = plainToInstance(MetaMessageDto, {
+      to: '5511999999999',
+      type: MessageType.template,
+    });
+    const errors = await validate(dto);
+    expect(errors.some((e) => e.property === 'template')).toBe(true);
+  });
+
+  it('accepts valid template payload', async () => {
+    const dto = plainToInstance(MetaMessageDto, {
+      to: '5511999999999',
+      type: MessageType.template,
+      template: {
+        name: 'hello_world',
+        language: { code: 'pt_BR' },
+      },
+    });
+    expect(await validate(dto)).toHaveLength(0);
+  });
 });

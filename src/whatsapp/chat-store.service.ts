@@ -33,7 +33,8 @@ export interface StoredMessage {
     | 'contact'
     | 'reaction'
     | 'unknown'
-    | 'interactive';
+    | 'interactive'
+    | 'template';
   body: string | null;
   timestamp: number;
   status?: 'pending' | 'sent' | 'delivered' | 'read' | 'failed';
@@ -44,7 +45,7 @@ export interface ChatRealtimeEvent {
   type: 'chat_updated' | 'chat_read' | 'history_synced';
   chatId?: string;
   timestamp: number;
-  source?: 'incoming' | 'outgoing' | 'read' | 'sync';
+  source?: 'incoming' | 'outgoing' | 'read' | 'sync' | 'status';
   chat?: ChatSummary;
   message?: StoredMessage;
 }
@@ -91,6 +92,10 @@ function isIgnoredJid(jid: string): boolean {
 
 function jidToPhoneNumber(jid: string): string {
   return jid.split('@')[0].split(':')[0].replace(/\+/g, '');
+}
+
+function normalizePhoneNumber(value: string): string {
+  return value.replace(/\D/g, '');
 }
 
 /**
@@ -392,6 +397,164 @@ export class ChatStoreService {
     this.persistAsync(userId, instanceName, store, chatId, storedMsg);
   }
 
+  recordProviderIncoming(
+    userId: string,
+    instanceName: string,
+    input: {
+      id: string;
+      from: string;
+      sender: string | null;
+      type: string;
+      body: string | null;
+      timestamp: number;
+    },
+  ): void {
+    const key = instanceKey(userId, instanceName);
+    const store = this.getOrCreate(key);
+
+    if (input.id && store.seenIds.has(input.id)) return;
+    if (input.id) store.seenIds.add(input.id);
+
+    const phoneNumber = normalizePhoneNumber(input.from);
+    if (!phoneNumber) return;
+    const chatId = `${phoneNumber}@s.whatsapp.net`;
+    if (isIgnoredJid(chatId)) return;
+
+    const storedMsg: StoredMessage = {
+      id: input.id,
+      chatId,
+      fromMe: false,
+      sender: input.sender,
+      type: this.toStoredType(input.type),
+      body: input.body,
+      timestamp: input.timestamp || Date.now(),
+      status: 'delivered',
+    };
+
+    this.pushMessage(store, chatId, storedMsg);
+
+    const existing = store.chats.get(chatId);
+    const chat: ChatSummary = {
+      id: chatId,
+      jid: chatId,
+      phoneNumber,
+      displayName:
+        input.sender ?? existing?.displayName ?? existing?.name ?? null,
+      name: input.sender ?? existing?.displayName ?? existing?.name ?? null,
+      profilePictureUrl: existing?.profilePictureUrl ?? null,
+      isGroup: false,
+      lastMessage: input.body,
+      lastMessageAt: storedMsg.timestamp,
+      unreadCount: (existing?.unreadCount ?? 0) + 1,
+    };
+    store.chats.set(chatId, chat);
+    store.counters.received += 1;
+
+    this.emitEvent(userId, instanceName, {
+      type: 'chat_updated',
+      chatId,
+      timestamp: storedMsg.timestamp,
+      source: 'incoming',
+      chat: { ...chat },
+      message: { ...storedMsg },
+    });
+    this.persistAsync(userId, instanceName, store, chatId, storedMsg);
+  }
+
+  recordProviderOutgoing(
+    userId: string,
+    instanceName: string,
+    input: {
+      id: string;
+      to: string;
+      type: string;
+      body: string | null;
+      status?: 'pending' | 'sent' | 'delivered' | 'read' | 'failed';
+    },
+  ): void {
+    const key = instanceKey(userId, instanceName);
+    const store = this.getOrCreate(key);
+
+    if (input.id && store.seenIds.has(input.id)) return;
+    if (input.id) store.seenIds.add(input.id);
+
+    const phoneNumber = normalizePhoneNumber(input.to);
+    if (!phoneNumber) return;
+    const chatId = `${phoneNumber}@s.whatsapp.net`;
+    if (isIgnoredJid(chatId)) return;
+
+    const storedMsg: StoredMessage = {
+      id: input.id,
+      chatId,
+      fromMe: true,
+      sender: null,
+      type: this.toStoredType(input.type),
+      body: input.body,
+      timestamp: Date.now(),
+      status: input.status ?? 'sent',
+    };
+
+    this.pushMessage(store, chatId, storedMsg);
+    const existing = store.chats.get(chatId);
+    const chat: ChatSummary = {
+      id: chatId,
+      jid: chatId,
+      phoneNumber,
+      displayName: existing?.displayName ?? existing?.name ?? null,
+      name: existing?.displayName ?? existing?.name ?? null,
+      profilePictureUrl: existing?.profilePictureUrl ?? null,
+      isGroup: false,
+      lastMessage: input.body,
+      lastMessageAt: storedMsg.timestamp,
+      unreadCount: existing?.unreadCount ?? 0,
+    };
+    store.chats.set(chatId, chat);
+    store.counters.sent += 1;
+
+    this.emitEvent(userId, instanceName, {
+      type: 'chat_updated',
+      chatId,
+      timestamp: storedMsg.timestamp,
+      source: 'outgoing',
+      chat: { ...chat },
+      message: { ...storedMsg },
+    });
+    this.persistAsync(userId, instanceName, store, chatId, storedMsg);
+  }
+
+  updateMessageStatus(
+    userId: string,
+    instanceName: string,
+    messageId: string,
+    status: 'pending' | 'sent' | 'delivered' | 'read' | 'failed',
+  ): void {
+    const store = this.stores.get(instanceKey(userId, instanceName));
+    if (!store || !messageId) return;
+
+    for (const [chatId, messages] of store.messages.entries()) {
+      const index = messages.findIndex((message) => message.id === messageId);
+      if (index < 0) continue;
+
+      const updatedMessage: StoredMessage = {
+        ...messages[index],
+        status,
+      };
+      messages[index] = updatedMessage;
+
+      const chat = store.chats.get(chatId);
+      this.emitEvent(userId, instanceName, {
+        type: 'chat_updated',
+        chatId,
+        timestamp: Date.now(),
+        source: 'status',
+        chat: chat ? { ...chat } : undefined,
+        message: { ...updatedMessage },
+      });
+      this.persistAsync(userId, instanceName, store, chatId, updatedMessage);
+      return;
+    }
+  }
+
   getChats(userId: string, instanceName: string): ChatSummary[] {
     const store = this.stores.get(instanceKey(userId, instanceName));
     if (!store) return [];
@@ -606,6 +769,26 @@ export class ChatStoreService {
       list.splice(0, list.length - MAX_MESSAGES_PER_CHAT);
     }
     store.messages.set(chatId, list);
+  }
+
+  private toStoredType(type: string): StoredMessage['type'] {
+    const allowed: StoredMessage['type'][] = [
+      'text',
+      'image',
+      'audio',
+      'video',
+      'document',
+      'sticker',
+      'location',
+      'contact',
+      'reaction',
+      'interactive',
+      'template',
+    ];
+    if (allowed.includes(type as StoredMessage['type'])) {
+      return type as StoredMessage['type'];
+    }
+    return 'unknown';
   }
 
   private persistAsync(

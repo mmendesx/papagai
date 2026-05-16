@@ -51,6 +51,7 @@ describe('InstancesController JWT', () => {
             getInstances: jest.fn().mockReturnValue([]),
             createInstance: jest.fn(),
             getInstance: jest.fn(),
+            getInstanceStatus: jest.fn(),
             getQR: jest.fn(),
             disconnectInstance: jest.fn(),
             sendMessage: jest.fn(),
@@ -72,7 +73,7 @@ describe('InstancesController JWT', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    await app.init();
+    await app.listen(0);
   });
 
   afterAll(async () => {

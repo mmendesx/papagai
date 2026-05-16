@@ -11,6 +11,7 @@ import { HealthModule } from './health/health.module.js';
 import configuration from './config/configuration.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { MediaModule } from './media/media.module.js';
+import { WbaModule } from './wba/wba.module.js';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { MediaModule } from './media/media.module.js';
     AuthModule,
     HealthModule,
     MediaModule,
+    WbaModule,
     InstancesModule,
     WebhookModule,
     ServeStaticModule.forRoot({

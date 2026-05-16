@@ -30,6 +30,7 @@ const mockService = {
   getInstances: jest.fn(),
   createInstance: jest.fn(),
   getInstance: jest.fn(),
+  getInstanceStatus: jest.fn(),
   getQR: jest.fn(),
   disconnectInstance: jest.fn(),
   sendMessage: jest.fn(),
@@ -100,7 +101,7 @@ describe('InstancesController', () => {
           new UnprocessableEntityException(flattenErrors(errors)),
       }),
     );
-    await app.init();
+    await app.listen(0);
 
     const jwtService = moduleFixture.get(JwtService);
     token = jwtService.sign({
@@ -173,15 +174,23 @@ describe('InstancesController', () => {
 
   describe('GET /api/instances/:name/status', () => {
     it('includes webhook object in response', async () => {
-      mockService.getInstance.mockReturnValue({
+      mockService.getInstanceStatus.mockResolvedValue({
         name: 'alpha',
+        provider: 'web',
+        capabilities: {
+          qr: true,
+          sendMessages: true,
+          receiveMessages: true,
+          chatHistorySync: true,
+          contactLookup: true,
+          markRead: true,
+          templates: true,
+        },
         connected: true,
-        startTime: Date.now(),
-        socket: { user: { id: '5511999999999:1@s.whatsapp.net' } },
-        webhookUrl: mockWebhook.url,
-        webhookHeaders: mockWebhook.headers,
-        webhookEnabled: mockWebhook.enabled,
-        webhookEvents: mockWebhook.events,
+        startTime: new Date().toISOString(),
+        uptime: 1000,
+        phoneNumber: '5511999999999',
+        webhook: mockWebhook,
       });
 
       const res = await request(app.getHttpServer() as App)
@@ -190,6 +199,7 @@ describe('InstancesController', () => {
         .expect(200);
 
       expect(res.body.webhook).toEqual(mockWebhook);
+      expect(res.body.provider).toBe('web');
     });
   });
 
@@ -485,6 +495,8 @@ describe('InstancesController', () => {
         undefined,
         undefined,
         ['message', 'qr'],
+        'web',
+        undefined,
       );
     });
   });

@@ -27,14 +27,14 @@ Papagai is not affiliated with, endorsed by, or sponsored by WhatsApp or Meta. I
 
 ## Tech Stack
 
-| Layer | Technology |
-| --- | --- |
-| Backend | NestJS 11, TypeScript 5.7, Node 22 |
-| Database | PostgreSQL 16 + Prisma |
-| Cache / queue | Redis 7, ioredis, BullMQ |
-| WhatsApp | `@whiskeysockets/baileys` through the `whaileys` fork |
-| Frontend | Angular 19, Taiga UI, Tailwind CSS |
-| Container | Docker, Docker Compose |
+| Layer         | Technology                                            |
+| ------------- | ----------------------------------------------------- |
+| Backend       | NestJS 11, TypeScript 5.7, Node 22                    |
+| Database      | PostgreSQL 16 + Prisma                                |
+| Cache / queue | Redis 7, ioredis, BullMQ                              |
+| WhatsApp      | `@whiskeysockets/baileys` through the `whaileys` fork |
+| Frontend      | Angular 19, Taiga UI, Tailwind CSS                    |
+| Container     | Docker, Docker Compose                                |
 
 ---
 
@@ -91,12 +91,12 @@ npm run prisma:migrate:deploy
 
 ### Prisma Scripts
 
-| Script | Purpose |
-| --- | --- |
-| `npm run prisma:generate` | Regenerates Prisma Client from the schema. |
-| `npm run prisma:migrate` | Creates and applies a new development migration. |
+| Script                          | Purpose                                                |
+| ------------------------------- | ------------------------------------------------------ |
+| `npm run prisma:generate`       | Regenerates Prisma Client from the schema.             |
+| `npm run prisma:migrate`        | Creates and applies a new development migration.       |
 | `npm run prisma:migrate:deploy` | Applies pending production migrations without prompts. |
-| `npm run prisma:studio` | Opens Prisma Studio for visual database inspection. |
+| `npm run prisma:studio`         | Opens Prisma Studio for visual database inspection.    |
 
 To reset an existing development database and recreate the stack:
 
@@ -110,25 +110,29 @@ make down/v && make dev
 
 Development defaults are defined in `docker-compose.dev.yml` and `.env.example`. In production, **`APP_KEY`, `JWT_SECRET`, and `BASE_URL` are required**. The production compose file intentionally fails startup when they are missing.
 
-| Variable | Development default | Description |
-| --- | --- | --- |
-| `PORT` | `3000` | HTTP server port. |
-| `NODE_ENV` | `development` | Runtime environment. |
-| `APP_KEY` | `dev-app-key` | Application signing secret. Change this in production. |
-| `JWT_SECRET` | `dev-jwt-secret` | JWT signing secret. Change this in production. |
-| `DATABASE_URL` | `postgresql://papagai:papagai@db:5432/papagai` | PostgreSQL connection string used by Prisma. |
-| `DB_HOST` | `localhost` | PostgreSQL host. |
-| `DB_PORT` | `5432` | PostgreSQL port. |
-| `DB_USER` | `papagai` | PostgreSQL user. |
-| `DB_PASS` | `papagai` | PostgreSQL password. |
-| `DB_NAME` | `papagai` | PostgreSQL database name. |
-| `REDIS_URL` | `redis://localhost:6380` locally, `redis://redis:6379` in Docker | Redis connection string. |
-| `MEDIA_DIR` | `./media` | Directory for downloaded media. |
-| `INSTANCES_DIR` | `./instances` | Directory for Baileys session data. |
-| `BASE_URL` | `http://localhost:PORT` | Public URL used to generate signed media links. |
-| `MEDIA_URL_TTL_SECONDS` | `86400` | Signed media URL lifetime in seconds. |
-| `MAX_INSTANCES` | `10` | Maximum number of concurrent WhatsApp instances. |
-| `LOG_LEVEL` | `info` | Log verbosity: `debug`, `info`, `warn`, or `error`. |
+| Variable                 | Development default                                              | Description                                                                         |
+| ------------------------ | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `PORT`                   | `3000`                                                           | HTTP server port.                                                                   |
+| `NODE_ENV`               | `development`                                                    | Runtime environment.                                                                |
+| `APP_KEY`                | `dev-app-key`                                                    | Application signing secret. Change this in production.                              |
+| `JWT_SECRET`             | `dev-jwt-secret`                                                 | JWT signing secret. Change this in production.                                      |
+| `DATABASE_URL`           | `postgresql://papagai:papagai@db:5432/papagai`                   | PostgreSQL connection string used by Prisma.                                        |
+| `DB_HOST`                | `localhost`                                                      | PostgreSQL host.                                                                    |
+| `DB_PORT`                | `5432`                                                           | PostgreSQL port.                                                                    |
+| `DB_USER`                | `papagai`                                                        | PostgreSQL user.                                                                    |
+| `DB_PASS`                | `papagai`                                                        | PostgreSQL password.                                                                |
+| `DB_NAME`                | `papagai`                                                        | PostgreSQL database name.                                                           |
+| `REDIS_URL`              | `redis://localhost:6380` locally, `redis://redis:6379` in Docker | Redis connection string.                                                            |
+| `MEDIA_DIR`              | `./media`                                                        | Directory for downloaded media.                                                     |
+| `INSTANCES_DIR`          | `./instances`                                                    | Directory for Baileys session data.                                                 |
+| `BASE_URL`               | `http://localhost:PORT`                                          | Public URL used to generate signed media links.                                     |
+| `MEDIA_URL_TTL_SECONDS`  | `86400`                                                          | Signed media URL lifetime in seconds.                                               |
+| `MAX_INSTANCES`          | `10`                                                             | Maximum number of concurrent WhatsApp instances.                                    |
+| `LOG_LEVEL`              | `info`                                                           | Log verbosity: `debug`, `info`, `warn`, or `error`.                                 |
+| `WBA_CREDENTIALS_SECRET` | falls back to `APP_KEY`                                          | Optional dedicated encryption secret for WhatsApp Business API credentials at rest. |
+| `WBA_GRAPH_API_BASE_URL` | `https://graph.facebook.com`                                     | Base URL for Meta Cloud API requests.                                               |
+| `WBA_GRAPH_API_VERSION`  | `v22.0`                                                          | Graph API version used by WBA sends and health checks.                              |
+| `WBA_HTTP_TIMEOUT_MS`    | `15000`                                                          | Timeout in milliseconds for WBA Cloud API requests.                                 |
 
 ---
 
@@ -136,14 +140,15 @@ Development defaults are defined in `docker-compose.dev.yml` and `.env.example`.
 
 The full interactive API reference is available at **`/docs`** after the server is running and Swagger is enabled.
 
-| Group | Endpoints |
-| --- | --- |
-| Authentication | `POST /api/auth/login`, `POST /api/auth/register` |
-| Instances | `GET /api/instances`, `POST /api/instances/create`, `DELETE /api/instances/:name` |
-| Status and QR | `GET /api/instances/:name/status`, `GET /api/instances/:name/qr` |
-| Messages | `POST /api/instances/:name/send/*` for text, image, audio, video, document, sticker, location, reaction, and buttons |
-| Webhooks | `PATCH /api/instances/:name/webhook` |
-| Contacts and Chats | `GET /api/instances/:name/contact/:number`, `GET /api/instances/:name/chats` |
+| Group              | Endpoints                                                                                    |
+| ------------------ | -------------------------------------------------------------------------------------------- |
+| Authentication     | `POST /api/auth/login`, `POST /api/auth/register`                                            |
+| Instances          | `GET /api/instances`, `POST /api/instances/create`, `DELETE /api/instances/:name`            |
+| Status and QR      | `GET /api/instances/:name/status`, `GET /api/instances/:name/qr`                             |
+| Messages           | `POST /api/instances/:name/messages` for web and WBA providers (including templates for WBA) |
+| Webhooks           | `PATCH /api/instances/:name/webhook`                                                         |
+| WBA Webhooks       | `GET /api/wba/webhook`, `POST /api/wba/webhook`                                              |
+| Contacts and Chats | `GET /api/instances/:name/contact/:number`, `GET /api/instances/:name/chats`                 |
 
 Protected routes accept either **JWT** through `Authorization: Bearer <token>` or an **API key** through `X-Api-Key: <key>`.
 

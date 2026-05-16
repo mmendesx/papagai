@@ -29,6 +29,7 @@ export enum MessageType {
   reaction = 'reaction',
   interactive = 'interactive',
   contacts = 'contacts',
+  template = 'template',
 }
 
 export class TextBodyDto {
@@ -208,6 +209,30 @@ export class InteractiveDto {
   header?: any;
 }
 
+export class TemplateLanguageDto {
+  @ApiProperty({ example: 'pt_BR' })
+  @IsString()
+  @IsNotEmpty()
+  code!: string;
+}
+
+export class TemplateDto {
+  @ApiProperty({ example: 'hello_world' })
+  @IsString()
+  @IsNotEmpty()
+  name!: string;
+
+  @ApiProperty({ type: () => TemplateLanguageDto })
+  @ValidateNested()
+  @Type(() => TemplateLanguageDto)
+  language!: TemplateLanguageDto;
+
+  @ApiPropertyOptional({ type: 'array', items: { type: 'object' } })
+  @IsOptional()
+  @IsArray()
+  components?: any[];
+}
+
 export class MetaMessageDto {
   @ApiProperty({
     example: '5511999999999',
@@ -334,4 +359,14 @@ export class MetaMessageDto {
   @IsDefined()
   @IsArray()
   contacts?: any[];
+
+  @ApiPropertyOptional({
+    type: () => TemplateDto,
+    description: 'Required when type=template',
+  })
+  @ValidateIf((o) => o.type === MessageType.template)
+  @IsDefined()
+  @ValidateNested()
+  @Type(() => TemplateDto)
+  template?: TemplateDto;
 }

@@ -36,6 +36,7 @@ import { WebhookEnricher } from './utils/webhook-enricher.js';
 import { resolveJid } from './utils/jid-resolver.js';
 import { Observable } from 'rxjs';
 import { MediaUrlService } from '../media/media-url.service.js';
+import { getProviderCapabilities } from '../instances/provider-capabilities.js';
 
 function extractButtonLabels(content: any): string[] | undefined {
   // Regular buttons (buildButtonMessage output: content.buttons[].buttonText.displayText)
@@ -123,7 +124,9 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
   }
 
   async onModuleInit(): Promise<void> {
-    const configs = await this.prisma.instanceConfig.findMany();
+    const configs = await this.prisma.instanceConfig.findMany({
+      where: { provider: 'web' },
+    });
     if (configs.length === 0) return;
 
     this.logger.log(`Restoring ${configs.length} instance(s) from database...`);
@@ -262,12 +265,14 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
       create: {
         userId,
         name: instanceName,
+        provider: 'web',
         webhookUrl: webhookUrl ?? null,
         webhookHeaders: webhookHeaders ?? {},
         webhookEnabled: resolvedWebhookEnabled,
         webhookEvents: resolvedWebhookEvents,
       },
       update: {
+        provider: 'web',
         webhookUrl: webhookUrl ?? null,
         webhookHeaders: webhookHeaders ?? {},
         webhookEnabled: resolvedWebhookEnabled,
@@ -669,9 +674,11 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
   ): {
     instances: Array<{
       name: string;
+      provider: 'web';
       connected: boolean;
       startTime: number;
       webhookEnabled: boolean;
+      capabilities: ReturnType<typeof getProviderCapabilities>;
       webhook: {
         url: string | null;
         headers: Record<string, string>;
@@ -687,9 +694,11 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
       .filter(([key]) => key.startsWith(prefix))
       .map(([, instance]) => ({
         name: instance.name,
+        provider: 'web' as const,
         connected: instance.connected,
         startTime: instance.startTime,
         webhookEnabled: instance.webhookEnabled,
+        capabilities: getProviderCapabilities('web'),
         webhook: {
           url: instance.webhookUrl,
           headers: instance.webhookHeaders,

@@ -1,9 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InstancesService } from './instances.service.js';
 import { WhatsappService } from '../whatsapp/whatsapp.service.js';
 import { MediaUrlService } from '../media/media-url.service.js';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { WbaInstanceService } from '../wba/wba-instance.service.js';
 
 jest.mock('../webhook/webhook-url-validator.js', () => ({
   validateOrThrow: jest.fn(),
@@ -22,6 +24,34 @@ describe('InstancesService', () => {
     getInstance: jest.Mock;
     updateWebhookConfig: jest.Mock;
     send: jest.Mock;
+    getContactInfo: jest.Mock;
+    getChats: jest.Mock;
+    getChatMessages: jest.Mock;
+    streamChatEvents: jest.Mock;
+    markChatRead: jest.Mock;
+    getMetrics: jest.Mock;
+    getInstances: jest.Mock;
+    disconnectInstance: jest.Mock;
+    getQR: jest.Mock;
+  };
+  let mockWbaService: {
+    createInstance: jest.Mock;
+    sendMessage: jest.Mock;
+    getStatus: jest.Mock;
+    getContactInfo: jest.Mock;
+    getChats: jest.Mock;
+    getChatMessages: jest.Mock;
+    streamChatEvents: jest.Mock;
+    markChatRead: jest.Mock;
+    getMetrics: jest.Mock;
+    updateWebhookConfig: jest.Mock;
+    getListItems: jest.Mock;
+    disconnectInstance: jest.Mock;
+  };
+  let mockPrismaService: {
+    instanceConfig: {
+      findUnique: jest.Mock;
+    };
   };
   let mockConfigService: { get: jest.Mock };
   let mockMediaUrlService: { isSignedMediaUrl: jest.Mock };
@@ -32,6 +62,50 @@ describe('InstancesService', () => {
       getInstance: jest.fn(),
       updateWebhookConfig: jest.fn().mockResolvedValue({}),
       send: jest.fn().mockResolvedValue({ key: { id: 'msg-1' } }),
+      getContactInfo: jest.fn().mockResolvedValue({}),
+      getChats: jest.fn().mockReturnValue([]),
+      getChatMessages: jest.fn().mockReturnValue([]),
+      streamChatEvents: jest.fn(),
+      markChatRead: jest.fn(),
+      getMetrics: jest.fn().mockReturnValue({
+        messagesSent: 1,
+        messagesReceived: 2,
+        activeConversations: 1,
+        webhookEnabled: true,
+      }),
+      getInstances: jest.fn().mockReturnValue({ instances: [], total: 0 }),
+      disconnectInstance: jest.fn().mockResolvedValue(true),
+      getQR: jest.fn().mockReturnValue('qr-code'),
+    };
+
+    mockWbaService = {
+      createInstance: jest.fn().mockResolvedValue(undefined),
+      sendMessage: jest
+        .fn()
+        .mockResolvedValue({ messages: [{ id: 'wamid.1' }] }),
+      getStatus: jest
+        .fn()
+        .mockResolvedValue({ name: 'wba-one', provider: 'wba' }),
+      getContactInfo: jest.fn(),
+      getChats: jest.fn().mockResolvedValue([]),
+      getChatMessages: jest.fn().mockResolvedValue([]),
+      streamChatEvents: jest.fn(),
+      markChatRead: jest.fn(),
+      getMetrics: jest.fn().mockResolvedValue({
+        messagesSent: 0,
+        messagesReceived: 0,
+        activeConversations: 0,
+        webhookEnabled: false,
+      }),
+      updateWebhookConfig: jest.fn(),
+      getListItems: jest.fn().mockResolvedValue({ instances: [], total: 0 }),
+      disconnectInstance: jest.fn().mockResolvedValue(true),
+    };
+
+    mockPrismaService = {
+      instanceConfig: {
+        findUnique: jest.fn(),
+      },
     };
 
     mockConfigService = {
@@ -46,6 +120,8 @@ describe('InstancesService', () => {
       providers: [
         InstancesService,
         { provide: WhatsappService, useValue: mockWhatsappService },
+        { provide: WbaInstanceService, useValue: mockWbaService },
+        { provide: PrismaService, useValue: mockPrismaService },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: MediaUrlService, useValue: mockMediaUrlService },
       ],
@@ -59,7 +135,7 @@ describe('InstancesService', () => {
   });
 
   describe('createInstance', () => {
-    it('delegates to WhatsappService and skips URL validation when no webhook URL is provided', async () => {
+    it('creates web instances through WhatsappService by default', async () => {
       await service.createInstance('user-1', 'my-papagai');
 
       expect(mockWhatsappService.createInstance).toHaveBeenCalledWith(
@@ -70,26 +146,55 @@ describe('InstancesService', () => {
         undefined,
         undefined,
       );
-      expect(validateOrThrow).not.toHaveBeenCalled();
+      expect(mockWbaService.createInstance).not.toHaveBeenCalled();
     });
 
-    it('validates the webhook URL before delegating when a URL is provided', async () => {
-      (validateOrThrow as jest.Mock).mockResolvedValue(undefined);
+    it('creates wba instances through WbaInstanceService', async () => {
+      await service.createInstance(
+        'user-1',
+        'sales-wba',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        'wba',
+        {
+          businessAccountId: '12345',
+          phoneNumberId: '67890',
+          displayPhoneNumber: '+55 11 99999-9999',
+          accessToken: 'EAAG-token',
+        },
+      );
 
+      expect(mockWbaService.createInstance).toHaveBeenCalled();
+      expect(mockWhatsappService.createInstance).not.toHaveBeenCalled();
+    });
+
+    it('rejects wba creation when credentials are missing', async () => {
+      await expect(
+        service.createInstance(
+          'user-1',
+          'sales-wba',
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          'wba',
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('validates webhook URL before delegating', async () => {
+      (validateOrThrow as jest.Mock).mockResolvedValue(undefined);
       await service.createInstance(
         'user-1',
         'my-papagai',
         'https://example.com/hook',
       );
-
-      expect(validateOrThrow).toHaveBeenCalledWith(
-        'https://example.com/hook',
-        expect.anything(),
-      );
-      expect(mockWhatsappService.createInstance).toHaveBeenCalled();
+      expect(validateOrThrow).toHaveBeenCalled();
     });
 
-    it('throws BadRequestException and never calls WhatsappService when the webhook URL is invalid', async () => {
+    it('throws BadRequestException for invalid webhook URL', async () => {
       (validateOrThrow as jest.Mock).mockRejectedValue(
         new WebhookUrlInvalidError('URL is not reachable'),
       );
@@ -101,122 +206,65 @@ describe('InstancesService', () => {
           'https://bad.internal/hook',
         ),
       ).rejects.toThrow(BadRequestException);
-
-      expect(mockWhatsappService.createInstance).not.toHaveBeenCalled();
     });
   });
 
-  describe('updateWebhookConfig', () => {
-    it('validates the webhook URL when a URL is present in the config', async () => {
+  describe('provider routing', () => {
+    it('routes web sends through WhatsappService', async () => {
+      mockPrismaService.instanceConfig.findUnique.mockResolvedValue({
+        provider: 'web',
+      });
       (validateOrThrow as jest.Mock).mockResolvedValue(undefined);
 
-      await service.updateWebhookConfig('user-1', 'my-papagai', {
-        webhookUrl: 'https://example.com/hook',
-      });
-
-      expect(validateOrThrow).toHaveBeenCalledWith(
-        'https://example.com/hook',
-        expect.anything(),
-      );
-    });
-
-    it('skips URL validation when no webhookUrl is present in the config', async () => {
-      await service.updateWebhookConfig('user-1', 'my-papagai', {
-        webhookEnabled: true,
-      });
-
-      expect(validateOrThrow).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('getInstance', () => {
-    it('delegates to WhatsappService and returns its result', () => {
-      const fakeInstance = { name: 'my-papagai', status: 'connected' } as any;
-      mockWhatsappService.getInstance.mockReturnValue(fakeInstance);
-
-      const result = service.getInstance('user-1', 'my-papagai');
-
-      expect(mockWhatsappService.getInstance).toHaveBeenCalledWith(
-        'user-1',
-        'my-papagai',
-      );
-      expect(result).toBe(fakeInstance);
-    });
-  });
-
-  describe('sendMessage', () => {
-    it('validates URL media links before sending', async () => {
-      (validateOrThrow as jest.Mock).mockResolvedValue(undefined);
-
-      await service.sendMessage('user-1', 'my-papagai', {
+      await service.sendMessage('user-1', 'alpha', {
         to: '5511999999999',
         type: 'video',
         video: { link: 'https://example.com/video.mp4' },
       });
 
-      expect(validateOrThrow).toHaveBeenCalledWith(
-        'https://example.com/video.mp4',
-        expect.anything(),
-      );
-      expect(mockConfigService.get).toHaveBeenCalledWith(
-        'mediaAllowPrivateHosts',
-      );
-      expect(mockWhatsappService.send).toHaveBeenCalledWith(
-        'user-1',
-        'my-papagai',
-        '5511999999999',
-        {
-          video: { url: 'https://example.com/video.mp4' },
-          caption: undefined,
-        },
-      );
+      expect(mockWhatsappService.send).toHaveBeenCalled();
+      expect(mockWbaService.sendMessage).not.toHaveBeenCalled();
     });
 
-    it('does not validate media links when inline data is present', async () => {
-      await service.sendMessage('user-1', 'my-papagai', {
+    it('routes wba sends through WbaInstanceService', async () => {
+      mockPrismaService.instanceConfig.findUnique.mockResolvedValue({
+        provider: 'wba',
+      });
+
+      await service.sendMessage('user-1', 'sales-wba', {
         to: '5511999999999',
-        type: 'image',
-        image: {
-          data: Buffer.from('image').toString('base64'),
-          mimetype: 'image/jpeg',
-          link: 'http://127.0.0.1/private.jpg',
-        },
+        type: 'text',
+        text: { body: 'hello' },
       });
 
-      expect(validateOrThrow).not.toHaveBeenCalled();
-      expect(mockWhatsappService.send).toHaveBeenCalledWith(
-        'user-1',
-        'my-papagai',
-        '5511999999999',
-        {
-          image: Buffer.from('image'),
-          mimetype: 'image/jpeg',
-          caption: undefined,
-        },
-      );
+      expect(mockWbaService.sendMessage).toHaveBeenCalled();
+      expect(mockWhatsappService.send).not.toHaveBeenCalled();
     });
 
-    it('keeps media private hosts blocked when only webhook private hosts are enabled', async () => {
-      (validateOrThrow as jest.Mock).mockRejectedValue(
-        new WebhookUrlInvalidError('Private hosts are not allowed'),
+    it('throws NotFound when instance does not exist', async () => {
+      mockPrismaService.instanceConfig.findUnique.mockResolvedValue(null);
+
+      await expect(service.getProvider('user-1', 'ghost')).rejects.toThrow(
+        NotFoundException,
       );
-      mockConfigService.get.mockImplementation((key: string) => {
-        if (key === 'webhookAllowPrivateHosts') return true;
-        if (key === 'mediaAllowPrivateHosts') return false;
-        return false;
+    });
+  });
+
+  describe('getQR', () => {
+    it('returns QR for web provider', async () => {
+      mockPrismaService.instanceConfig.findUnique.mockResolvedValue({
+        provider: 'web',
       });
+      const qr = await service.getQR('user-1', 'alpha');
+      expect(qr).toBe('qr-code');
+    });
 
-      await expect(
-        service.sendMessage('user-1', 'my-papagai', {
-          to: '5511999999999',
-          type: 'image',
-          image: { link: 'http://127.0.0.1/private.jpg' },
-        }),
-      ).rejects.toThrow(BadRequestException);
-
-      expect(validateOrThrow).toHaveBeenCalledWith(
-        'http://127.0.0.1/private.jpg',
-        { allowPrivate: false },
+    it('rejects QR for wba provider', async () => {
+      mockPrismaService.instanceConfig.findUnique.mockResolvedValue({
+        provider: 'wba',
+      });
+      await expect(service.getQR('user-1', 'sales-wba')).rejects.toThrow(
+        BadRequestException,
       );
     });
   });

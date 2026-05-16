@@ -30,7 +30,7 @@ model ApiKey {
   enabled     Boolean         @default(true)
   expiresAt   DateTime?       @map("expires_at") @db.Timestamptz(6)
   lastUsedAt  DateTime?       @map("last_used_at") @db.Timestamptz(6)
-  permissions String[] @default([])
+  permissions String[]        @default([])
   createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
   user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   instance    InstanceConfig? @relation(fields: [instanceId], references: [id], onDelete: Cascade)
@@ -39,17 +39,34 @@ model ApiKey {
 }
 
 model InstanceConfig {
-  id             Int      @id @default(autoincrement())
-  userId         String   @map("user_id") @db.Uuid
-  name           String
-  webhookUrl     String?  @map("webhook_url") @db.VarChar(2048)
-  webhookHeaders Json     @default("{}") @map("webhook_headers")
-  webhookEnabled Boolean  @default(false) @map("webhook_enabled")
-  webhookEvents  String[] @default(["message", "message_update", "qr", "connected", "disconnected"]) @map("webhook_events")
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  apiKeys        ApiKey[]
+  id                             Int              @id @default(autoincrement())
+  userId                         String           @map("user_id") @db.Uuid
+  name                           String
+  provider                       InstanceProvider @default(web)
+  webhookUrl                     String?          @map("webhook_url") @db.VarChar(2048)
+  webhookHeaders                 Json             @default("{}") @map("webhook_headers")
+  webhookEnabled                 Boolean          @default(false) @map("webhook_enabled")
+  webhookEvents                  String[]         @default(["message", "message_update", "qr", "connected", "disconnected"]) @map("webhook_events")
+  wbaPhoneNumberId               String?          @map("wba_phone_number_id") @db.VarChar(64)
+  wbaBusinessAccountId           String?          @map("wba_business_account_id") @db.VarChar(64)
+  wbaDisplayPhoneNumber          String?          @map("wba_display_phone_number") @db.VarChar(128)
+  wbaAccessTokenEncrypted        String?          @map("wba_access_token_encrypted") @db.Text
+  wbaAppSecretEncrypted          String?          @map("wba_app_secret_encrypted") @db.Text
+  wbaWebhookVerifyTokenEncrypted String?          @map("wba_webhook_verify_token_encrypted") @db.Text
+  wbaWebhookConfiguredAt         DateTime?        @map("wba_webhook_configured_at") @db.Timestamptz(6)
+  wbaLastHealthCheckAt           DateTime?        @map("wba_last_health_check_at") @db.Timestamptz(6)
+  wbaLastHealthCheckStatus       String?          @map("wba_last_health_check_status") @db.VarChar(32)
+  createdAt                      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  user                           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  apiKeys                        ApiKey[]
 
   @@unique([userId, name])
+  @@unique([wbaPhoneNumberId])
+  @@index([provider])
   @@map("instances")
+}
+
+enum InstanceProvider {
+  web
+  wba
 }

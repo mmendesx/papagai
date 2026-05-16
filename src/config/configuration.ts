@@ -27,6 +27,12 @@ export default () => ({
   mediaAllowPrivateHosts:
     process.env.MEDIA_ALLOW_PRIVATE_HOSTS === 'true' &&
     process.env.NODE_ENV === 'development',
+  wbaCredentialsSecret:
+    process.env.WBA_CREDENTIALS_SECRET ?? process.env.APP_KEY ?? '',
+  wbaGraphApiBaseUrl:
+    process.env.WBA_GRAPH_API_BASE_URL ?? 'https://graph.facebook.com',
+  wbaGraphApiVersion: process.env.WBA_GRAPH_API_VERSION ?? 'v22.0',
+  wbaHttpTimeoutMs: parseInt(process.env.WBA_HTTP_TIMEOUT_MS ?? '15000', 10),
   authThrottleTtl: parseInt(process.env.AUTH_THROTTLE_TTL ?? '60', 10),
   authThrottleLimit: parseInt(process.env.AUTH_THROTTLE_LIMIT ?? '5', 10),
   // These individual DB_* vars are used by docker-compose health-checks and any

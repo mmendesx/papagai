@@ -114,11 +114,38 @@ export class InstancesController {
         dto.webhookHeaders,
         dto.webhookEnabled,
         dto.webhookEvents,
+        dto.provider,
+        dto.wba,
       );
+      const providerMessage =
+        dto.provider === 'wba'
+          ? 'WBA credentials saved. Configure Meta webhook to ingest inbound messages.'
+          : '🦜 Papagai created successfully. Scan the QR code to get started.';
       return {
         success: true,
         instance: dto.name,
-        message: `🦜 Papagai ${dto.name} criado com sucesso! Escaneie o QR code para começar.`,
+        provider: dto.provider,
+        capabilities:
+          dto.provider === 'wba'
+            ? {
+                qr: false,
+                sendMessages: true,
+                receiveMessages: true,
+                chatHistorySync: false,
+                contactLookup: false,
+                markRead: false,
+                templates: true,
+              }
+            : {
+                qr: true,
+                sendMessages: true,
+                receiveMessages: true,
+                chatHistorySync: true,
+                contactLookup: true,
+                markRead: true,
+                templates: true,
+              },
+        message: providerMessage,
       };
     } catch (error) {
       throw new HttpException(
@@ -265,6 +292,17 @@ export class InstancesController {
           ],
         },
       },
+      template: {
+        summary: 'Template message (WBA)',
+        value: {
+          to: '5511999999999',
+          type: 'template',
+          template: {
+            name: 'hello_world',
+            language: { code: 'pt_BR' },
+          },
+        },
+      },
     },
   })
   @ApiResponse({
@@ -318,14 +356,14 @@ export class InstancesController {
   @Get(':name/qr')
   async getQR(@Req() req: Request, @Param('name') name: string) {
     const userId = (req['user'] as JwtPayload).sub;
-    const instance = this.instancesService.getInstance(userId, name);
-    if (!instance) {
+    const status = await this.instancesService.getInstanceStatus(userId, name);
+    if (status.provider === 'wba') {
       throw new HttpException(
-        `Papagai ${name} não encontrado`,
-        HttpStatus.NOT_FOUND,
+        'QR pairing is only available for provider web instances.',
+        HttpStatus.BAD_REQUEST,
       );
     }
-    const qr = this.instancesService.getQR(userId, name);
+    const qr = await this.instancesService.getQR(userId, name);
     if (qr) {
       const qrImageData = await QRCode.toDataURL(qr, {
         width: 300,
@@ -339,10 +377,10 @@ export class InstancesController {
         message: '🦜 Escaneie o QR code com seu WhatsApp',
       };
     }
-    if (instance.connected) {
+    if (status.connected) {
       return {
         status: 'connected',
-        phoneNumber: instance.socket.user?.id?.split(':')[0],
+        phoneNumber: status.phoneNumber,
         message: '🦜 Papagai conectado! Pronto para repetir mensagens.',
       };
     }
@@ -400,14 +438,14 @@ export class InstancesController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Instance not found' })
   @Get(':name/chats')
-  getChats(
+  async getChats(
     @Req() req: Request,
     @Param('name') name: string,
     @Query('include_messages') includeMessages?: string,
   ) {
     const userId = (req['user'] as JwtPayload).sub;
     try {
-      const chats = this.instancesService.getChats(
+      const chats = await this.instancesService.getChats(
         userId,
         name,
         includeMessages === 'true',
@@ -439,21 +477,20 @@ export class InstancesController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Instance not found' })
   @Sse(':name/events')
-  streamChatEvents(
+  async streamChatEvents(
     @Req() req: Request,
     @Param('name') name: string,
-  ): Observable<MessageEvent> {
+  ): Promise<Observable<MessageEvent>> {
     const userId = (req['user'] as JwtPayload).sub;
 
     try {
-      const updates$ = this.instancesService
-        .streamChatEvents(userId, name)
-        .pipe(
-          map((evt) => ({
-            type: evt.type,
-            data: evt,
-          })),
-        );
+      const stream = await this.instancesService.streamChatEvents(userId, name);
+      const updates$ = stream.pipe(
+        map((evt) => ({
+          type: evt.type,
+          data: evt,
+        })),
+      );
 
       // Keep-alive helps avoid proxy idle timeouts on long-lived SSE streams.
       const heartbeat$ = interval(25000).pipe(
@@ -490,7 +527,7 @@ export class InstancesController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Instance not found' })
   @Post(':name/chats/:chatId/read')
-  markChatRead(
+  async markChatRead(
     @Req() req: Request,
     @Param('name') name: string,
     @Param('chatId') chatId: string,
@@ -499,7 +536,7 @@ export class InstancesController {
     const normalised = chatId.includes('@')
       ? chatId
       : `${chatId}@s.whatsapp.net`;
-    this.instancesService.markChatRead(userId, name, normalised);
+    await this.instancesService.markChatRead(userId, name, normalised);
     return { ok: true };
   }
 
@@ -525,7 +562,7 @@ export class InstancesController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Instance not found' })
   @Get(':name/chats/:chatId/messages')
-  getChatMessages(
+  async getChatMessages(
     @Req() req: Request,
     @Param('name') name: string,
     @Param('chatId') rawChatId: string,
@@ -556,7 +593,7 @@ export class InstancesController {
       : `${rawChatId}@s.whatsapp.net`;
 
     try {
-      const messages = this.instancesService.getChatMessages(
+      const messages = await this.instancesService.getChatMessages(
         userId,
         name,
         chatId,
@@ -588,10 +625,10 @@ export class InstancesController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Instance not found' })
   @Get(':name/metrics')
-  getMetrics(@Req() req: Request, @Param('name') name: string) {
+  async getMetrics(@Req() req: Request, @Param('name') name: string) {
     const userId = (req['user'] as JwtPayload).sub;
     try {
-      const metrics = this.instancesService.getMetrics(userId, name);
+      const metrics = await this.instancesService.getMetrics(userId, name);
       return { instance: name, metrics };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
@@ -620,26 +657,7 @@ export class InstancesController {
   @Get(':name/status')
   getStatus(@Req() req: Request, @Param('name') name: string) {
     const userId = (req['user'] as JwtPayload).sub;
-    const instance = this.instancesService.getInstance(userId, name);
-    if (!instance) {
-      throw new HttpException(
-        `Papagai ${name} não encontrado`,
-        HttpStatus.NOT_FOUND,
-      );
-    }
-    return {
-      name: instance.name,
-      connected: instance.connected,
-      startTime: new Date(instance.startTime).toISOString(),
-      uptime: Date.now() - instance.startTime,
-      phoneNumber: instance.socket.user?.id?.split(':')[0],
-      webhook: {
-        url: instance.webhookUrl,
-        headers: instance.webhookHeaders,
-        enabled: instance.webhookEnabled,
-        events: instance.webhookEvents,
-      },
-    };
+    return this.instancesService.getInstanceStatus(userId, name);
   }
 
   @ApiOperation({ summary: 'List all instances (paginated)' })
@@ -650,14 +668,17 @@ export class InstancesController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @Get()
-  listInstances(@Req() req: Request, @Query() query: PaginateQueryDto) {
+  async listInstances(@Req() req: Request, @Query() query: PaginateQueryDto) {
     const userId = (req['user'] as any).sub;
     const page = query.page ?? 1;
     const limit = Math.min(query.limit ?? 20, 100);
-    const { instances, total } = this.instancesService.getInstances(userId, {
-      page,
-      limit,
-    });
+    const { instances, total } = await this.instancesService.getInstances(
+      userId,
+      {
+        page,
+        limit,
+      },
+    );
     const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
     const message = `🦜 Você tem ${total} ${total === 1 ? 'papagai' : 'papagais'}`;
     return { instances, total, page, limit, totalPages, message };
@@ -805,18 +826,22 @@ export class InstancesController {
       },
     }),
   )
-  uploadFile(
+  async uploadFile(
     @Req() req: Request,
     @Param('name') name: string,
     @UploadedFile() file: Express.Multer.File,
-  ): UploadResponseDto {
+  ): Promise<UploadResponseDto> {
     if (!file) {
       throw new BadRequestException('No file provided');
     }
 
     const userId = (req['user'] as JwtPayload).sub;
-    const instance = this.instancesService.getInstance(userId, name);
-    if (!instance) {
+    try {
+      const instance = await this.instancesService.getInstance(userId, name);
+      if (!instance) {
+        throw new Error('Instance not found');
+      }
+    } catch {
       try {
         unlinkSync(file.path);
       } catch {

@@ -853,4 +853,76 @@ describe('ChatStoreService', () => {
       expect(counters.activeConversations).toBe(2);
     });
   });
+
+  describe('provider-neutral records', () => {
+    it('stores incoming WBA message and increments received counter', () => {
+      const redis = makeMockRedis();
+      const svc = new ChatStoreService(redis);
+
+      svc.recordProviderIncoming(USER, INSTANCE, {
+        id: 'wamid.in.1',
+        from: '5511999999999',
+        sender: 'Meta User',
+        type: 'text',
+        body: 'Hello from cloud',
+        timestamp: 1700000000000,
+      });
+
+      const chats = svc.getChats(USER, INSTANCE);
+      expect(chats).toHaveLength(1);
+      expect(chats[0].phoneNumber).toBe('5511999999999');
+      expect(chats[0].unreadCount).toBe(1);
+
+      const counters = svc.getCounters(USER, INSTANCE);
+      expect(counters.received).toBe(1);
+    });
+
+    it('deduplicates duplicated provider message ids', () => {
+      const redis = makeMockRedis();
+      const svc = new ChatStoreService(redis);
+
+      const input = {
+        id: 'wamid.in.dup',
+        from: '5511999999999',
+        sender: 'Meta User',
+        type: 'text',
+        body: 'Hello',
+        timestamp: 1700000000000,
+      };
+
+      svc.recordProviderIncoming(USER, INSTANCE, input);
+      svc.recordProviderIncoming(USER, INSTANCE, input);
+
+      const messages = svc.getMessages(
+        USER,
+        INSTANCE,
+        '5511999999999@s.whatsapp.net',
+      );
+      expect(messages).toHaveLength(1);
+    });
+
+    it('stores provider outgoing message and updates status', () => {
+      const redis = makeMockRedis();
+      const svc = new ChatStoreService(redis);
+
+      svc.recordProviderOutgoing(USER, INSTANCE, {
+        id: 'wamid.out.1',
+        to: '5511998888777',
+        type: 'template',
+        body: 'Template: hello_world',
+        status: 'sent',
+      });
+
+      svc.updateMessageStatus(USER, INSTANCE, 'wamid.out.1', 'delivered');
+
+      const messages = svc.getMessages(
+        USER,
+        INSTANCE,
+        '5511998888777@s.whatsapp.net',
+      );
+      expect(messages).toHaveLength(1);
+      expect(messages[0].status).toBe('delivered');
+      expect(messages[0].type).toBe('template');
+    });
+  });
 });

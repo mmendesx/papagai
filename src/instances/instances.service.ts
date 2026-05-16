@@ -1,15 +1,25 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Observable } from 'rxjs';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { MediaUrlService } from '../media/media-url.service.js';
 import { WhatsappService } from '../whatsapp/whatsapp.service.js';
-import { Instance } from '../whatsapp/interfaces/whatsapp.interface.js';
+import { WbaInstanceService } from '../wba/wba-instance.service.js';
 import { ChatRealtimeEvent } from '../whatsapp/chat-store.service.js';
 import { toMessageContent } from '../whatsapp/utils/transformer.js';
 import {
   validateOrThrow,
   WebhookUrlInvalidError,
 } from '../webhook/webhook-url-validator.js';
-import { Observable } from 'rxjs';
-import { MediaUrlService } from '../media/media-url.service.js';
+import {
+  InstanceProvider,
+  getProviderCapabilities,
+} from './provider-capabilities.js';
 
 @Injectable()
 export class InstancesService {
@@ -17,8 +27,10 @@ export class InstancesService {
 
   constructor(
     private readonly whatsappService: WhatsappService,
+    private readonly wbaService: WbaInstanceService,
     private readonly configService: ConfigService,
     private readonly mediaUrlService: MediaUrlService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async createInstance(
@@ -28,14 +40,41 @@ export class InstancesService {
     webhookHeaders?: Record<string, string>,
     webhookEnabled?: boolean,
     webhookEvents?: string[],
-  ): Promise<Instance> {
-    this.logger.log(`Criando novo papagai: ${userId}:${name}`);
+    provider: InstanceProvider = 'web',
+    wba?: {
+      businessAccountId: string;
+      phoneNumberId: string;
+      displayPhoneNumber: string;
+      accessToken: string;
+      appSecret?: string;
+      webhookVerifyToken?: string;
+    },
+  ): Promise<void> {
+    this.logger.log(`Creating instance: ${userId}:${name} (${provider})`);
 
     if (webhookUrl) {
       await this.validateWebhookUrl(webhookUrl);
     }
 
-    return this.whatsappService.createInstance(
+    if (provider === 'wba') {
+      if (!wba) {
+        throw new BadRequestException(
+          'WBA configuration is required when provider is wba.',
+        );
+      }
+      await this.wbaService.createInstance(
+        userId,
+        name,
+        wba,
+        webhookUrl,
+        webhookHeaders,
+        webhookEnabled,
+        webhookEvents,
+      );
+      return;
+    }
+
+    await this.whatsappService.createInstance(
       userId,
       name,
       webhookUrl,
@@ -45,40 +84,102 @@ export class InstancesService {
     );
   }
 
-  getInstance(userId: string, name: string): Instance | undefined {
+  async getProvider(userId: string, name: string): Promise<InstanceProvider> {
+    const config = await this.prisma.instanceConfig.findUnique({
+      where: { userId_name: { userId, name } },
+      select: { provider: true },
+    });
+    if (!config) {
+      throw new NotFoundException(`Papagai ${name} não encontrado`);
+    }
+    return config.provider === 'wba' ? 'wba' : 'web';
+  }
+
+  async getInstanceStatus(userId: string, name: string): Promise<any> {
+    const provider = await this.getProvider(userId, name);
+    if (provider === 'wba') {
+      return this.wbaService.getStatus(userId, name);
+    }
+
+    const instance = this.whatsappService.getInstance(userId, name);
+    if (!instance) {
+      throw new NotFoundException(`Papagai ${name} não encontrado`);
+    }
+    return {
+      name: instance.name,
+      provider: 'web',
+      capabilities: getProviderCapabilities('web'),
+      connected: instance.connected,
+      startTime: new Date(instance.startTime).toISOString(),
+      uptime: Date.now() - instance.startTime,
+      phoneNumber: instance.socket.user?.id?.split(':')[0],
+      webhook: {
+        url: instance.webhookUrl,
+        headers: instance.webhookHeaders,
+        enabled: instance.webhookEnabled,
+        events: instance.webhookEvents,
+      },
+    };
+  }
+
+  async getInstance(userId: string, name: string): Promise<unknown> {
+    const provider = await this.getProvider(userId, name);
+    if (provider === 'wba') {
+      return this.wbaService.getStatus(userId, name);
+    }
     return this.whatsappService.getInstance(userId, name);
   }
 
-  getQR(userId: string, name: string): string | null {
+  async getQR(userId: string, name: string): Promise<string | null> {
+    const provider = await this.getProvider(userId, name);
+    if (provider === 'wba') {
+      throw new BadRequestException(
+        'QR pairing is only available for provider web instances.',
+      );
+    }
     return this.whatsappService.getQR(userId, name);
   }
 
   async sendMessage(
     userId: string,
     instanceName: string,
-    payload: any,
+    payload: Record<string, any>,
   ): Promise<any> {
     this.logger.log(
-      `${userId}:${instanceName} enviando mensagem tipo ${payload.type} para ${payload.to}`,
+      `${userId}:${instanceName} sending message type ${payload.type} to ${payload.to}`,
     );
+
+    const provider = await this.getProvider(userId, instanceName);
+    if (provider === 'wba') {
+      return this.wbaService.sendMessage(userId, instanceName, payload);
+    }
+
     await this.validateMessageMediaUrls(payload);
     const content = toMessageContent(payload);
     return this.whatsappService.send(userId, instanceName, payload.to, content);
   }
 
-  getContactInfo(
+  async getContactInfo(
     userId: string,
     instanceName: string,
     number: string,
   ): Promise<any> {
-    this.logger.log(
-      `${userId}:${instanceName} buscando info do contato ${number}`,
-    );
+    const provider = await this.getProvider(userId, instanceName);
+    if (provider === 'wba') {
+      return this.wbaService.getContactInfo(userId, instanceName, number);
+    }
     return this.whatsappService.getContactInfo(userId, instanceName, number);
   }
 
-  getChats(userId: string, instanceName: string, includeMessages?: boolean) {
-    this.logger.log(`${userId}:${instanceName} buscando conversas`);
+  async getChats(
+    userId: string,
+    instanceName: string,
+    includeMessages?: boolean,
+  ): Promise<any[]> {
+    const provider = await this.getProvider(userId, instanceName);
+    if (provider === 'wba') {
+      return this.wbaService.getChats(userId, instanceName);
+    }
     return this.whatsappService.getChats(
       userId,
       instanceName,
@@ -86,15 +187,21 @@ export class InstancesService {
     );
   }
 
-  getChatMessages(
+  async getChatMessages(
     userId: string,
     instanceName: string,
     chatId: string,
     limit: number,
-  ): any[] {
-    this.logger.log(
-      `${userId}:${instanceName} buscando mensagens do chat ${chatId}`,
-    );
+  ): Promise<any[]> {
+    const provider = await this.getProvider(userId, instanceName);
+    if (provider === 'wba') {
+      return this.wbaService.getChatMessages(
+        userId,
+        instanceName,
+        chatId,
+        limit,
+      );
+    }
     return this.whatsappService.getChatMessages(
       userId,
       instanceName,
@@ -103,28 +210,43 @@ export class InstancesService {
     );
   }
 
-  streamChatEvents(
+  async streamChatEvents(
     userId: string,
     instanceName: string,
-  ): Observable<ChatRealtimeEvent> {
-    this.logger.log(`${userId}:${instanceName} abrindo stream de eventos`);
+  ): Promise<Observable<ChatRealtimeEvent>> {
+    const provider = await this.getProvider(userId, instanceName);
+    if (provider === 'wba') {
+      return this.wbaService.streamChatEvents(userId, instanceName);
+    }
     return this.whatsappService.streamChatEvents(userId, instanceName);
   }
 
-  markChatRead(userId: string, instanceName: string, chatId: string): void {
+  async markChatRead(
+    userId: string,
+    instanceName: string,
+    chatId: string,
+  ): Promise<void> {
+    const provider = await this.getProvider(userId, instanceName);
+    if (provider === 'wba') {
+      await this.wbaService.markChatRead(userId, instanceName);
+      return;
+    }
     this.whatsappService.markChatRead(userId, instanceName, chatId);
   }
 
-  getMetrics(
+  async getMetrics(
     userId: string,
     instanceName: string,
-  ): {
+  ): Promise<{
     messagesSent: number;
     messagesReceived: number;
     activeConversations: number;
     webhookEnabled: boolean;
-  } {
-    this.logger.log(`${userId}:${instanceName} buscando métricas`);
+  }> {
+    const provider = await this.getProvider(userId, instanceName);
+    if (provider === 'wba') {
+      return this.wbaService.getMetrics(userId, instanceName);
+    }
     return this.whatsappService.getMetrics(userId, instanceName);
   }
 
@@ -137,12 +259,62 @@ export class InstancesService {
       webhookEnabled?: boolean;
       webhookEvents?: string[];
     },
-  ) {
+  ): Promise<{
+    webhookUrl: string | null;
+    webhookHeaders: Record<string, string>;
+    webhookEnabled: boolean;
+    webhookEvents: string[];
+  }> {
     if (config.webhookUrl) {
       await this.validateWebhookUrl(config.webhookUrl);
     }
 
-    return this.whatsappService.updateWebhookConfig(userId, name, config);
+    const provider = await this.getProvider(userId, name);
+    if (provider === 'wba') {
+      return this.wbaService.updateWebhookConfig(userId, name, config);
+    }
+
+    const updated = await this.whatsappService.updateWebhookConfig(
+      userId,
+      name,
+      config,
+    );
+    return {
+      webhookUrl: updated.webhookUrl,
+      webhookHeaders: updated.webhookHeaders,
+      webhookEnabled: updated.webhookEnabled,
+      webhookEvents: updated.webhookEvents,
+    };
+  }
+
+  async getInstances(
+    userId: string,
+    pagination: { page: number; limit: number },
+  ): Promise<{ instances: any[]; total: number }> {
+    const webInstances = this.whatsappService.getInstances(userId, {
+      page: 1,
+      limit: Number.MAX_SAFE_INTEGER,
+    });
+    const wbaInstances = await this.wbaService.getListItems(userId, {
+      page: 1,
+      limit: Number.MAX_SAFE_INTEGER,
+    });
+
+    const all = [...webInstances.instances, ...wbaInstances.instances].sort(
+      (a, b) => b.startTime - a.startTime,
+    );
+    const total = all.length;
+    const start = (pagination.page - 1) * pagination.limit;
+    const instances = all.slice(start, start + pagination.limit);
+    return { instances, total };
+  }
+
+  async disconnectInstance(userId: string, name: string): Promise<boolean> {
+    const provider = await this.getProvider(userId, name);
+    if (provider === 'wba') {
+      return this.wbaService.disconnectInstance(userId, name);
+    }
+    return this.whatsappService.disconnectInstance(userId, name);
   }
 
   private async validateWebhookUrl(url: string): Promise<void> {
@@ -195,17 +367,5 @@ export class InstancesService {
       }
       throw error;
     }
-  }
-
-  getInstances(
-    userId: string,
-    pagination: { page: number; limit: number },
-  ): { instances: any[]; total: number } {
-    return this.whatsappService.getInstances(userId, pagination);
-  }
-
-  disconnectInstance(userId: string, name: string): Promise<boolean> {
-    this.logger.log(`Desconectando papagai: ${userId}:${name}`);
-    return this.whatsappService.disconnectInstance(userId, name);
   }
 }

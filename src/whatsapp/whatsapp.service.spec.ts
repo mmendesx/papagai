@@ -275,44 +275,50 @@ describe('WhatsappService', () => {
 
       expect(instances).toHaveLength(2);
       expect(total).toBe(2);
-      expect(instances).toContainEqual({
-        name: 'alpha',
-        connected: true,
-        startTime: startTimeA,
-        webhookEnabled: true,
-        phoneNumber: null,
-        webhook: {
-          url: 'https://example.com/webhook',
-          headers: {},
-          enabled: true,
-          events: [
-            'message',
-            'message_update',
-            'qr',
-            'connected',
-            'disconnected',
-          ],
-        },
-      });
-      expect(instances).toContainEqual({
-        name: 'beta',
-        connected: false,
-        startTime: startTimeB,
-        webhookEnabled: true,
-        phoneNumber: null,
-        webhook: {
-          url: 'https://example.com/webhook',
-          headers: {},
-          enabled: true,
-          events: [
-            'message',
-            'message_update',
-            'qr',
-            'connected',
-            'disconnected',
-          ],
-        },
-      });
+      expect(instances).toContainEqual(
+        expect.objectContaining({
+          name: 'alpha',
+          connected: true,
+          startTime: startTimeA,
+          webhookEnabled: true,
+          phoneNumber: null,
+          provider: 'web',
+          webhook: {
+            url: 'https://example.com/webhook',
+            headers: {},
+            enabled: true,
+            events: [
+              'message',
+              'message_update',
+              'qr',
+              'connected',
+              'disconnected',
+            ],
+          },
+        }),
+      );
+      expect(instances).toContainEqual(
+        expect.objectContaining({
+          name: 'beta',
+          connected: false,
+          startTime: startTimeB,
+          webhookEnabled: true,
+          phoneNumber: null,
+          provider: 'web',
+          webhook: {
+            url: 'https://example.com/webhook',
+            headers: {},
+            enabled: true,
+            events: [
+              'message',
+              'message_update',
+              'qr',
+              'connected',
+              'disconnected',
+            ],
+          },
+        }),
+      );
     });
 
     it('returns empty instances and total=0 when no instances are registered', () => {

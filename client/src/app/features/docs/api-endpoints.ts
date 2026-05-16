@@ -18,7 +18,11 @@ export interface ErrorDef {
   description: string;
 }
 
-export type EndpointAuthType = 'none' | 'bearer' | 'apiKey' | 'bearer_or_apiKey';
+export type EndpointAuthType =
+  | 'none'
+  | 'bearer'
+  | 'apiKey'
+  | 'bearer_or_apiKey';
 
 export interface BodyExampleDef {
   title: string;
@@ -57,11 +61,23 @@ export interface WebhookEventRef {
 }
 
 export const WEBHOOK_EVENTS: WebhookEventRef[] = [
-  { key: 'message', description: 'Mensagem recebida de um contato (texto, mídia, etc.).' },
-  { key: 'message_update', description: 'Confirmações de entrega ou leitura e atualizações de status.' },
+  {
+    key: 'message',
+    description: 'Mensagem recebida de um contato (texto, mídia, etc.).',
+  },
+  {
+    key: 'message_update',
+    description: 'Confirmações de entrega ou leitura e atualizações de status.',
+  },
   { key: 'qr', description: 'QR code atualizado ou renovado para pareamento.' },
-  { key: 'connected', description: 'Instância conectada com sucesso ao WhatsApp.' },
-  { key: 'disconnected', description: 'Conexão perdida; o payload pode conter dicas de reconexão.' },
+  {
+    key: 'connected',
+    description: 'Instância conectada com sucesso ao WhatsApp.',
+  },
+  {
+    key: 'disconnected',
+    description: 'Conexão perdida; o payload pode conter dicas de reconexão.',
+  },
 ];
 
 export const WEBHOOK_PAYLOAD_EXAMPLES: { event: string; json: string }[] = [
@@ -257,6 +273,17 @@ const SEND_MESSAGE_BODY_EXAMPLES: BodyExampleDef[] = [
   ]
 }`,
   },
+  {
+    title: 'template',
+    json: `{
+  "to": "5511999999999",
+  "type": "template",
+  "template": {
+    "name": "hello_world",
+    "language": { "code": "pt_BR" }
+  }
+}`,
+  },
 ];
 
 export const API_ENDPOINT_GROUPS: EndpointGroup[] = [
@@ -274,35 +301,72 @@ export const API_ENDPOINT_GROUPS: EndpointGroup[] = [
           'Cria um novo usuário quando o registro está habilitado e APP_KEY confere. Retorna um JWT para uso imediato.',
         auth: 'none',
         bodyParams: [
-          { name: 'name', type: 'string', required: true, description: 'Nome de exibição (1–255 caracteres).' },
-          { name: 'email', type: 'string', required: true, description: 'Endereço de e-mail único.' },
-          { name: 'password', type: 'string', required: true, description: 'Senha (8–128 caracteres).' },
-          { name: 'appKey', type: 'string', required: true, description: 'Deve corresponder ao APP_KEY do servidor quando o registro está habilitado.' },
+          {
+            name: 'name',
+            type: 'string',
+            required: true,
+            description: 'Nome de exibição (1–255 caracteres).',
+          },
+          {
+            name: 'email',
+            type: 'string',
+            required: true,
+            description: 'Endereço de e-mail único.',
+          },
+          {
+            name: 'password',
+            type: 'string',
+            required: true,
+            description: 'Senha (8–128 caracteres).',
+          },
+          {
+            name: 'appKey',
+            type: 'string',
+            required: true,
+            description:
+              'Deve corresponder ao APP_KEY do servidor quando o registro está habilitado.',
+          },
         ],
         responseExample: `{
   "user": { "id": "…", "name": "…", "email": "…" },
   "accessToken": "eyJhbGciOiJIUzI1NiIs…"
 }`,
         errorCodes: [
-          { status: 403, description: 'Registro desabilitado ou chave de aplicação inválida.' },
+          {
+            status: 403,
+            description:
+              'Registro desabilitado ou chave de aplicação inválida.',
+          },
           { status: 409, description: 'E-mail já cadastrado.' },
           { status: 400, description: 'Falha de validação.' },
         ],
         curlExample: `curl -sS -X POST "$BASE/api/auth/register" \\
   -H "Content-Type: application/json" \\
   -d '{"name":"Dev","email":"dev@example.com","password":"suasenha","appKey":"SUA_APP_KEY"}'`,
-        tryBody: '{\n  "name": "Dev",\n  "email": "dev@example.com",\n  "password": "suasenha",\n  "appKey": "SUA_APP_KEY"\n}',
+        tryBody:
+          '{\n  "name": "Dev",\n  "email": "dev@example.com",\n  "password": "suasenha",\n  "appKey": "SUA_APP_KEY"\n}',
       },
       {
         id: 'auth-login',
         method: 'POST',
         path: '/api/auth/login',
         title: 'Login',
-        description: 'Troca e-mail e senha por um JWT. Expiração padrão de 24 horas.',
+        description:
+          'Troca e-mail e senha por um JWT. Expiração padrão de 24 horas.',
         auth: 'none',
         bodyParams: [
-          { name: 'email', type: 'string', required: true, description: 'E-mail cadastrado.' },
-          { name: 'password', type: 'string', required: true, description: 'Senha da conta.' },
+          {
+            name: 'email',
+            type: 'string',
+            required: true,
+            description: 'E-mail cadastrado.',
+          },
+          {
+            name: 'password',
+            type: 'string',
+            required: true,
+            description: 'Senha da conta.',
+          },
         ],
         responseExample: `{
   "user": { "id": "…", "name": "…", "email": "…" },
@@ -315,14 +379,16 @@ export const API_ENDPOINT_GROUPS: EndpointGroup[] = [
         curlExample: `curl -sS -X POST "$BASE/api/auth/login" \\
   -H "Content-Type: application/json" \\
   -d '{"email":"voce@example.com","password":"suasenha"}'`,
-        tryBody: '{\n  "email": "voce@example.com",\n  "password": "suasenha"\n}',
+        tryBody:
+          '{\n  "email": "voce@example.com",\n  "password": "suasenha"\n}',
       },
       {
         id: 'auth-me',
         method: 'GET',
         path: '/api/auth/me',
         title: 'Usuário atual',
-        description: 'Retorna o usuário autenticado a partir de Authorization: Bearer ou X-Api-Key.',
+        description:
+          'Retorna o usuário autenticado a partir de Authorization: Bearer ou X-Api-Key.',
         auth: 'bearer_or_apiKey',
         responseExample: `{
   "id": "uuid",
@@ -349,10 +415,32 @@ curl -sS "$BASE/api/auth/me" \\
           'Cria uma API key no escopo da conta. Salve o campo key no momento da criação: ele não é retornado novamente. Use permissionsTemplate com read_only, operator, instance_manager ou account_admin; ou permissions explícitas (nunca os dois juntos).',
         auth: 'bearer_or_apiKey',
         bodyParams: [
-          { name: 'name', type: 'string', required: true, description: 'Nome legível da chave (1-255 caracteres).' },
-          { name: 'expiresAt', type: 'string (ISO 8601)', required: false, description: 'Data de expiração opcional. Omitido = sem expiração.' },
-          { name: 'permissionsTemplate', type: '"read_only" | "operator" | "instance_manager" | "account_admin"', required: false, description: 'Template padrão de permissões para chave de conta. Exclusivo com permissions.' },
-          { name: 'permissions', type: 'string[]', required: false, description: 'Permissões explícitas para chave de conta. Exclusivo com permissionsTemplate.' },
+          {
+            name: 'name',
+            type: 'string',
+            required: true,
+            description: 'Nome legível da chave (1-255 caracteres).',
+          },
+          {
+            name: 'expiresAt',
+            type: 'string (ISO 8601)',
+            required: false,
+            description: 'Data de expiração opcional. Omitido = sem expiração.',
+          },
+          {
+            name: 'permissionsTemplate',
+            type: '"read_only" | "operator" | "instance_manager" | "account_admin"',
+            required: false,
+            description:
+              'Template padrão de permissões para chave de conta. Exclusivo com permissions.',
+          },
+          {
+            name: 'permissions',
+            type: 'string[]',
+            required: false,
+            description:
+              'Permissões explícitas para chave de conta. Exclusivo com permissionsTemplate.',
+          },
         ],
         responseExample: `{
   "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
@@ -376,7 +464,11 @@ curl -sS "$BASE/api/auth/me" \\
   ]
 }`,
         errorCodes: [
-          { status: 400, description: 'Requisição inválida (por exemplo: permissions e permissionsTemplate enviados juntos).' },
+          {
+            status: 400,
+            description:
+              'Requisição inválida (por exemplo: permissions e permissionsTemplate enviados juntos).',
+          },
           { status: 401, description: 'Não autorizado.' },
         ],
         curlExample: `# Authorization: Bearer
@@ -390,14 +482,16 @@ curl -sS -X POST "$BASE/api/auth/apikeys" \\
   -H "X-Api-Key: $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{"name":"Integração CRM","permissionsTemplate":"operator"}'`,
-        tryBody: '{\n  "name": "Integração CRM",\n  "permissionsTemplate": "operator"\n}',
+        tryBody:
+          '{\n  "name": "Integração CRM",\n  "permissionsTemplate": "operator"\n}',
       },
       {
         id: 'auth-apikeys-list',
         method: 'GET',
         path: '/api/auth/apikeys',
         title: 'Listar API keys de conta',
-        description: 'Lista API keys de conta sem retornar o valor plaintext da key. O campo permissions omitido/null indica acesso total no escopo da conta.',
+        description:
+          'Lista API keys de conta sem retornar o valor plaintext da key. O campo permissions omitido/null indica acesso total no escopo da conta.',
         auth: 'bearer_or_apiKey',
         responseExample: `[
   {
@@ -418,9 +512,7 @@ curl -sS -X POST "$BASE/api/auth/apikeys" \\
     "createdAt": "2026-04-01T12:00:00.000Z"
   }
 ]`,
-        errorCodes: [
-          { status: 401, description: 'Não autorizado.' },
-        ],
+        errorCodes: [{ status: 401, description: 'Não autorizado.' }],
         curlExample: `# Authorization: Bearer
 curl -sS "$BASE/api/auth/apikeys" \\
   -H "Authorization: Bearer $TOKEN"
@@ -436,7 +528,13 @@ curl -sS "$BASE/api/auth/apikeys" \\
         title: 'Revogar API key de conta',
         description: 'Revoga uma API key de conta pelo identificador.',
         auth: 'bearer_or_apiKey',
-        pathParams: [{ name: 'id', placeholder: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', description: 'ID da API key.' }],
+        pathParams: [
+          {
+            name: 'id',
+            placeholder: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+            description: 'ID da API key.',
+          },
+        ],
         responseExample: `{
   "status": 204,
   "body": null
@@ -458,7 +556,8 @@ curl -sS -X DELETE "$BASE/api/auth/apikeys/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
         method: 'GET',
         path: '/api/auth/apikeys/templates',
         title: 'Listar templates de permissões',
-        description: 'Retorna templates padrão de permissões para criação de API keys de conta. IDs disponíveis: read_only, operator, instance_manager e account_admin.',
+        description:
+          'Retorna templates padrão de permissões para criação de API keys de conta. IDs disponíveis: read_only, operator, instance_manager e account_admin.',
         auth: 'bearer_or_apiKey',
         responseExample: `{
   "templates": [
@@ -536,9 +635,7 @@ curl -sS -X DELETE "$BASE/api/auth/apikeys/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
     }
   ]
 }`,
-        errorCodes: [
-          { status: 401, description: 'Não autorizado.' },
-        ],
+        errorCodes: [{ status: 401, description: 'Não autorizado.' }],
         curlExample: `# Authorization: Bearer
 curl -sS "$BASE/api/auth/apikeys/templates" \\
   -H "Authorization: Bearer $TOKEN"
@@ -552,7 +649,8 @@ curl -sS "$BASE/api/auth/apikeys/templates" \\
   {
     id: 'instances',
     title: 'Instâncias',
-    description: 'Crie e gerencie instâncias do WhatsApp. Todas as rotas aceitam Authorization: Bearer ou X-Api-Key.',
+    description:
+      'Crie e gerencie instâncias do WhatsApp. Todas as rotas aceitam Authorization: Bearer ou X-Api-Key.',
     endpoints: [
       {
         id: 'instances-create',
@@ -560,43 +658,102 @@ curl -sS "$BASE/api/auth/apikeys/templates" \\
         path: '/api/instances/create',
         title: 'Criar instância',
         description:
-          'Inicia uma nova instância com nome definido. URL de webhook, cabeçalhos, flag de habilitação e lista de eventos são opcionais. Sem URL, os webhooks ficam desabilitados.',
+          'Inicia uma nova instância. provider pode ser web (padrão) ou wba. Para provider wba, o bloco wba é obrigatório e credenciais sigilosas não retornam na resposta.',
         auth: 'bearer_or_apiKey',
         bodyParams: [
-          { name: 'name', type: 'string', required: true, description: 'Nome da instância (3–30 caracteres).' },
-          { name: 'webhook', type: 'string', required: false, description: 'URL do webhook (opcional).' },
-          { name: 'webhookHeaders', type: 'object', required: false, description: 'Mapa de cabeçalhos HTTP enviados junto ao webhook.' },
-          { name: 'webhookEnabled', type: 'boolean', required: false, description: 'Relevante apenas quando a URL do webhook está definida.' },
-          { name: 'webhookEvents', type: 'string[]', required: false, description: 'Subconjunto de: message, message_update, qr, connected, disconnected.' },
+          {
+            name: 'name',
+            type: 'string',
+            required: true,
+            description: 'Nome da instância (3–30 caracteres).',
+          },
+          {
+            name: 'provider',
+            type: '"web" | "wba"',
+            required: false,
+            description: 'Padrão: web. Use wba para Meta Cloud API.',
+          },
+          {
+            name: 'wba',
+            type: 'object',
+            required: false,
+            description:
+              'Obrigatório quando provider=wba: businessAccountId, phoneNumberId, displayPhoneNumber, accessToken; appSecret e webhookVerifyToken opcionais.',
+          },
+          {
+            name: 'webhook',
+            type: 'string',
+            required: false,
+            description: 'URL do webhook (opcional).',
+          },
+          {
+            name: 'webhookHeaders',
+            type: 'object',
+            required: false,
+            description: 'Mapa de cabeçalhos HTTP enviados junto ao webhook.',
+          },
+          {
+            name: 'webhookEnabled',
+            type: 'boolean',
+            required: false,
+            description:
+              'Relevante apenas quando a URL do webhook está definida.',
+          },
+          {
+            name: 'webhookEvents',
+            type: 'string[]',
+            required: false,
+            description:
+              'Subconjunto de: message, message_update, qr, connected, disconnected.',
+          },
         ],
         responseExample: `{
   "success": true,
   "instance": "meu-papagai",
-  "message": "🦜 Papagai meu-papagai criado com sucesso! …"
+  "provider": "wba",
+  "capabilities": {
+    "qr": false,
+    "sendMessages": true,
+    "receiveMessages": true,
+    "chatHistorySync": false,
+    "contactLookup": false,
+    "markRead": false,
+    "templates": true
+  }
 }`,
         errorCodes: [
-          { status: 400, description: 'Nome duplicado, erro de validação ou erro do servidor.' },
+          {
+            status: 400,
+            description:
+              'Nome duplicado, erro de validação ou erro do servidor.',
+          },
         ],
         curlExample: `curl -sS -X POST "$BASE/api/instances/create" \\
   -H "Authorization: Bearer $TOKEN" \\
   -H "Content-Type: application/json" \\
-  -d '{"name":"meu-papagai","webhook":"https://example.com/hook"}'`,
-        tryBody: '{\n  "name": "meu-papagai",\n  "webhook": "https://example.com/hook"\n}',
+  -d '{"name":"meu-papagai","provider":"wba","wba":{"businessAccountId":"2233445566","phoneNumberId":"12345","displayPhoneNumber":"+55 11 99999-9999","accessToken":"EAAG..."}}'`,
+        tryBody: '{\n  "name": "meu-papagai",\n  "provider": "web"\n}',
       },
       {
         id: 'instances-list',
         method: 'GET',
         path: '/api/instances',
         title: 'Listar instâncias',
-        description: 'Lista todas as instâncias com estado de conexão, início de uptime, webhookEnabled e configuração de webhook aninhada.',
+        description:
+          'Lista instâncias com provider e capabilities para controle de recursos por tipo de integração.',
         auth: 'bearer_or_apiKey',
         responseExample: `{
   "total": 1,
   "instances": [
     {
       "name": "meu-papagai",
+      "provider": "web",
       "connected": true,
       "startTime": 1710000000000,
+      "capabilities": {
+        "qr": true,
+        "sendMessages": true
+      },
       "webhookEnabled": true,
       "webhook": {
         "url": "https://example.com/hook",
@@ -617,11 +774,28 @@ curl -sS "$BASE/api/auth/apikeys/templates" \\
         method: 'GET',
         path: '/api/instances/:name/status',
         title: 'Status da instância',
-        description: 'Status em tempo real incluindo espelho da configuração de webhook.',
+        description:
+          'Status provider-aware: web expõe QR/conexão Baileys; wba expõe capabilities e estado de setup/health.',
         auth: 'bearer_or_apiKey',
-        pathParams: [{ name: 'name', placeholder: 'meu-papagai', description: 'Nome da instância.' }],
+        pathParams: [
+          {
+            name: 'name',
+            placeholder: 'meu-papagai',
+            description: 'Nome da instância.',
+          },
+        ],
         responseExample: `{
   "name": "meu-papagai",
+  "provider": "wba",
+  "capabilities": {
+    "qr": false,
+    "sendMessages": true,
+    "receiveMessages": true,
+    "chatHistorySync": false,
+    "contactLookup": false,
+    "markRead": false,
+    "templates": true
+  },
   "connected": true,
   "startTime": "2025-01-01T12:00:00.000Z",
   "uptime": 3600000,
@@ -645,9 +819,16 @@ curl -sS "$BASE/api/auth/apikeys/templates" \\
         method: 'GET',
         path: '/api/instances/:name/metrics',
         title: 'Métricas da instância',
-        description: 'Retorna contadores em memória para mensagens enviadas, recebidas, conversas ativas e status do webhook.',
+        description:
+          'Retorna contadores em memória para mensagens enviadas, recebidas, conversas ativas e status do webhook.',
         auth: 'bearer_or_apiKey',
-        pathParams: [{ name: 'name', placeholder: 'meu-papagai', description: 'Nome da instância.' }],
+        pathParams: [
+          {
+            name: 'name',
+            placeholder: 'meu-papagai',
+            description: 'Nome da instância.',
+          },
+        ],
         responseExample: `{
   "instance": "meu-papagai",
   "metrics": {
@@ -669,9 +850,16 @@ curl -sS "$BASE/api/auth/apikeys/templates" \\
         method: 'GET',
         path: '/api/instances/:name/qr',
         title: 'QR / estado de conexão',
-        description: 'Endpoint de polling para dados de imagem QR, estado conectando ou conectado.',
+        description:
+          'Endpoint de polling para QR em instâncias web. provider=wba retorna 400 (feature web-only).',
         auth: 'bearer_or_apiKey',
-        pathParams: [{ name: 'name', placeholder: 'meu-papagai', description: 'Nome da instância.' }],
+        pathParams: [
+          {
+            name: 'name',
+            placeholder: 'meu-papagai',
+            description: 'Nome da instância.',
+          },
+        ],
         responseExample: `{
   "status": "qr",
   "instance": "meu-papagai",
@@ -688,9 +876,16 @@ curl -sS "$BASE/api/auth/apikeys/templates" \\
         method: 'DELETE',
         path: '/api/instances/:name',
         title: 'Desconectar / remover instância',
-        description: 'Encerra a sessão e remove a instância do registro do servidor.',
+        description:
+          'Encerra a sessão e remove a instância do registro do servidor.',
         auth: 'bearer_or_apiKey',
-        pathParams: [{ name: 'name', placeholder: 'meu-papagai', description: 'Nome da instância.' }],
+        pathParams: [
+          {
+            name: 'name',
+            placeholder: 'meu-papagai',
+            description: 'Nome da instância.',
+          },
+        ],
         responseExample: `{
   "message": "🦜 Papagai meu-papagai foi dormir. Até logo!",
   "instance": "meu-papagai"
@@ -704,12 +899,29 @@ curl -sS "$BASE/api/auth/apikeys/templates" \\
         method: 'POST',
         path: '/api/instances/:name/apikeys',
         title: 'Criar API key da instância',
-        description: 'Cria uma API key com escopo restrito à instância. O valor key só é retornado na criação. Chaves de instância não aceitam permissions nem permissionsTemplate.',
+        description:
+          'Cria uma API key com escopo restrito à instância. O valor key só é retornado na criação. Chaves de instância não aceitam permissions nem permissionsTemplate.',
         auth: 'bearer_or_apiKey',
-        pathParams: [{ name: 'name', placeholder: 'meu-papagai', description: 'Nome da instância.' }],
+        pathParams: [
+          {
+            name: 'name',
+            placeholder: 'meu-papagai',
+            description: 'Nome da instância.',
+          },
+        ],
         bodyParams: [
-          { name: 'name', type: 'string', required: true, description: 'Nome legível da chave (1-255 caracteres).' },
-          { name: 'expiresAt', type: 'string (ISO 8601)', required: false, description: 'Data de expiração opcional. Omitido = sem expiração.' },
+          {
+            name: 'name',
+            type: 'string',
+            required: true,
+            description: 'Nome legível da chave (1-255 caracteres).',
+          },
+          {
+            name: 'expiresAt',
+            type: 'string (ISO 8601)',
+            required: false,
+            description: 'Data de expiração opcional. Omitido = sem expiração.',
+          },
         ],
         responseExample: `{
   "id": "9b1deb4d-3b7d-4f7f-8f5f-0c9d99c01111",
@@ -721,7 +933,11 @@ curl -sS "$BASE/api/auth/apikeys/templates" \\
   "createdAt": "2026-04-10T10:15:00.000Z"
 }`,
         errorCodes: [
-          { status: 400, description: 'Requisição inválida (ex.: envio de permissions ou permissionsTemplate).' },
+          {
+            status: 400,
+            description:
+              'Requisição inválida (ex.: envio de permissions ou permissionsTemplate).',
+          },
           { status: 401, description: 'Não autorizado.' },
           { status: 404, description: 'Instância não encontrada.' },
         ],
@@ -736,16 +952,24 @@ curl -sS -X POST "$BASE/api/instances/meu-papagai/apikeys" \\
   -H "X-Api-Key: $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{"name":"Automação instância A","expiresAt":"2027-01-01T00:00:00Z"}'`,
-        tryBody: '{\n  "name": "Automação instância A",\n  "expiresAt": "2027-01-01T00:00:00Z"\n}',
+        tryBody:
+          '{\n  "name": "Automação instância A",\n  "expiresAt": "2027-01-01T00:00:00Z"\n}',
       },
       {
         id: 'instances-apikeys-list',
         method: 'GET',
         path: '/api/instances/:name/apikeys',
         title: 'Listar API keys da instância',
-        description: 'Lista API keys vinculadas à instância sem retornar plaintext da key.',
+        description:
+          'Lista API keys vinculadas à instância sem retornar plaintext da key.',
         auth: 'bearer_or_apiKey',
-        pathParams: [{ name: 'name', placeholder: 'meu-papagai', description: 'Nome da instância.' }],
+        pathParams: [
+          {
+            name: 'name',
+            placeholder: 'meu-papagai',
+            description: 'Nome da instância.',
+          },
+        ],
         responseExample: `[
   {
     "id": "9b1deb4d-3b7d-4f7f-8f5f-0c9d99c01111",
@@ -777,8 +1001,16 @@ curl -sS "$BASE/api/instances/meu-papagai/apikeys" \\
         description: 'Revoga uma API key de instância pelo identificador.',
         auth: 'bearer_or_apiKey',
         pathParams: [
-          { name: 'name', placeholder: 'meu-papagai', description: 'Nome da instância.' },
-          { name: 'id', placeholder: '9b1deb4d-3b7d-4f7f-8f5f-0c9d99c01111', description: 'ID da API key.' },
+          {
+            name: 'name',
+            placeholder: 'meu-papagai',
+            description: 'Nome da instância.',
+          },
+          {
+            name: 'id',
+            placeholder: '9b1deb4d-3b7d-4f7f-8f5f-0c9d99c01111',
+            description: 'ID da API key.',
+          },
         ],
         responseExample: `{
   "status": 204,
@@ -801,7 +1033,8 @@ curl -sS -X DELETE "$BASE/api/instances/meu-papagai/apikeys/9b1deb4d-3b7d-4f7f-8
   {
     id: 'messages',
     title: 'Mensagens',
-    description: 'Envie mensagens WhatsApp no formato compatível com a API Meta.',
+    description:
+      'Envie mensagens WhatsApp no formato compatível com a API Meta.',
     endpoints: [
       {
         id: 'messages-send',
@@ -809,21 +1042,93 @@ curl -sS -X DELETE "$BASE/api/instances/meu-papagai/apikeys/9b1deb4d-3b7d-4f7f-8
         path: '/api/instances/:name/messages',
         title: 'Enviar mensagem',
         description:
-          'Envia uma mensagem pela instância indicada. O body segue o estilo da Meta Cloud API (type + payload). Mídias aceitam link HTTPS ou data base64 com mimetype; quando data e link existem, data é usada.',
+          'Envia uma mensagem pela instância indicada. provider=web usa Baileys; provider=wba usa Meta Cloud API no mesmo endpoint. provider=wba suporta template e rejeita payloads incompatíveis.',
         auth: 'bearer_or_apiKey',
-        pathParams: [{ name: 'name', placeholder: 'meu-papagai', description: 'Nome da instância.' }],
+        pathParams: [
+          {
+            name: 'name',
+            placeholder: 'meu-papagai',
+            description: 'Nome da instância.',
+          },
+        ],
         bodyParams: [
-          { name: 'to', type: 'string', required: true, description: 'JID ou número do destinatário aceito pelo gateway.' },
-          { name: 'type', type: 'string', required: true, description: 'Ex.: text, image, audio, video, document, sticker, location, contacts, reaction, interactive.' },
-          { name: 'text', type: 'object', required: false, description: 'Para type text: { body: string }' },
-          { name: 'image | video', type: 'object', required: false, description: '{ link } ou { data, mimetype }, com caption opcional.' },
-          { name: 'audio', type: 'object', required: false, description: '{ link } ou { data, mimetype }, com ptt opcional para voice note.' },
-          { name: 'document', type: 'object', required: false, description: '{ link } ou { data, mimetype }, com filename e caption opcionais.' },
-          { name: 'sticker', type: 'object', required: false, description: '{ link } ou { data, mimetype } para sticker WebP.' },
-          { name: 'location', type: 'object', required: false, description: '{ latitude, longitude, name? }.' },
-          { name: 'reaction', type: 'object', required: false, description: '{ message_id, emoji }.' },
-          { name: 'interactive', type: 'object', required: false, description: 'Payload interativo compatível com botões/listas.' },
-          { name: 'contacts', type: 'object[]', required: false, description: 'Lista de contatos no formato Meta.' },
+          {
+            name: 'to',
+            type: 'string',
+            required: true,
+            description: 'JID ou número do destinatário aceito pelo gateway.',
+          },
+          {
+            name: 'type',
+            type: 'string',
+            required: true,
+            description:
+              'Ex.: text, image, audio, video, document, sticker, location, contacts, reaction, interactive, template.',
+          },
+          {
+            name: 'text',
+            type: 'object',
+            required: false,
+            description: 'Para type text: { body: string }',
+          },
+          {
+            name: 'image | video',
+            type: 'object',
+            required: false,
+            description:
+              '{ link } ou { data, mimetype }, com caption opcional.',
+          },
+          {
+            name: 'audio',
+            type: 'object',
+            required: false,
+            description:
+              '{ link } ou { data, mimetype }, com ptt opcional para voice note.',
+          },
+          {
+            name: 'document',
+            type: 'object',
+            required: false,
+            description:
+              '{ link } ou { data, mimetype }, com filename e caption opcionais.',
+          },
+          {
+            name: 'sticker',
+            type: 'object',
+            required: false,
+            description: '{ link } ou { data, mimetype } para sticker WebP.',
+          },
+          {
+            name: 'location',
+            type: 'object',
+            required: false,
+            description: '{ latitude, longitude, name? }.',
+          },
+          {
+            name: 'reaction',
+            type: 'object',
+            required: false,
+            description: '{ message_id, emoji }.',
+          },
+          {
+            name: 'interactive',
+            type: 'object',
+            required: false,
+            description: 'Payload interativo compatível com botões/listas.',
+          },
+          {
+            name: 'contacts',
+            type: 'object[]',
+            required: false,
+            description: 'Lista de contatos no formato Meta.',
+          },
+          {
+            name: 'template',
+            type: 'object',
+            required: false,
+            description:
+              'Para type template: { name, language: { code }, components? }.',
+          },
         ],
         responseExample: `{
   "messaging_product": "whatsapp",
@@ -831,9 +1136,17 @@ curl -sS -X DELETE "$BASE/api/instances/meu-papagai/apikeys/9b1deb4d-3b7d-4f7f-8
   "messages": [{ "id": "…" }]
 }`,
         errorCodes: [
-          { status: 400, description: 'Falha no envio, instância inválida ou erro do WhatsApp.' },
+          {
+            status: 400,
+            description:
+              'Falha no envio, instância inválida ou erro do WhatsApp.',
+          },
           { status: 401, description: 'Não autorizado.' },
-          { status: 422, description: 'Falha de validação, como mídia sem link/data ou base64 inválido.' },
+          {
+            status: 422,
+            description:
+              'Falha de validação, como mídia sem link/data ou base64 inválido.',
+          },
         ],
         curlExample: `# Text
 curl -sS -X POST "$BASE/api/instances/meu-papagai/messages" \\
@@ -853,7 +1166,8 @@ curl -sS -X POST "$BASE/api/instances/meu-papagai/messages" \\
   -H "Content-Type: application/json" \\
   -d '{"to":"5511999999999@s.whatsapp.net","type":"document","document":{"link":"https://example.com/report.pdf","filename":"report.pdf"}}'`,
         bodyExamples: SEND_MESSAGE_BODY_EXAMPLES,
-        tryBody: '{\n  "to": "5511999999999@s.whatsapp.net",\n  "type": "text",\n  "text": { "body": "Olá da API!" }\n}',
+        tryBody:
+          '{\n  "to": "5511999999999@s.whatsapp.net",\n  "type": "text",\n  "text": { "body": "Olá da API!" }\n}',
       },
       {
         id: 'messages-upload',
@@ -863,15 +1177,30 @@ curl -sS -X POST "$BASE/api/instances/meu-papagai/messages" \\
         description:
           'Recebe multipart/form-data com campo file e retorna uma URL assinada para uso posterior em payloads de mídia por link. O composer do painel usa base64 inline; este endpoint é para integrações externas.',
         auth: 'bearer_or_apiKey',
-        pathParams: [{ name: 'name', placeholder: 'meu-papagai', description: 'Nome da instância.' }],
+        pathParams: [
+          {
+            name: 'name',
+            placeholder: 'meu-papagai',
+            description: 'Nome da instância.',
+          },
+        ],
         bodyParams: [
-          { name: 'file', type: 'binary', required: true, description: 'Arquivo de até 16 MB. Tipos aceitos: JPEG, PNG, WebP, GIF, MP4, OGG, MPEG e AAC.' },
+          {
+            name: 'file',
+            type: 'binary',
+            required: true,
+            description:
+              'Arquivo de até 16 MB. Tipos aceitos: JPEG, PNG, WebP, GIF, MP4, OGG, MPEG e AAC.',
+          },
         ],
         responseExample: `{
   "url": "http://localhost:3000/uploads/meu-papagai/7d9f-file.jpg?token=..."
 }`,
         errorCodes: [
-          { status: 400, description: 'Arquivo ausente ou tipo não permitido.' },
+          {
+            status: 400,
+            description: 'Arquivo ausente ou tipo não permitido.',
+          },
           { status: 401, description: 'Não autorizado.' },
           { status: 404, description: 'Instância não encontrada.' },
           { status: 413, description: 'Arquivo maior que 16 MB.' },
@@ -879,25 +1208,111 @@ curl -sS -X POST "$BASE/api/instances/meu-papagai/messages" \\
         curlExample: `curl -sS -X POST "$BASE/api/instances/meu-papagai/upload" \\
   -H "Authorization: Bearer $TOKEN" \\
   -F "file=@./photo.jpg"`,
-        tryItDisabledReason: 'Upload multipart/form-data não é executado pelo Try It. Use o curl manual acima.',
+        tryItDisabledReason:
+          'Upload multipart/form-data não é executado pelo Try It. Use o curl manual acima.',
+      },
+    ],
+  },
+  {
+    id: 'wba-webhook',
+    title: 'WBA Webhook',
+    description:
+      'Endpoints públicos para verificação e ingestão de webhooks da Meta Cloud API.',
+    endpoints: [
+      {
+        id: 'wba-webhook-verify',
+        method: 'GET',
+        path: '/api/wba/webhook',
+        title: 'Verificar webhook Meta',
+        description:
+          'Usado pela Meta para challenge verification (hub.mode, hub.verify_token, hub.challenge).',
+        auth: 'none',
+        queryParams: [
+          {
+            name: 'hub.mode',
+            type: 'string',
+            required: true,
+            description: 'Deve ser subscribe.',
+          },
+          {
+            name: 'hub.verify_token',
+            type: 'string',
+            required: true,
+            description: 'Token de verificação configurado no provider wba.',
+          },
+          {
+            name: 'hub.challenge',
+            type: 'string',
+            required: true,
+            description: 'Valor que deve ser retornado em caso de sucesso.',
+          },
+        ],
+        responseExample: `"hub.challenge"`,
+        errorCodes: [{ status: 403, description: 'Token inválido.' }],
+        curlExample: `curl -sS "$BASE/api/wba/webhook?hub.mode=subscribe&hub.verify_token=TOKEN&hub.challenge=12345"`,
+      },
+      {
+        id: 'wba-webhook-ingest',
+        method: 'POST',
+        path: '/api/wba/webhook',
+        title: 'Receber webhook Meta',
+        description:
+          'Ingere mensagens e status de entrega/leitura da Meta. Valida assinatura x-hub-signature-256 quando app secret está configurado.',
+        auth: 'none',
+        bodyParams: [
+          {
+            name: 'entry',
+            type: 'object[]',
+            required: true,
+            description:
+              'Estrutura padrão de webhook da Meta com changes.field=messages.',
+          },
+        ],
+        responseExample: `{
+  "accepted": true,
+  "processed": 2,
+  "ignored": 0
+}`,
+        errorCodes: [
+          {
+            status: 403,
+            description: 'Assinatura inválida ou ausente quando obrigatória.',
+          },
+        ],
+        curlExample: `curl -sS -X POST "$BASE/api/wba/webhook" \\
+  -H "Content-Type: application/json" \\
+  -H "x-hub-signature-256: sha256=..." \\
+  -d '{"object":"whatsapp_business_account","entry":[]}'`,
+        tryBody:
+          '{\n  "object": "whatsapp_business_account",\n  "entry": []\n}',
       },
     ],
   },
   {
     id: 'contacts',
     title: 'Contatos e conversas',
-    description: 'Leia contatos e metadados de conversas de uma instância conectada.',
+    description:
+      'Leia contatos e metadados de conversas de uma instância conectada.',
     endpoints: [
       {
         id: 'contact-info',
         method: 'GET',
         path: '/api/instances/:name/contact/:number',
         title: 'Dados do contato',
-        description: 'Busca metadados de contato para um número na instância indicada.',
+        description:
+          'Busca metadados de contato para um número na instância indicada.',
         auth: 'bearer_or_apiKey',
         pathParams: [
-          { name: 'name', placeholder: 'meu-papagai', description: 'Nome da instância.' },
-          { name: 'number', placeholder: '5511999999999', description: 'Número de telefone ou fragmento JID.' },
+          {
+            name: 'name',
+            placeholder: 'meu-papagai',
+            description: 'Nome da instância.',
+          },
+          {
+            name: 'number',
+            placeholder: '5511999999999',
+            description: 'Número de telefone ou fragmento JID.',
+          },
         ],
         responseExample: `{
   "phoneNumber": "5511999999999",
@@ -913,18 +1328,32 @@ curl -sS -X POST "$BASE/api/instances/meu-papagai/messages" \\
         path: '/api/instances/:name/chats',
         tryQuery: 'include_messages=false',
         title: 'Listar conversas',
-        description: 'Retorna as conversas da instância. Use include_messages=true para incluir mensagens recentes.',
+        description:
+          'Retorna as conversas da instância. Use include_messages=true para incluir mensagens recentes.',
         auth: 'bearer_or_apiKey',
-        pathParams: [{ name: 'name', placeholder: 'meu-papagai', description: 'Nome da instância.' }],
+        pathParams: [
+          {
+            name: 'name',
+            placeholder: 'meu-papagai',
+            description: 'Nome da instância.',
+          },
+        ],
         queryParams: [
-          { name: 'include_messages', type: 'string', required: false, description: 'Use o valor "true" para incluir mensagens.' },
+          {
+            name: 'include_messages',
+            type: 'string',
+            required: false,
+            description: 'Use o valor "true" para incluir mensagens.',
+          },
         ],
         responseExample: `{
   "instance": "meu-papagai",
   "total": 3,
   "chats": []
 }`,
-        errorCodes: [{ status: 400, description: 'Falha ao carregar conversas.' }],
+        errorCodes: [
+          { status: 400, description: 'Falha ao carregar conversas.' },
+        ],
         curlExample: `curl -sS "$BASE/api/instances/meu-papagai/chats?include_messages=false" \\
   -H "Authorization: Bearer $TOKEN"`,
       },
@@ -934,14 +1363,28 @@ curl -sS -X POST "$BASE/api/instances/meu-papagai/messages" \\
         path: '/api/instances/:name/chats/:chatId/messages',
         tryQuery: 'limit=100',
         title: 'Listar mensagens da conversa',
-        description: 'Retorna o histórico recente de uma conversa. chatId aceita número puro ou JID completo; limit é limitado entre 1 e 500.',
+        description:
+          'Retorna o histórico recente de uma conversa. chatId aceita número puro ou JID completo; limit é limitado entre 1 e 500.',
         auth: 'bearer_or_apiKey',
         pathParams: [
-          { name: 'name', placeholder: 'meu-papagai', description: 'Nome da instância.' },
-          { name: 'chatId', placeholder: '5511999999999', description: 'Número puro ou JID completo da conversa.' },
+          {
+            name: 'name',
+            placeholder: 'meu-papagai',
+            description: 'Nome da instância.',
+          },
+          {
+            name: 'chatId',
+            placeholder: '5511999999999',
+            description: 'Número puro ou JID completo da conversa.',
+          },
         ],
         queryParams: [
-          { name: 'limit', type: 'number', required: false, description: 'Quantidade de mensagens (1-500, padrão 100).' },
+          {
+            name: 'limit',
+            type: 'number',
+            required: false,
+            description: 'Quantidade de mensagens (1-500, padrão 100).',
+          },
         ],
         responseExample: `{
   "instance": "meu-papagai",
@@ -958,7 +1401,10 @@ curl -sS -X POST "$BASE/api/instances/meu-papagai/messages" \\
   ]
 }`,
         errorCodes: [
-          { status: 400, description: 'chatId inválido ou falha ao carregar mensagens.' },
+          {
+            status: 400,
+            description: 'chatId inválido ou falha ao carregar mensagens.',
+          },
           { status: 401, description: 'Não autorizado.' },
           { status: 404, description: 'Instância não encontrada.' },
         ],
@@ -973,8 +1419,16 @@ curl -sS -X POST "$BASE/api/instances/meu-papagai/messages" \\
         description: 'Zera o contador de não lidas para a conversa informada.',
         auth: 'bearer_or_apiKey',
         pathParams: [
-          { name: 'name', placeholder: 'meu-papagai', description: 'Nome da instância.' },
-          { name: 'chatId', placeholder: '5511999999999', description: 'Número puro ou JID completo da conversa.' },
+          {
+            name: 'name',
+            placeholder: 'meu-papagai',
+            description: 'Nome da instância.',
+          },
+          {
+            name: 'chatId',
+            placeholder: '5511999999999',
+            description: 'Número puro ou JID completo da conversa.',
+          },
         ],
         responseExample: `{
   "ok": true
@@ -994,7 +1448,13 @@ curl -sS -X POST "$BASE/api/instances/meu-papagai/messages" \\
         description:
           'Abre um stream SSE com eventos chat_updated, chat_read, history_synced e heartbeat a cada 25 segundos. Mantenha a conexão aberta e reconecte em falhas de rede.',
         auth: 'bearer_or_apiKey',
-        pathParams: [{ name: 'name', placeholder: 'meu-papagai', description: 'Nome da instância.' }],
+        pathParams: [
+          {
+            name: 'name',
+            placeholder: 'meu-papagai',
+            description: 'Nome da instância.',
+          },
+        ],
         responseExample: `event: chat_updated
 data: {
   "type": "chat_updated",
@@ -1014,7 +1474,8 @@ data: { "type": "heartbeat", "timestamp": 1710000025000 }`,
         curlExample: `curl -N "$BASE/api/instances/meu-papagai/events" \\
   -H "Authorization: Bearer $TOKEN" \\
   -H "Accept: text/event-stream"`,
-        tryItDisabledReason: 'Streams SSE ficam abertos continuamente. Use curl -N ou EventSource/fetch-event-source no cliente.',
+        tryItDisabledReason:
+          'Streams SSE ficam abertos continuamente. Use curl -N ou EventSource/fetch-event-source no cliente.',
       },
     ],
   },
@@ -1031,12 +1492,39 @@ data: { "type": "heartbeat", "timestamp": 1710000025000 }`,
         description:
           'Atualização parcial de URL, cabeçalhos, flag de habilitação e eventos permitidos. Os nomes dos eventos devem estar na lista de permitidos.',
         auth: 'bearer_or_apiKey',
-        pathParams: [{ name: 'name', placeholder: 'meu-papagai', description: 'Nome da instância.' }],
+        pathParams: [
+          {
+            name: 'name',
+            placeholder: 'meu-papagai',
+            description: 'Nome da instância.',
+          },
+        ],
         bodyParams: [
-          { name: 'webhookUrl', type: 'string', required: false, description: 'Nova URL do webhook.' },
-          { name: 'webhookHeaders', type: 'object', required: false, description: 'Substitui o mapa de cabeçalhos.' },
-          { name: 'enabled', type: 'boolean', required: false, description: 'Liga/desliga a entrega de webhooks.' },
-          { name: 'events', type: 'string[]', required: false, description: 'Permitidos: message, message_update, qr, connected, disconnected.' },
+          {
+            name: 'webhookUrl',
+            type: 'string',
+            required: false,
+            description: 'Nova URL do webhook.',
+          },
+          {
+            name: 'webhookHeaders',
+            type: 'object',
+            required: false,
+            description: 'Substitui o mapa de cabeçalhos.',
+          },
+          {
+            name: 'enabled',
+            type: 'boolean',
+            required: false,
+            description: 'Liga/desliga a entrega de webhooks.',
+          },
+          {
+            name: 'events',
+            type: 'string[]',
+            required: false,
+            description:
+              'Permitidos: message, message_update, qr, connected, disconnected.',
+          },
         ],
         responseExample: `{
   "instance": "meu-papagai",
@@ -1048,14 +1536,19 @@ data: { "type": "heartbeat", "timestamp": 1710000025000 }`,
   }
 }`,
         errorCodes: [
-          { status: 400, description: 'Nomes de eventos inválidos ou requisição mal formada.' },
+          {
+            status: 400,
+            description:
+              'Nomes de eventos inválidos ou requisição mal formada.',
+          },
           { status: 404, description: 'Instância não encontrada.' },
         ],
         curlExample: `curl -sS -X PATCH "$BASE/api/instances/meu-papagai/webhook" \\
   -H "Authorization: Bearer $TOKEN" \\
   -H "Content-Type: application/json" \\
   -d '{"enabled":true,"events":["message","connected"]}'`,
-        tryBody: '{\n  "enabled": true,\n  "events": ["message", "connected", "disconnected"]\n}',
+        tryBody:
+          '{\n  "enabled": true,\n  "events": ["message", "connected", "disconnected"]\n}',
       },
       {
         id: 'webhook-test-receiver',

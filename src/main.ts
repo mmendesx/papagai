@@ -77,7 +77,9 @@ async function bootstrap() {
   assertProductionJwtSecret();
   assertProductionAppKey();
   assertProductionBaseUrl();
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    rawBody: true,
+  });
   const configService = app.get(ConfigService);
   const corsOrigin = configService.get<string>(
     'corsOrigin',
