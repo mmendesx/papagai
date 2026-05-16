@@ -1,7 +1,10 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Observable, EMPTY } from 'rxjs';
 import { PrismaService } from '../../src/prisma/prisma.service';
-import { ChatRealtimeEvent } from '../../src/whatsapp/chat-store.service';
+import {
+  ChatRealtimeEvent,
+  StoredMessage,
+} from '../../src/whatsapp/chat-store.service';
 
 interface FakeInstance {
   name: string;
@@ -21,6 +24,7 @@ interface FakeInstance {
 @Injectable()
 export class FakeWhatsappService implements OnModuleInit, OnModuleDestroy {
   private instances = new Map<string, FakeInstance>();
+  private messagesByInstance = new Map<string, StoredMessage[]>();
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -52,6 +56,7 @@ export class FakeWhatsappService implements OnModuleInit, OnModuleDestroy {
       socket: { user: undefined },
     };
     this.instances.set(key, inst);
+    this.messagesByInstance.set(key, []);
     await this.prisma.instanceConfig.upsert({
       where: { userId_name: { userId, name } },
       create: {
@@ -115,6 +120,7 @@ export class FakeWhatsappService implements OnModuleInit, OnModuleDestroy {
     const key = `${userId}:${name}`;
     if (!this.instances.has(key)) return false;
     this.instances.delete(key);
+    this.messagesByInstance.delete(key);
     await this.prisma.instanceConfig.deleteMany({ where: { userId, name } });
     return true;
   }
@@ -206,4 +212,25 @@ export class FakeWhatsappService implements OnModuleInit, OnModuleDestroy {
   }
 
   async reconnectInstance(): Promise<void> {}
+
+  findMessageById(
+    userId: string,
+    instanceName: string,
+    messageId: string,
+  ): StoredMessage | null {
+    const messages =
+      this.messagesByInstance.get(`${userId}:${instanceName}`) ?? [];
+    return messages.find((message) => message.id === messageId) ?? null;
+  }
+
+  seedStoredMessage(
+    userId: string,
+    instanceName: string,
+    message: StoredMessage,
+  ): void {
+    const key = `${userId}:${instanceName}`;
+    const messages = this.messagesByInstance.get(key) ?? [];
+    messages.push(message);
+    this.messagesByInstance.set(key, messages);
+  }
 }

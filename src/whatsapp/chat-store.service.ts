@@ -39,6 +39,13 @@ export interface StoredMessage {
   timestamp: number;
   status?: 'pending' | 'sent' | 'delivered' | 'read' | 'failed';
   interactiveButtons?: string[];
+  mediaPath?: string;
+  mediaUrl?: string;
+  mimetype?: string;
+  filename?: string;
+  size?: number;
+  caption?: string | null;
+  duration?: number;
 }
 
 export interface ChatRealtimeEvent {
@@ -576,6 +583,77 @@ export class ChatStoreService {
     return all.slice(-limit);
   }
 
+  findMessageById(
+    userId: string,
+    instanceName: string,
+    messageId: string,
+  ): StoredMessage | null {
+    const store = this.stores.get(instanceKey(userId, instanceName));
+    if (!store || !messageId) return null;
+
+    for (const messages of store.messages.values()) {
+      const message = messages.find((candidate) => candidate.id === messageId);
+      if (message) {
+        return message;
+      }
+    }
+    return null;
+  }
+
+  attachMediaToMessage(
+    userId: string,
+    instanceName: string,
+    messageId: string,
+    media: {
+      path: string;
+      url: string;
+      filename: string;
+      mimetype: string;
+      size: number;
+      caption?: string | null;
+      duration?: number;
+    },
+  ): void {
+    const store = this.stores.get(instanceKey(userId, instanceName));
+    if (!store || !messageId) return;
+
+    for (const [chatId, messages] of store.messages.entries()) {
+      const index = messages.findIndex((message) => message.id === messageId);
+      if (index < 0) continue;
+
+      const updatedMessage: StoredMessage = {
+        ...messages[index],
+        mediaPath: media.path,
+        mediaUrl: media.url,
+        mimetype: media.mimetype,
+        filename: media.filename,
+        size: media.size,
+        caption: media.caption ?? null,
+        duration: media.duration,
+      };
+      messages[index] = updatedMessage;
+
+      this.emitEvent(userId, instanceName, {
+        type: 'chat_updated',
+        chatId,
+        timestamp: Date.now(),
+        source: 'status',
+        chat: store.chats.get(chatId),
+        message: { ...updatedMessage },
+      });
+
+      void this.persistUpdatedMessageAsync(
+        userId,
+        instanceName,
+        chatId,
+        messages,
+        index,
+        updatedMessage,
+      );
+      return;
+    }
+  }
+
   getCounters(
     userId: string,
     instanceName: string,
@@ -851,6 +929,23 @@ export class ChatStoreService {
       String(counters.sent),
       'received',
       String(counters.received),
+    );
+  }
+
+  private async persistUpdatedMessageAsync(
+    userId: string,
+    instanceName: string,
+    chatId: string,
+    messages: StoredMessage[],
+    messageIndex: number,
+    msg: StoredMessage,
+  ): Promise<void> {
+    const redisIndex = messages.length - 1 - messageIndex;
+    if (redisIndex < 0) return;
+    await this.redis.lset(
+      redisMessagesKey(userId, instanceName, chatId),
+      redisIndex,
+      JSON.stringify(msg),
     );
   }
 

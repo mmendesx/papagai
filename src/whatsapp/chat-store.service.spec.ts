@@ -9,6 +9,7 @@ function makeMockRedis(overrides: Partial<Record<string, jest.Mock>> = {}) {
     lrange: jest.fn().mockResolvedValue([]),
     lpush: jest.fn().mockResolvedValue(1),
     ltrim: jest.fn().mockResolvedValue('OK'),
+    lset: jest.fn().mockResolvedValue('OK'),
     ...overrides,
   } as any;
 }
@@ -923,6 +924,80 @@ describe('ChatStoreService', () => {
       expect(messages).toHaveLength(1);
       expect(messages[0].status).toBe('delivered');
       expect(messages[0].type).toBe('template');
+    });
+  });
+
+  describe('media metadata', () => {
+    it('attaches downloaded media metadata to an existing incoming message', async () => {
+      const redis = makeMockRedis();
+      const svc = new ChatStoreService(redis);
+      svc.recordIncoming(USER, INSTANCE, makeMsg({ id: 'MSG-IMAGE-1' }));
+
+      svc.attachMediaToMessage(USER, INSTANCE, 'MSG-IMAGE-1', {
+        path: '/tmp/media/image.jpg',
+        url: '/media/image.jpg',
+        filename: 'image.jpg',
+        mimetype: 'image/jpeg',
+        size: 999,
+        caption: 'caption',
+      });
+
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const stored = svc.findMessageById(USER, INSTANCE, 'MSG-IMAGE-1');
+      expect(stored?.mediaPath).toBe('/tmp/media/image.jpg');
+      expect(stored?.filename).toBe('image.jpg');
+      expect(stored?.mimetype).toBe('image/jpeg');
+      expect(stored?.size).toBe(999);
+      expect(redis.lset).toHaveBeenCalled();
+    });
+
+    it('preserves media metadata during redis hydration', async () => {
+      const storedMsg = {
+        id: 'MSG-IMAGE-2',
+        chatId: '5511999999999@s.whatsapp.net',
+        fromMe: false,
+        sender: 'Alice',
+        type: 'image',
+        body: 'photo',
+        timestamp: 1700000000000,
+        mediaPath: '/tmp/media/photo.jpg',
+        mediaUrl: '/media/photo.jpg',
+        filename: 'photo.jpg',
+        mimetype: 'image/jpeg',
+        size: 1234,
+        caption: 'hello',
+      };
+      const redis = makeMockRedis({
+        hgetall: jest.fn().mockImplementation((key: string) => {
+          if (key.endsWith(':chats')) {
+            return Promise.resolve({
+              '5511999999999@s.whatsapp.net': JSON.stringify({
+                id: '5511999999999@s.whatsapp.net',
+                jid: '5511999999999@s.whatsapp.net',
+                phoneNumber: '5511999999999',
+                displayName: 'Alice',
+                name: 'Alice',
+                profilePictureUrl: null,
+                isGroup: false,
+                lastMessage: 'photo',
+                lastMessageAt: 1700000000000,
+                unreadCount: 1,
+              }),
+            });
+          }
+          return Promise.resolve({});
+        }),
+        lrange: jest.fn().mockResolvedValue([JSON.stringify(storedMsg)]),
+      });
+      const svc = new ChatStoreService(redis);
+      await svc.hydrate(USER, INSTANCE);
+
+      const hydrated = svc.findMessageById(USER, INSTANCE, 'MSG-IMAGE-2');
+      expect(hydrated?.mediaPath).toBe('/tmp/media/photo.jpg');
+      expect(hydrated?.mediaUrl).toBe('/media/photo.jpg');
+      expect(hydrated?.filename).toBe('photo.jpg');
     });
   });
 });

@@ -23,6 +23,7 @@ import { WebhookService } from '../webhook/webhook.service.js';
 import {
   ChatRealtimeEvent,
   ChatStoreService,
+  StoredMessage,
   extractPreview,
 } from './chat-store.service.js';
 import { phoneNumberToJid } from './utils/jid.js';
@@ -422,6 +423,21 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
     };
 
     await this.webhookEnricher.enrich(webhookData, msg, messageType);
+    const media =
+      webhookData.image ??
+      webhookData.audio ??
+      webhookData.voice ??
+      webhookData.video ??
+      webhookData.document ??
+      webhookData.sticker;
+    if (media && webhookData.messageId) {
+      this.chatStore.attachMediaToMessage(
+        instance.userId,
+        instance.name,
+        webhookData.messageId,
+        media,
+      );
+    }
 
     this.logger.log(
       `Incoming ${messageType} from ${phoneNumber} on instance "${instance.name}"`,
@@ -574,6 +590,18 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
       throw new Error(`Papagai ${instanceName} não encontrado`);
     }
     return this.chatStore.getMessages(userId, instanceName, chatId, limit);
+  }
+
+  findMessageById(
+    userId: string,
+    instanceName: string,
+    messageId: string,
+  ): StoredMessage | null {
+    const key = this.instanceKey(userId, instanceName);
+    if (!this.instances.has(key)) {
+      throw new Error(`Papagai ${instanceName} não encontrado`);
+    }
+    return this.chatStore.findMessageById(userId, instanceName, messageId);
   }
 
   streamChatEvents(

@@ -1412,6 +1412,72 @@ curl -sS -X POST "$BASE/api/instances/meu-papagai/messages" \\
   -H "Authorization: Bearer $TOKEN"`,
       },
       {
+        id: 'chat-get-base64-from-media-message',
+        method: 'GET',
+        path: '/chat/getBase64FromMediaMessage/:name',
+        title: 'Obter mídia em base64 por message ID',
+        description:
+          'Compatível com Evolution API. Suporta instâncias web/Baileys com mídia já armazenada localmente. Não suporta convertToMp4 nem provider wba.',
+        auth: 'bearer_or_apiKey',
+        pathParams: [
+          {
+            name: 'name',
+            placeholder: 'meu-papagai',
+            description: 'Nome da instância.',
+          },
+        ],
+        bodyParams: [
+          {
+            name: 'message.key.id',
+            type: 'string',
+            required: true,
+            description: 'ID da mensagem de mídia armazenada.',
+          },
+          {
+            name: 'convertToMp4',
+            type: 'boolean',
+            required: false,
+            description:
+              'Aceito por compatibilidade; true retorna erro porque conversão não é suportada.',
+          },
+        ],
+        responseExample: `{
+  "mediaType": "imageMessage",
+  "fileName": "1710000000000_image.jpeg",
+  "mimetype": "image/jpeg",
+  "size": { "fileLength": 135348 },
+  "caption": "optional caption",
+  "base64": "/9j/4AAQSkZJRgABAQ..."
+}`,
+        errorCodes: [
+          {
+            status: 400,
+            description:
+              'Message not found / non-media / mídia indisponível / conversão não suportada / provider wba não suportado.',
+          },
+          { status: 401, description: 'Não autorizado.' },
+          { status: 403, description: 'Sem permissão para instância/rota.' },
+          { status: 404, description: 'Instância não encontrada.' },
+          {
+            status: 422,
+            description: 'Falha de validação (message.key.id obrigatório).',
+          },
+        ],
+        curlExample: `# Authorization: Bearer
+curl -sS -X GET "$BASE/chat/getBase64FromMediaMessage/meu-papagai" \\
+  -H "Authorization: Bearer $TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{"message":{"key":{"id":"3EB00C38AC4E1BA524D51E"}},"convertToMp4":false}'
+
+# X-Api-Key
+curl -sS -X GET "$BASE/chat/getBase64FromMediaMessage/meu-papagai" \\
+  -H "X-Api-Key: $API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"message":{"key":{"id":"3EB00C38AC4E1BA524D51E"}}}'`,
+        tryBody:
+          '{\n  "message": {\n    "key": {\n      "id": "3EB00C38AC4E1BA524D51E"\n    }\n  },\n  "convertToMp4": false\n}',
+      },
+      {
         id: 'chat-read',
         method: 'POST',
         path: '/api/instances/:name/chats/:chatId/read',

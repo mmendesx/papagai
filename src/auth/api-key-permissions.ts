@@ -179,6 +179,11 @@ const ROUTE_PERMISSION_RULES: RoutePermissionRule[] = [
     permission: AccountApiKeyPermission.CHATS_READ,
   },
   {
+    method: 'GET',
+    pattern: /^\/chat\/getBase64FromMediaMessage\/[^/]+$/,
+    permission: AccountApiKeyPermission.CHATS_READ,
+  },
+  {
     method: 'POST',
     pattern: /^\/api\/instances\/[^/]+\/chats\/[^/]+\/read$/,
     permission: AccountApiKeyPermission.CHATS_WRITE,

@@ -5,6 +5,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { readFileSync } from 'fs';
+import { isAbsolute, join, resolve, sep } from 'path';
 import { Observable } from 'rxjs';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MediaUrlService } from '../media/media-url.service.js';
@@ -20,6 +22,10 @@ import {
   InstanceProvider,
   getProviderCapabilities,
 } from './provider-capabilities.js';
+import {
+  GetBase64FromMediaMessageDto,
+  GetBase64FromMediaMessageResponseDto,
+} from './dto/get-base64-from-media-message.dto.js';
 
 @Injectable()
 export class InstancesService {
@@ -221,6 +227,74 @@ export class InstancesService {
     return this.whatsappService.streamChatEvents(userId, instanceName);
   }
 
+  async getBase64FromMediaMessage(
+    userId: string,
+    instanceName: string,
+    payload: GetBase64FromMediaMessageDto,
+  ): Promise<GetBase64FromMediaMessageResponseDto> {
+    const provider = await this.getProvider(userId, instanceName);
+    if (provider === 'wba') {
+      throw new BadRequestException(
+        'WBA media base64 retrieval is not supported yet.',
+      );
+    }
+
+    if (payload.convertToMp4) {
+      throw new BadRequestException('Media conversion is not supported.');
+    }
+
+    const messageId = payload.message.key.id;
+    const message = this.whatsappService.findMessageById(
+      userId,
+      instanceName,
+      messageId,
+    );
+    if (!message) {
+      throw new BadRequestException('Message not found');
+    }
+
+    if (
+      !message.mediaPath ||
+      !message.filename ||
+      !message.mimetype ||
+      typeof message.size !== 'number'
+    ) {
+      throw new BadRequestException('Message is not a media message');
+    }
+
+    const mediaDir = resolve(
+      this.configService.get<string>('mediaDir') || './media',
+    );
+    const candidatePath = isAbsolute(message.mediaPath)
+      ? resolve(message.mediaPath)
+      : resolve(join(mediaDir, message.mediaPath));
+    const mediaDirPrefix = mediaDir.endsWith(sep)
+      ? mediaDir
+      : `${mediaDir}${sep}`;
+    if (
+      candidatePath !== mediaDir &&
+      !candidatePath.startsWith(mediaDirPrefix)
+    ) {
+      throw new BadRequestException('Stored media path is invalid');
+    }
+
+    let base64: string;
+    try {
+      base64 = readFileSync(candidatePath).toString('base64');
+    } catch {
+      throw new BadRequestException('Stored media is unavailable');
+    }
+
+    return {
+      mediaType: this.toEvolutionMediaType(message.type),
+      fileName: message.filename,
+      mimetype: message.mimetype,
+      size: { fileLength: message.size },
+      caption: message.caption ?? null,
+      base64,
+    };
+  }
+
   async markChatRead(
     userId: string,
     instanceName: string,
@@ -315,6 +389,17 @@ export class InstancesService {
       return this.wbaService.disconnectInstance(userId, name);
     }
     return this.whatsappService.disconnectInstance(userId, name);
+  }
+
+  private toEvolutionMediaType(type: string): string {
+    const map: Record<string, string> = {
+      image: 'imageMessage',
+      audio: 'audioMessage',
+      video: 'videoMessage',
+      document: 'documentMessage',
+      sticker: 'stickerMessage',
+    };
+    return map[type] ?? 'unknownMessage';
   }
 
   private async validateWebhookUrl(url: string): Promise<void> {

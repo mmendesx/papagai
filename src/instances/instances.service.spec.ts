@@ -1,6 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { join } from 'path';
+import { tmpdir } from 'os';
 import { InstancesService } from './instances.service.js';
 import { WhatsappService } from '../whatsapp/whatsapp.service.js';
 import { MediaUrlService } from '../media/media-url.service.js';
@@ -33,6 +36,7 @@ describe('InstancesService', () => {
     getInstances: jest.Mock;
     disconnectInstance: jest.Mock;
     getQR: jest.Mock;
+    findMessageById: jest.Mock;
   };
   let mockWbaService: {
     createInstance: jest.Mock;
@@ -76,6 +80,7 @@ describe('InstancesService', () => {
       getInstances: jest.fn().mockReturnValue({ instances: [], total: 0 }),
       disconnectInstance: jest.fn().mockResolvedValue(true),
       getQR: jest.fn().mockReturnValue('qr-code'),
+      findMessageById: jest.fn(),
     };
 
     mockWbaService = {
@@ -108,9 +113,7 @@ describe('InstancesService', () => {
       },
     };
 
-    mockConfigService = {
-      get: jest.fn().mockReturnValue(false),
-    };
+    mockConfigService = { get: jest.fn().mockReturnValue(false) };
 
     mockMediaUrlService = {
       isSignedMediaUrl: jest.fn().mockReturnValue(false),
@@ -266,6 +269,70 @@ describe('InstancesService', () => {
       await expect(service.getQR('user-1', 'sales-wba')).rejects.toThrow(
         BadRequestException,
       );
+    });
+  });
+
+  describe('getBase64FromMediaMessage', () => {
+    it('returns base64 payload for stored image message', async () => {
+      const mediaDir = mkdtempSync(join(tmpdir(), 'papagai-media-'));
+      const mediaFilePath = join(mediaDir, 'hello.jpg');
+      writeFileSync(mediaFilePath, Buffer.from('hello-media'));
+
+      mockPrismaService.instanceConfig.findUnique.mockResolvedValue({
+        provider: 'web',
+      });
+      mockConfigService.get.mockImplementation((key: string) =>
+        key === 'mediaDir' ? mediaDir : false,
+      );
+      mockWhatsappService.findMessageById.mockReturnValue({
+        id: 'MSG-IMAGE-1',
+        type: 'image',
+        mediaPath: mediaFilePath,
+        filename: 'hello.jpg',
+        mimetype: 'image/jpeg',
+        size: 11,
+        caption: 'hello',
+      });
+
+      const result = await service.getBase64FromMediaMessage(
+        'user-1',
+        'alpha',
+        {
+          message: { key: { id: 'MSG-IMAGE-1' } },
+          convertToMp4: false,
+        },
+      );
+
+      expect(result.mediaType).toBe('imageMessage');
+      expect(result.fileName).toBe('hello.jpg');
+      expect(result.base64).toBe(Buffer.from('hello-media').toString('base64'));
+
+      rmSync(mediaDir, { recursive: true, force: true });
+    });
+
+    it('rejects convertToMp4 true', async () => {
+      mockPrismaService.instanceConfig.findUnique.mockResolvedValue({
+        provider: 'web',
+      });
+
+      await expect(
+        service.getBase64FromMediaMessage('user-1', 'alpha', {
+          message: { key: { id: 'MSG-VIDEO-1' } },
+          convertToMp4: true,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects unsupported wba provider', async () => {
+      mockPrismaService.instanceConfig.findUnique.mockResolvedValue({
+        provider: 'wba',
+      });
+
+      await expect(
+        service.getBase64FromMediaMessage('user-1', 'sales-wba', {
+          message: { key: { id: 'MSG-1' } },
+        }),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });
