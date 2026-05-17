@@ -175,6 +175,7 @@ export class AuthController {
       id: k.id,
       name: k.name,
       prefix: k.prefix,
+      instanceId: k.instanceId ?? null,
       expiresAt: k.expiresAt ?? undefined,
       enabled: k.enabled,
       createdAt: k.createdAt,

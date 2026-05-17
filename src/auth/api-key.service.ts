@@ -70,12 +70,13 @@ export class ApiKeyService {
 
   listAccountKeys(userId: string) {
     return this.prisma.apiKey.findMany({
-      where: { userId, instanceId: null },
+      where: { userId },
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
         name: true,
         prefix: true,
+        instanceId: true,
         enabled: true,
         expiresAt: true,
         lastUsedAt: true,

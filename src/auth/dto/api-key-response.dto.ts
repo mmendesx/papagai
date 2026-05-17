@@ -24,6 +24,14 @@ export class ApiKeyResponseDto {
   })
   key?: string;
 
+  @ApiPropertyOptional({
+    example: 42,
+    description:
+      'Instance ID this key is scoped to. Null for account-scoped keys.',
+    nullable: true,
+  })
+  instanceId?: number | null;
+
   @ApiPropertyOptional({ example: '2027-01-01T00:00:00.000Z' })
   expiresAt?: Date;
 
