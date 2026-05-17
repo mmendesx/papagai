@@ -14,6 +14,7 @@ export interface ApiKeyRecord {
   lastUsedAt?: string;
   permissions?: string[];
   permissionsTemplate?: string;
+  instanceId: number | null;
 }
 
 export interface CreateApiKeyPayload {
