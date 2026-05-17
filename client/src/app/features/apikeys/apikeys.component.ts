@@ -199,7 +199,7 @@ import { CreateApiKeyDialogComponent } from './create-api-key-dialog.component';
                     </div>
                   </td>
                   <td>
-                    <span class="badge badge--scope"> Conta </span>
+                    <span class="badge badge--scope">{{ key.instanceId ? 'Instância' : 'Conta' }}</span>
                   </td>
                   <td>
                     <span
@@ -249,7 +249,7 @@ import { CreateApiKeyDialogComponent } from './create-api-key-dialog.component';
                 >
               </div>
               <p class="key-mobile-meta">
-                <code class="key-prefix">{{ key.prefix }}</code> · Conta
+                <code class="key-prefix">{{ key.prefix }}</code> · {{ key.instanceId ? 'Instância' : 'Conta' }}
               </p>
               <p class="key-mobile-meta">
                 Permissões: {{ permissionSummary(key) }}
