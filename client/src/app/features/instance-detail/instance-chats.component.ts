@@ -73,6 +73,10 @@ interface MessageItem {
   type?: string;
   mediaUrl?: string;
   caption?: string;
+  filename?: string;
+  mimetype?: string;
+  duration?: number;
+  size?: number;
   interactiveButtons?: string[]; // labels of buttons for interactive messages
 }
 
@@ -118,6 +122,12 @@ interface ChatRealtimeEvent {
     body: string | null;
     timestamp: number;
     type?: string;
+    mediaUrl?: string;
+    caption?: string;
+    filename?: string;
+    mimetype?: string;
+    duration?: number;
+    size?: number;
     interactiveButtons?: string[];
   };
 }
@@ -634,7 +644,11 @@ const ALLOWED_ATTACHMENT_TYPES = [
                                 target="_blank"
                                 rel="noopener"
                                 [attr.aria-label]="
-                                  'Baixar ' + (msg.body || 'documento')
+                                  'Baixar ' +
+                                  (msg.filename ||
+                                    msg.caption ||
+                                    msg.body ||
+                                    'documento')
                                 "
                               >
                                 <!-- Document icon -->
@@ -654,12 +668,21 @@ const ALLOWED_ATTACHMENT_TYPES = [
                                   />
                                 </svg>
                                 <span class="bubble-doc-name">{{
-                                  msg.body || 'Documento'
+                                  msg.filename ||
+                                    msg.caption ||
+                                    msg.body ||
+                                    'Documento'
                                 }}</span>
                               </a>
                             } @else {
                               <p class="bubble-body bubble-media-placeholder">
-                                📄 {{ msg.body || 'Documento' }}
+                                📄
+                                {{
+                                  msg.filename ||
+                                    msg.caption ||
+                                    msg.body ||
+                                    'Documento'
+                                }}
                               </p>
                             }
                           }
@@ -2866,6 +2889,10 @@ export class InstanceChatsComponent {
           type: msg.type ?? existing.type,
           mediaUrl: msg.mediaUrl ?? existing.mediaUrl,
           caption: msg.caption ?? existing.caption,
+          filename: msg.filename ?? existing.filename,
+          mimetype: msg.mimetype ?? existing.mimetype,
+          duration: msg.duration ?? existing.duration,
+          size: msg.size ?? existing.size,
           interactiveButtons:
             msg.interactiveButtons ?? existing.interactiveButtons,
         });
@@ -3708,19 +3735,37 @@ export class InstanceChatsComponent {
         senderName: parsed.message.sender ?? undefined,
         timestamp: this.toEpochSeconds(parsed.message.timestamp),
         type: parsed.message.type ?? undefined,
+        mediaUrl: parsed.message.mediaUrl ?? undefined,
+        caption: parsed.message.caption ?? undefined,
+        filename: parsed.message.filename ?? undefined,
+        mimetype: parsed.message.mimetype ?? undefined,
+        duration: parsed.message.duration ?? undefined,
+        size: parsed.message.size ?? undefined,
         interactiveButtons: parsed.message.interactiveButtons ?? undefined,
       };
 
       this.localMessages.update((messages: MessageItem[]) => {
-        if (messages.some((m: MessageItem) => m.id === message.id)) {
-          return messages;
-        }
-        if (
-          this.messagesRes
-            .value()
-            .messages.some((m: MessageItem) => m.id === message.id)
-        ) {
-          return messages;
+        const existingIdx = messages.findIndex(
+          (m: MessageItem) => m.id === message.id,
+        );
+        if (existingIdx >= 0) {
+          const existing = messages[existingIdx];
+          const next = [...messages];
+          next[existingIdx] = {
+            ...existing,
+            ...message,
+            body: message.body || existing.body,
+            type: message.type ?? existing.type,
+            mediaUrl: message.mediaUrl ?? existing.mediaUrl,
+            caption: message.caption ?? existing.caption,
+            filename: message.filename ?? existing.filename,
+            mimetype: message.mimetype ?? existing.mimetype,
+            duration: message.duration ?? existing.duration,
+            size: message.size ?? existing.size,
+            interactiveButtons:
+              message.interactiveButtons ?? existing.interactiveButtons,
+          };
+          return next.sort((a, b) => a.timestamp - b.timestamp);
         }
         return [...messages, message].sort((a, b) => a.timestamp - b.timestamp);
       });
