@@ -24,6 +24,14 @@ jest.mock('./utils/jid-resolver', () => ({
     ),
 }));
 
+jest.mock('./utils/media-downloader', () => {
+  const actual = jest.requireActual('./utils/media-downloader');
+  return {
+    ...actual,
+    downloadMedia: jest.fn(),
+  };
+});
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { Boom } from '@hapi/boom';
@@ -33,6 +41,7 @@ import { ChatStoreService } from './chat-store.service';
 import { Instance } from './interfaces/whatsapp.interface';
 import { PrismaService } from '../prisma/prisma.service';
 import { MediaUrlService } from '../media/media-url.service';
+import { downloadMedia } from './utils/media-downloader';
 
 const { DisconnectReason } = jest.requireMock('@whiskeysockets/baileys');
 
@@ -115,6 +124,8 @@ describe('WhatsappService', () => {
       hydrate: jest.fn().mockResolvedValue(undefined),
       recordIncoming: jest.fn(),
       recordOutgoing: jest.fn(),
+      recordHistorySync: jest.fn(),
+      attachMediaToMessage: jest.fn(),
       getChats: jest.fn().mockReturnValue([]),
       getMessages: jest.fn().mockReturnValue([]),
       getCounters: jest
@@ -162,6 +173,138 @@ describe('WhatsappService', () => {
     }).compile();
 
     service = module.get<WhatsappService>(WhatsappService);
+  });
+
+  describe('ICT-3 — history sync media enrichment', () => {
+    function getChatStoreMock() {
+      return (service as any).chatStore;
+    }
+
+    function getHistorySyncHandler(): (payload: any) => void {
+      const historyEntry = mockSocket.ev.on.mock.calls.find(
+        ([eventName]: [string]) => eventName === 'messaging-history.set',
+      );
+      return historyEntry?.[1] as (payload: any) => void;
+    }
+
+    it('attaches renderable media metadata for downloadable historical image messages', async () => {
+      const mockedDownloadMedia = downloadMedia as jest.MockedFunction<
+        typeof downloadMedia
+      >;
+      mockedDownloadMedia.mockResolvedValue({
+        path: '/tmp/media/history-image.jpg',
+        url: '/media/history-image.jpg',
+        filename: 'history-image.jpg',
+        mimetype: 'image/jpeg',
+        size: 2048,
+        caption: 'history image',
+      });
+
+      await service.createInstance(TEST_USER_ID, 'history-sync');
+      const historyHandler = getHistorySyncHandler();
+
+      historyHandler({
+        chats: [{ id: '5511999999999@s.whatsapp.net' }],
+        messages: [
+          {
+            key: {
+              id: 'hist-img-1',
+              remoteJid: '5511999999999@s.whatsapp.net',
+              fromMe: false,
+            },
+            messageTimestamp: 1700000000,
+            message: { imageMessage: { mimetype: 'image/jpeg' } },
+          },
+        ],
+        isLatest: false,
+      });
+
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const chatStore = getChatStoreMock();
+      expect(chatStore.recordHistorySync).toHaveBeenCalledWith(
+        TEST_USER_ID,
+        'history-sync',
+        [{ id: '5511999999999@s.whatsapp.net' }],
+        expect.any(Array),
+      );
+      expect(chatStore.attachMediaToMessage).toHaveBeenCalledWith(
+        TEST_USER_ID,
+        'history-sync',
+        'hist-img-1',
+        expect.objectContaining({
+          filename: 'history-image.jpg',
+          mimetype: 'image/jpeg',
+          url: '/media/history-image.jpg',
+        }),
+      );
+    });
+
+    it('keeps safe fallback when historical media cannot be downloaded', async () => {
+      const mockedDownloadMedia = downloadMedia as jest.MockedFunction<
+        typeof downloadMedia
+      >;
+      mockedDownloadMedia.mockResolvedValue(null);
+
+      await service.createInstance(TEST_USER_ID, 'history-fallback');
+      const historyHandler = getHistorySyncHandler();
+      historyHandler({
+        chats: [{ id: '5511999999999@s.whatsapp.net' }],
+        messages: [
+          {
+            key: {
+              id: 'hist-doc-1',
+              remoteJid: '5511999999999@s.whatsapp.net',
+              fromMe: false,
+            },
+            messageTimestamp: 1700000000,
+            message: { documentMessage: { fileName: 'invoice.pdf' } },
+          },
+        ],
+        isLatest: false,
+      });
+
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const chatStore = getChatStoreMock();
+      expect(chatStore.recordHistorySync).toHaveBeenCalled();
+      expect(chatStore.attachMediaToMessage).not.toHaveBeenCalled();
+    });
+
+    it('does not change non-media history messages', async () => {
+      const mockedDownloadMedia = downloadMedia as jest.MockedFunction<
+        typeof downloadMedia
+      >;
+      mockedDownloadMedia.mockResolvedValue(null);
+
+      await service.createInstance(TEST_USER_ID, 'history-text');
+      const historyHandler = getHistorySyncHandler();
+      historyHandler({
+        chats: [{ id: '5511999999999@s.whatsapp.net' }],
+        messages: [
+          {
+            key: {
+              id: 'hist-text-1',
+              remoteJid: '5511999999999@s.whatsapp.net',
+              fromMe: false,
+            },
+            messageTimestamp: 1700000000,
+            message: { conversation: 'hello history' },
+          },
+        ],
+        isLatest: false,
+      });
+
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const chatStore = getChatStoreMock();
+      expect(chatStore.recordHistorySync).toHaveBeenCalled();
+      expect(mockedDownloadMedia).not.toHaveBeenCalled();
+      expect(chatStore.attachMediaToMessage).not.toHaveBeenCalled();
+    });
   });
 
   describe('Scenario 2 — createInstance throws on duplicate name', () => {

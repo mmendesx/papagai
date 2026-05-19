@@ -12,6 +12,25 @@ export const MEDIA_EXTENSION_FALLBACK: Record<string, string> = {
   sticker: 'webp',
 };
 
+function unwrapMediaContainer(message: any): any {
+  if (!message) return message;
+  if (message.ephemeralMessage?.message) {
+    return unwrapMediaContainer(message.ephemeralMessage.message);
+  }
+  if (message.viewOnceMessage?.message) {
+    return unwrapMediaContainer(message.viewOnceMessage.message);
+  }
+  if (message.viewOnceMessageV2?.message?.viewOnceMessage?.message) {
+    return unwrapMediaContainer(
+      message.viewOnceMessageV2.message.viewOnceMessage.message,
+    );
+  }
+  if (message.documentWithCaptionMessage?.message) {
+    return unwrapMediaContainer(message.documentWithCaptionMessage.message);
+  }
+  return message;
+}
+
 export async function downloadMedia(
   msg: any,
   mediaType: string,
@@ -21,7 +40,8 @@ export async function downloadMedia(
 ): Promise<MediaFile | null> {
   try {
     const messageKey = `${mediaType}Message`;
-    const mediaMessage: any = msg.message?.[messageKey] ?? null;
+    const normalizedMessage = unwrapMediaContainer(msg.message);
+    const mediaMessage: any = normalizedMessage?.[messageKey] ?? null;
     if (!mediaMessage) return null;
 
     const stream = await downloadContentFromMessage(

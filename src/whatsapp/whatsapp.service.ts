@@ -314,6 +314,7 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
           chats,
           messages,
         );
+        void this.enrichHistorySyncMedia(instance, messages);
       },
     );
 
@@ -443,6 +444,49 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
       `Incoming ${messageType} from ${phoneNumber} on instance "${instance.name}"`,
     );
     await this.webhookService.sendWebhook(instance, webhookData);
+  }
+
+  private async enrichHistorySyncMedia(
+    instance: Instance,
+    messages: any[],
+  ): Promise<void> {
+    for (const message of messages) {
+      const messageType = this.webhookEnricher.getMessageType(message);
+      const mediaType =
+        messageType === 'voice'
+          ? 'audio'
+          : this.toDownloadableMediaType(messageType);
+      if (!mediaType) continue;
+
+      const media = await downloadMedia(
+        message,
+        mediaType,
+        this.mediaDir,
+        this.logger,
+        (path) => this.mediaUrlService.signPath(path),
+      );
+      if (!media || !message?.key?.id) continue;
+
+      this.chatStore.attachMediaToMessage(
+        instance.userId,
+        instance.name,
+        message.key.id,
+        media,
+      );
+    }
+  }
+
+  private toDownloadableMediaType(messageType: string): string | null {
+    switch (messageType) {
+      case 'image':
+      case 'audio':
+      case 'video':
+      case 'document':
+      case 'sticker':
+        return messageType;
+      default:
+        return null;
+    }
   }
 
   private getConnectedInstance(userId: string, instanceName: string): Instance {

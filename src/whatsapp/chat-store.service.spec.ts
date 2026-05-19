@@ -3,6 +3,13 @@ import { ChatStoreService, extractPreview } from './chat-store.service';
 // ── Redis mock ─────────────────────────────────────────────────────────────
 
 function makeMockRedis(overrides: Partial<Record<string, jest.Mock>> = {}) {
+  const pipeline = {
+    hset: jest.fn().mockReturnThis(),
+    del: jest.fn().mockReturnThis(),
+    lpush: jest.fn().mockReturnThis(),
+    ltrim: jest.fn().mockReturnThis(),
+    exec: jest.fn().mockResolvedValue([]),
+  };
   return {
     hgetall: jest.fn().mockResolvedValue({}),
     hset: jest.fn().mockResolvedValue(1),
@@ -10,6 +17,7 @@ function makeMockRedis(overrides: Partial<Record<string, jest.Mock>> = {}) {
     lpush: jest.fn().mockResolvedValue(1),
     ltrim: jest.fn().mockResolvedValue('OK'),
     lset: jest.fn().mockResolvedValue('OK'),
+    pipeline: jest.fn().mockReturnValue(pipeline),
     ...overrides,
   } as any;
 }
@@ -998,6 +1006,38 @@ describe('ChatStoreService', () => {
       expect(hydrated?.mediaPath).toBe('/tmp/media/photo.jpg');
       expect(hydrated?.mediaUrl).toBe('/media/photo.jpg');
       expect(hydrated?.filename).toBe('photo.jpg');
+    });
+
+    it('stores historical media messages with stable fallback shape when no metadata is attached yet', () => {
+      const redis = makeMockRedis();
+      const svc = new ChatStoreService(redis);
+
+      svc.recordHistorySync(
+        USER,
+        INSTANCE,
+        [{ id: '5511999999999@s.whatsapp.net' }],
+        [
+          {
+            key: {
+              id: 'hist-image-fallback',
+              remoteJid: '5511999999999@s.whatsapp.net',
+              fromMe: false,
+            },
+            messageTimestamp: 1700000000,
+            message: { imageMessage: {} },
+          },
+        ],
+      );
+
+      const stored = svc.findMessageById(USER, INSTANCE, 'hist-image-fallback');
+      expect(stored).toEqual(
+        expect.objectContaining({
+          type: 'image',
+          body: null,
+        }),
+      );
+      expect(stored?.mediaUrl).toBeUndefined();
+      expect(stored?.filename).toBeUndefined();
     });
   });
 });
