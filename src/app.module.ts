@@ -12,6 +12,7 @@ import configuration from './config/configuration.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { MediaModule } from './media/media.module.js';
 import { WbaModule } from './wba/wba.module.js';
+import { LlmsModule } from './llms/llms.module.js';
 
 @Module({
   imports: [
@@ -34,11 +35,12 @@ import { WbaModule } from './wba/wba.module.js';
     HealthModule,
     MediaModule,
     WbaModule,
+    LlmsModule,
     InstancesModule,
     WebhookModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'client', 'dist', 'client', 'browser'),
-      exclude: ['/api{/*path}', '/media{/*path}', '/uploads{/*path}'],
+      exclude: ['/api{/*path}', '/media{/*path}', '/uploads{/*path}', '/llms.txt'],
     }),
   ],
 })
