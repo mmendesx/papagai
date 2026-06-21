@@ -237,9 +237,9 @@ const MESSAGE_CONTENT_BUILDERS: Record<MessageType, (payload: any) => any> = {
     location: {
       degreesLatitude: p.location.latitude,
       degreesLongitude: p.location.longitude,
+      name: p.location.name,
+      address: p.location.address,
     },
-    name: p.location.name,
-    address: p.location.address,
   }),
   contacts: (p) => {
     const contactList: any[] = p.contacts ?? [];
@@ -247,7 +247,10 @@ const MESSAGE_CONTENT_BUILDERS: Record<MessageType, (payload: any) => any> = {
     return {
       contacts: {
         displayName: firstContact.name?.formatted_name ?? '',
-        contacts: contactList.map(buildVcard),
+        contacts: contactList.map((c) => ({
+          displayName: c.name?.formatted_name ?? '',
+          vcard: buildVcard(c),
+        })),
       },
     };
   },

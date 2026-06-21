@@ -86,7 +86,7 @@ describe('toMessageContent', () => {
     });
   });
 
-  it('transforms location messages', () => {
+  it('nests name and address inside location so v7 LocationMessage.create receives them', () => {
     expect(
       toMessageContent({
         type: 'location',
@@ -94,16 +94,35 @@ describe('toMessageContent', () => {
           latitude: -23.5505,
           longitude: -46.6333,
           name: 'Sao Paulo',
+          address: 'Av. Paulista, 1000',
         },
       }),
     ).toEqual({
       location: {
         degreesLatitude: -23.5505,
         degreesLongitude: -46.6333,
+        name: 'Sao Paulo',
+        address: 'Av. Paulista, 1000',
       },
-      name: 'Sao Paulo',
-      address: undefined,
     });
+  });
+
+  it('omits name and address when not provided rather than emitting null siblings', () => {
+    const result = toMessageContent({
+      type: 'location',
+      location: { latitude: 0, longitude: 0 },
+    });
+    expect(result).toEqual({
+      location: {
+        degreesLatitude: 0,
+        degreesLongitude: 0,
+        name: undefined,
+        address: undefined,
+      },
+    });
+    // Sibling keys must not leak outside the location object
+    expect(result.name).toBeUndefined();
+    expect(result.address).toBeUndefined();
   });
 
   it('transforms reaction messages', () => {
@@ -120,7 +139,7 @@ describe('toMessageContent', () => {
     });
   });
 
-  it('transforms contacts messages', () => {
+  it('maps contacts to {displayName, vcard} objects so v7 ContactMessage.create receives the right shape', () => {
     expect(
       toMessageContent({
         type: 'contacts',
@@ -135,9 +154,39 @@ describe('toMessageContent', () => {
       contacts: {
         displayName: 'John Doe',
         contacts: [
-          'BEGIN:VCARD\nVERSION:3.0\nFN:John Doe\nTEL;type=CELL;waid=5511999999999:5511999999999\nEND:VCARD',
+          {
+            displayName: 'John Doe',
+            vcard:
+              'BEGIN:VCARD\nVERSION:3.0\nFN:John Doe\nTEL;type=CELL;waid=5511999999999:5511999999999\nEND:VCARD',
+          },
         ],
       },
+    });
+  });
+
+  it('maps multiple contacts to {displayName, vcard} objects for ContactsArrayMessage', () => {
+    const result = toMessageContent({
+      type: 'contacts',
+      contacts: [
+        {
+          name: { formatted_name: 'Alice' },
+          phones: [{ phone: '5511111111111' }],
+        },
+        {
+          name: { formatted_name: 'Bob' },
+          phones: [{ phone: '5522222222222' }],
+        },
+      ],
+    });
+
+    expect(result.contacts.contacts).toHaveLength(2);
+    expect(result.contacts.contacts[0]).toMatchObject({
+      displayName: 'Alice',
+      vcard: expect.stringContaining('FN:Alice'),
+    });
+    expect(result.contacts.contacts[1]).toMatchObject({
+      displayName: 'Bob',
+      vcard: expect.stringContaining('FN:Bob'),
     });
   });
 

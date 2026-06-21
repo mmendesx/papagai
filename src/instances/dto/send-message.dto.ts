@@ -171,6 +171,12 @@ export class LocationDto {
   @IsString()
   @MaxLength(255)
   name?: string;
+
+  @ApiPropertyOptional({ example: 'Av. Paulista, 1000 - São Paulo, SP' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  address?: string;
 }
 
 export class ReactionDto {
