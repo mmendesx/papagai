@@ -213,8 +213,10 @@ describe('toMessageContent', () => {
       });
 
       expect(result.interactiveMessage).toBeDefined();
+      // body keeps the original text plus the numbered-text fallback for
+      // clients that strip native buttons (Web/Business).
       expect(result.interactiveMessage.body).toEqual({
-        text: 'Choose an option',
+        text: 'Choose an option\n\n1. Yes\n2. No',
       });
       expect(result.interactiveMessage.header).toEqual({
         title: '',
@@ -322,8 +324,10 @@ describe('toMessageContent', () => {
       });
 
       expect(result.interactiveMessage).toBeDefined();
+      // body keeps the original text plus a numbered list of rows for clients
+      // that strip the native picker.
       expect(result.interactiveMessage.body).toEqual({
-        text: 'Select a city',
+        text: 'Select a city\n\n*Brazil*\n1. São Paulo — Largest city\n2. Rio de Janeiro',
       });
 
       const buttons = result.interactiveMessage.nativeFlowMessage.buttons;
@@ -475,6 +479,72 @@ describe('toMessageContent', () => {
           interactive: { type: 'unknown_type', body: {}, action: {} },
         }),
       ).toThrow();
+    });
+  });
+
+  describe('interactive: numbered-text fallback for Web/Business', () => {
+    it('appends a CTA url line to the body', () => {
+      const result = toMessageContent({
+        type: 'interactive',
+        interactive: {
+          type: 'cta_url',
+          body: { text: 'Visit our site' },
+          action: {
+            parameters: { display_text: 'Open', url: 'https://example.com' },
+          },
+        },
+      });
+
+      expect(result.interactiveMessage.body.text).toBe(
+        'Visit our site\n\nOpen: https://example.com',
+      );
+    });
+
+    it('appends a copy code line for cta_copy', () => {
+      const result = toMessageContent({
+        type: 'interactive',
+        interactive: {
+          type: 'cta_copy',
+          body: { text: 'Your code' },
+          action: {
+            parameters: { display_text: 'Copy', copy_code: 'ABC123' },
+          },
+        },
+      });
+
+      expect(result.interactiveMessage.body.text).toBe(
+        'Your code\n\nCopy: ABC123',
+      );
+    });
+
+    it('keeps native buttons alongside the fallback text', () => {
+      const result = toMessageContent({
+        type: 'interactive',
+        interactive: {
+          type: 'button',
+          body: { text: 'Pick' },
+          action: { buttons: [{ reply: { id: 'a', title: 'A' } }] },
+        },
+      });
+
+      // native path intact (Personal iOS) AND text fallback present (Web/Business)
+      expect(result.interactiveMessage.nativeFlowMessage.buttons).toHaveLength(
+        1,
+      );
+      expect(result.interactiveMessage.body.text).toBe('Pick\n\n1. A');
+    });
+
+    it('uses fallback as the whole body when body text is empty', () => {
+      const result = toMessageContent({
+        type: 'interactive',
+        interactive: {
+          type: 'button',
+          body: { text: '' },
+          action: { buttons: [{ reply: { id: 'a', title: 'A' } }] },
+        },
+      });
+
+      expect(result.interactiveMessage.body.text).toBe('1. A');
     });
   });
 });

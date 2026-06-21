@@ -10,6 +10,20 @@ function buildVcard(contact: any): string {
 type NativeFlowButton = { name: string; buttonParamsJson: string };
 
 /**
+ * Appends a plain-text rendering of interactive options to the body.
+ *
+ * Native interactive buttons render only on WhatsApp Personal (iOS); Web and
+ * Business strip them (Meta policy gate for non-official senders). Appending
+ * the options as numbered/plain text gives those clients a readable fallback
+ * without regressing Personal, which still shows the native buttons.
+ */
+function appendFallbackText(body: string, lines: string[]): string {
+  if (lines.length === 0) return body;
+  const block = lines.join('\n');
+  return body ? `${body}\n\n${block}` : block;
+}
+
+/**
  * Builds an interactiveMessage envelope (modern proto) with nativeFlowMessage.
  * Shared by button, list, and CTA builders so all interactive types emit the
  * same outer shape.
@@ -56,7 +70,8 @@ function buildButtonMessage(interactive: any): any {
   const footer = interactive.footer;
   const header = interactive.header ?? {};
 
-  const buttons: NativeFlowButton[] = (action.buttons ?? []).map((b: any) => ({
+  const replies: any[] = action.buttons ?? [];
+  const buttons: NativeFlowButton[] = replies.map((b: any) => ({
     name: 'quick_reply',
     buttonParamsJson: JSON.stringify({
       display_text: b.reply?.title ?? '',
@@ -64,10 +79,15 @@ function buildButtonMessage(interactive: any): any {
     }),
   }));
 
-  return buildInteractiveEnvelope(body.text ?? '', buttons, {
-    footer: footer?.text,
-    headerTitle: header.text,
-  });
+  const fallback = replies.map(
+    (b: any, i: number) => `${i + 1}. ${b.reply?.title ?? ''}`,
+  );
+
+  return buildInteractiveEnvelope(
+    appendFallbackText(body.text ?? '', fallback),
+    buttons,
+    { footer: footer?.text, headerTitle: header.text },
+  );
 }
 
 /**
@@ -108,10 +128,22 @@ function buildListMessage(interactive: any): any {
     },
   ];
 
-  return buildInteractiveEnvelope(body.text ?? '', buttons, {
-    footer: footer?.text,
-    headerTitle: header.text,
-  });
+  const fallback: string[] = [];
+  let n = 1;
+  for (const s of sections) {
+    if (s.title) fallback.push(`*${s.title}*`);
+    for (const r of s.rows) {
+      const desc = r.description ? ` — ${r.description}` : '';
+      fallback.push(`${n}. ${r.title}${desc}`);
+      n += 1;
+    }
+  }
+
+  return buildInteractiveEnvelope(
+    appendFallbackText(body.text ?? '', fallback),
+    buttons,
+    { footer: footer?.text, headerTitle: header.text },
+  );
 }
 
 type CtaInteractiveType = 'cta_url' | 'cta_copy' | 'otp';
@@ -158,11 +190,23 @@ function buildCtaInteractiveMessage(interactive: any): any {
     throw new Error(`Unsupported interactive type: ${interactive.type}`);
 
   const button = builder(params);
+  const fallbackLine = ctaFallbackLine(
+    interactive.type as CtaInteractiveType,
+    params,
+  );
 
-  return buildInteractiveEnvelope(body.text ?? '', [button], {
-    footer: footer?.text,
-    headerTitle: header?.text ?? header?.title ?? '',
-  });
+  return buildInteractiveEnvelope(
+    appendFallbackText(body.text ?? '', fallbackLine ? [fallbackLine] : []),
+    [button],
+    { footer: footer?.text, headerTitle: header?.text ?? header?.title ?? '' },
+  );
+}
+
+function ctaFallbackLine(type: CtaInteractiveType, params: any): string | null {
+  const label = params.display_text ?? '';
+  if (type === 'cta_url') return `${label}: ${params.url ?? ''}`;
+  // cta_copy and otp both expose a copyable code
+  return `${label}: ${params.copy_code ?? ''}`;
 }
 
 type MessageType =
