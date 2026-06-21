@@ -913,7 +913,7 @@ describe('WhatsappService', () => {
       jest.clearAllMocks();
     });
 
-    it('extracts labels from content.buttons and passes them as interactiveButtons', async () => {
+    it('extracts display_text from quick_reply nativeFlowMessage buttons and passes them as interactiveButtons', async () => {
       const baileysResult = {
         key: { id: 'btn-send-1' },
         message: { conversation: 'Pick' },
@@ -921,12 +921,32 @@ describe('WhatsappService', () => {
       const instance = buildSendInstance(baileysResult);
       (service as any).instances.set(`${TEST_USER_ID}:sendInstance`, instance);
 
+      // Modern interactiveMessage/nativeFlowMessage shape (quick_reply buttons)
       const content = {
-        text: 'Pick',
-        buttons: [
-          { buttonText: { displayText: 'Yes' } },
-          { buttonText: { displayText: 'No' } },
-        ],
+        interactiveMessage: {
+          body: { text: 'Pick' },
+          nativeFlowMessage: {
+            buttons: [
+              {
+                name: 'quick_reply',
+                buttonParamsJson: JSON.stringify({
+                  display_text: 'Yes',
+                  id: 'yes',
+                }),
+              },
+              {
+                name: 'quick_reply',
+                buttonParamsJson: JSON.stringify({
+                  display_text: 'No',
+                  id: 'no',
+                }),
+              },
+            ],
+            messageParamsJson: '{}',
+            messageVersion: 2,
+          },
+        },
+        messageContextInfo: {},
       };
 
       await service.send(
@@ -943,25 +963,45 @@ describe('WhatsappService', () => {
         TEST_USER_ID,
         'sendInstance',
         '5511888888888',
-        'Pick',
+        null, // textBody from content.text — not present at top level in modern shape
         baileysResult,
         ['Yes', 'No'],
       );
     });
 
-    it('extracts titles from listMessage sections and passes them as interactiveButtons', async () => {
+    it('extracts row titles from single_select nativeFlowMessage button and passes them as interactiveButtons', async () => {
       const baileysResult = { key: { id: 'list-send-1' }, message: {} };
       const instance = buildSendInstance(baileysResult);
       (service as any).instances.set(`${TEST_USER_ID}:sendInstance`, instance);
 
+      // Modern interactiveMessage/nativeFlowMessage shape (single_select list)
       const content = {
-        text: 'Choose',
-        listMessage: {
-          sections: [
-            { rows: [{ title: 'Option A' }, { title: 'Option B' }] },
-            { rows: [{ title: 'Option C' }] },
-          ],
+        interactiveMessage: {
+          body: { text: 'Choose' },
+          nativeFlowMessage: {
+            buttons: [
+              {
+                name: 'single_select',
+                buttonParamsJson: JSON.stringify({
+                  title: 'Pick',
+                  sections: [
+                    {
+                      title: 'Group 1',
+                      rows: [{ title: 'Option A' }, { title: 'Option B' }],
+                    },
+                    {
+                      title: 'Group 2',
+                      rows: [{ title: 'Option C' }],
+                    },
+                  ],
+                }),
+              },
+            ],
+            messageParamsJson: '{}',
+            messageVersion: 2,
+          },
         },
+        messageContextInfo: {},
       };
 
       await service.send(
@@ -978,7 +1018,7 @@ describe('WhatsappService', () => {
         TEST_USER_ID,
         'sendInstance',
         '5511888888888',
-        'Choose',
+        null, // textBody from content.text — not present at top level in modern shape
         baileysResult,
         ['Option A', 'Option B', 'Option C'],
       );

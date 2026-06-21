@@ -40,37 +40,42 @@ import { MediaUrlService } from '../media/media-url.service.js';
 import { getProviderCapabilities } from '../instances/provider-capabilities.js';
 
 function extractButtonLabels(content: any): string[] | undefined {
-  // Regular buttons (buildButtonMessage output: content.buttons[].buttonText.displayText)
-  if (content?.buttons?.length) {
-    const labels = content.buttons
-      .map((b: any) => b.buttonText?.displayText)
-      .filter(Boolean);
-    return labels.length ? labels : undefined;
-  }
-  // List message (buildListMessage output: content.listMessage.sections[].rows[].title)
-  if (content?.listMessage?.sections?.length) {
-    const labels = (content.listMessage.sections as any[])
-      .flatMap((s: any) => s.rows ?? [])
-      .map((r: any) => r.title)
-      .filter(Boolean);
-    return labels.length ? labels : undefined;
-  }
-  // Native flow (buildCtaInteractiveMessage output)
-  if (content?.interactiveMessage?.nativeFlowMessage?.buttons?.length) {
-    const labels = (
-      content.interactiveMessage.nativeFlowMessage.buttons as any[]
-    )
-      .map((b: any) => {
-        try {
-          return JSON.parse(b.buttonParamsJson ?? '{}')?.display_text;
-        } catch {
-          return null;
+  // All interactive types now use interactiveMessage/nativeFlowMessage (modern proto).
+  // Extract labels based on the button name:
+  //   quick_reply  → buttonParamsJson.display_text (reply buttons)
+  //   single_select → buttonParamsJson.sections[].rows[].title (list rows)
+  //   cta_url / cta_copy / otp → buttonParamsJson.display_text
+  const nativeButtons: any[] =
+    content?.interactiveMessage?.nativeFlowMessage?.buttons ?? [];
+
+  if (!nativeButtons.length) return undefined;
+
+  const labels: string[] = [];
+
+  for (const b of nativeButtons) {
+    let parsed: any = {};
+    try {
+      parsed = JSON.parse(b.buttonParamsJson ?? '{}');
+    } catch {
+      // Malformed JSON — skip this button's labels
+    }
+
+    if (b.name === 'single_select') {
+      // List picker: extract all row titles from sections so the preview
+      // shows the actual options, not just the picker button label.
+      const sections: any[] = parsed.sections ?? [];
+      for (const section of sections) {
+        for (const row of section.rows ?? []) {
+          if (row.title) labels.push(row.title as string);
         }
-      })
-      .filter(Boolean);
-    return labels.length ? labels : undefined;
+      }
+    } else if (parsed.display_text) {
+      // quick_reply, cta_url, cta_copy, otp — show the button label.
+      labels.push(parsed.display_text as string);
+    }
   }
-  return undefined;
+
+  return labels.length ? labels : undefined;
 }
 
 @Injectable()
@@ -528,20 +533,9 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
       `Sending to JID: ${jid}, content keys: ${Object.keys(content).join(', ')}`,
     );
 
-    let payload = content;
-    const myJid = instance.socket.user?.id ?? '';
-
-    if (content.listMessage) {
-      // listMessage requires a forward wrapper for cross-platform (iOS) compatibility
-      payload = {
-        forward: {
-          key: { remoteJid: myJid, fromMe: true },
-          message: content,
-        },
-      };
-    }
-
-    const result = await instance.socket.sendMessage(jid, payload);
+    // All interactive types now use interactiveMessage/nativeFlowMessage (modern
+    // proto). The legacy listMessage forward-wrapper hack is no longer needed.
+    const result = await instance.socket.sendMessage(jid, content);
     this.logger.debug(
       `sendMessage result: id=${result?.key?.id} status=${result?.status}`,
     );

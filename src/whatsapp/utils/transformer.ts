@@ -7,28 +7,81 @@ function buildVcard(contact: any): string {
   return `BEGIN:VCARD\nVERSION:3.0\nFN:${formattedName}\n${telLines}\nEND:VCARD`;
 }
 
+type NativeFlowButton = { name: string; buttonParamsJson: string };
+
+/**
+ * Builds an interactiveMessage envelope (modern proto) with nativeFlowMessage.
+ * Shared by button, list, and CTA builders so all interactive types emit the
+ * same outer shape.
+ */
+function buildInteractiveEnvelope(
+  body: string,
+  buttons: NativeFlowButton[],
+  options: {
+    footer?: string;
+    headerTitle?: string;
+  } = {},
+): any {
+  return {
+    interactiveMessage: {
+      body: { text: body },
+      ...(options.footer ? { footer: { text: options.footer } } : {}),
+      header: {
+        title: options.headerTitle ?? '',
+        hasMediaAttachment: false,
+      },
+      nativeFlowMessage: {
+        buttons,
+        messageParamsJson: '{}',
+        messageVersion: 2,
+      },
+    },
+    // Sibling at proto.Message level — Baileys merges and populates
+    // messageSecret when shouldIncludeReportingToken is true.
+    messageContextInfo: {},
+  };
+}
+
+/**
+ * Migrated from legacy `buttonsMessage` to `interactiveMessage` +
+ * `nativeFlowMessage` with `quick_reply` native-flow buttons.
+ *
+ * NOTE FOR HUMAN VERIFICATION: the `name` value "quick_reply" is a
+ * WhatsApp-server convention, not enforced by the proto (which accepts any
+ * string). Verify it renders as tappable reply buttons on a live client.
+ */
 function buildButtonMessage(interactive: any): any {
   const action = interactive.action ?? {};
   const body = interactive.body ?? {};
   const footer = interactive.footer;
   const header = interactive.header ?? {};
 
-  const buttons = (action.buttons ?? []).map((b: any) => ({
-    buttonId: b.reply.id,
-    buttonText: { displayText: b.reply.title },
-    type: 1,
+  const buttons: NativeFlowButton[] = (action.buttons ?? []).map((b: any) => ({
+    name: 'quick_reply',
+    buttonParamsJson: JSON.stringify({
+      display_text: b.reply?.title ?? '',
+      id: b.reply?.id ?? '',
+    }),
   }));
 
-  return {
-    buttons,
-    text: body.text ?? '',
-    ...(footer ? { footer: footer.text } : {}),
-    ...(header.text ? { title: header.text } : {}),
-    headerType: header.text ? 1 : 4,
-  };
+  return buildInteractiveEnvelope(body.text ?? '', buttons, {
+    footer: footer?.text,
+    headerTitle: header.text,
+  });
 }
 
-// Returns proto-level listMessage — the send layer wraps this in a forward for iOS compat
+/**
+ * Migrated from legacy `listMessage` (+ forward wrapper) to
+ * `interactiveMessage` + `nativeFlowMessage` with a `single_select`
+ * native-flow button.  The forward-wrapper hack in whatsapp.service.ts send
+ * path is no longer needed and must be removed.
+ *
+ * The full section/row structure is embedded inside `buttonParamsJson` so the
+ * WhatsApp client can render a selectable picker.
+ *
+ * NOTE FOR HUMAN VERIFICATION: the `name` value "single_select" is a
+ * WhatsApp-server convention. Verify the picker renders on Web and Business.
+ */
 function buildListMessage(interactive: any): any {
   const action = interactive.action ?? {};
   const body = interactive.body ?? {};
@@ -36,28 +89,32 @@ function buildListMessage(interactive: any): any {
   const header = interactive.header ?? {};
 
   const sections = (action.sections ?? []).map((s: any) => ({
-    title: s.title,
+    title: s.title ?? '',
     rows: (s.rows ?? []).map((r: any) => ({
-      rowId: r.id,
-      title: r.title,
+      header: r.id ?? '',
+      title: r.title ?? '',
       description: r.description ?? '',
+      id: r.id ?? '',
     })),
   }));
 
-  return {
-    listMessage: {
-      description: body.text ?? '',
-      ...(footer ? { footerText: footer.text } : {}),
-      ...(header.text ? { title: header.text } : {}),
-      buttonText: action.button ?? 'Select',
-      sections,
-      listType: 1, // SINGLE_SELECT
+  const buttons: NativeFlowButton[] = [
+    {
+      name: 'single_select',
+      buttonParamsJson: JSON.stringify({
+        title: action.button ?? 'Select',
+        sections,
+      }),
     },
-  };
+  ];
+
+  return buildInteractiveEnvelope(body.text ?? '', buttons, {
+    footer: footer?.text,
+    headerTitle: header.text,
+  });
 }
 
 type CtaInteractiveType = 'cta_url' | 'cta_copy' | 'otp';
-type NativeFlowButton = { name: string; buttonParamsJson: string };
 
 const CTA_BUTTON_BUILDERS: Record<
   CtaInteractiveType,
@@ -99,23 +156,13 @@ function buildCtaInteractiveMessage(interactive: any): any {
   const builder = CTA_BUTTON_BUILDERS[interactive.type as CtaInteractiveType];
   if (!builder)
     throw new Error(`Unsupported interactive type: ${interactive.type}`);
+
   const button = builder(params);
 
-  return {
-    interactiveMessage: {
-      body: { text: body.text ?? '' },
-      ...(footer ? { footer: { text: footer.text } } : {}),
-      header: {
-        title: header?.text ?? header?.title ?? '',
-        hasMediaAttachment: false,
-      },
-      nativeFlowMessage: {
-        buttons: [button],
-        messageParamsJson: '{}',
-        messageVersion: 2,
-      },
-    },
-  };
+  return buildInteractiveEnvelope(body.text ?? '', [button], {
+    footer: footer?.text,
+    headerTitle: header?.text ?? header?.title ?? '',
+  });
 }
 
 type MessageType =
@@ -130,11 +177,10 @@ type MessageType =
   | 'reaction'
   | 'interactive';
 
-const INTERACTIVE_BUILDERS: Partial<Record<string, (interactive: any) => any>> =
-  {
-    button: buildButtonMessage,
-    list: buildListMessage,
-  };
+const INTERACTIVE_BUILDERS: Record<string, (interactive: any) => any> = {
+  button: buildButtonMessage,
+  list: buildListMessage,
+};
 
 const MESSAGE_CONTENT_BUILDERS: Record<MessageType, (payload: any) => any> = {
   text: (p) => ({ text: p.text.body }),
@@ -214,6 +260,9 @@ const MESSAGE_CONTENT_BUILDERS: Record<MessageType, (payload: any) => any> = {
   interactive: (p) => {
     const interactive = p.interactive ?? {};
     const builder = INTERACTIVE_BUILDERS[interactive.type];
+    // Known types (button, list) are routed above; CTA types (cta_url,
+    // cta_copy, otp) fall through to buildCtaInteractiveMessage which throws
+    // a clear error for any truly unknown type.
     return builder
       ? builder(interactive)
       : buildCtaInteractiveMessage(interactive);
