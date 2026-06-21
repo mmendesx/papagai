@@ -533,6 +533,14 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
       `Sending to JID: ${jid}, content keys: ${Object.keys(content).join(', ')}`,
     );
 
+    // A reaction targets an existing message; its key.remoteJid must be the
+    // resolved chat JID. The transformer cannot know it (it has no `to`), so it
+    // emits an empty string — fill it here or the reaction reaches the server
+    // with no target and silently no-ops.
+    if (content?.react?.key && !content.react.key.remoteJid) {
+      content.react.key.remoteJid = jid;
+    }
+
     // Interactive content (interactiveMessage/nativeFlowMessage) cannot be
     // dispatched via sock.sendMessage because v7 has no content branch for it —
     // it would fall through generateWAMessage with no recognized type and transmit

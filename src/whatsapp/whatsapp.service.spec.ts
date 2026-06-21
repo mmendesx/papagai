@@ -1232,5 +1232,40 @@ describe('WhatsappService', () => {
       expect(instance.socket.relayMessage).not.toHaveBeenCalled();
       expect(mockGenerateWAMessageFromContent).not.toHaveBeenCalled();
     });
+
+    it('fills an empty reaction key.remoteJid with the resolved chat JID before sending', async () => {
+      const baileysResult = { key: { id: 'react-1' }, message: {} };
+      const instance = buildInteractiveSendInstance();
+      const sendMessage = instance.socket.sendMessage as jest.Mock;
+      sendMessage.mockResolvedValue(baileysResult);
+      (service as any).instances.set(
+        `${TEST_USER_ID}:interactiveInstance`,
+        instance,
+      );
+
+      const reactionContent = {
+        react: { text: '👍', key: { id: 'target-msg-id', remoteJid: '' } },
+      };
+
+      await service.send(
+        TEST_USER_ID,
+        'interactiveInstance',
+        '5511888888888',
+        reactionContent,
+      );
+
+      // The resolved JID (from onWhatsApp) must replace the empty remoteJid,
+      // otherwise the reaction reaches the server with no target and no-ops.
+      expect(sendMessage).toHaveBeenCalledWith(
+        '5511888888888@s.whatsapp.net',
+        expect.objectContaining({
+          react: expect.objectContaining({
+            key: expect.objectContaining({
+              remoteJid: '5511888888888@s.whatsapp.net',
+            }),
+          }),
+        }),
+      );
+    });
   });
 });
