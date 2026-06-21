@@ -40,7 +40,12 @@ import { LlmsModule } from './llms/llms.module.js';
     WebhookModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'client', 'dist', 'client', 'browser'),
-      exclude: ['/api{/*path}', '/media{/*path}', '/uploads{/*path}', '/llms.txt'],
+      exclude: [
+        '/api{/*path}',
+        '/media{/*path}',
+        '/uploads{/*path}',
+        '/llms.txt',
+      ],
     }),
   ],
 })
