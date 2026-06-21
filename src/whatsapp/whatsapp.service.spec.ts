@@ -55,6 +55,8 @@ const mockSocket = {
   user: { id: '5511999999999:1@s.whatsapp.net' },
 };
 
+const mockGenerateWAMessageFromContent = jest.fn();
+
 jest.mock('@whiskeysockets/baileys', () => {
   const mock = jest.fn(() => mockSocket);
   (mock as any).__esModule = true;
@@ -73,6 +75,8 @@ jest.mock('@whiskeysockets/baileys', () => {
     fetchLatestBaileysVersion: jest
       .fn()
       .mockResolvedValue({ version: [2, 3000, 1] }),
+    generateWAMessageFromContent: (...args: any[]) =>
+      mockGenerateWAMessageFromContent(...args),
   };
 });
 
@@ -891,6 +895,15 @@ describe('WhatsappService', () => {
   });
 
   describe('ICT-1 — extractButtonLabels (tested via send())', () => {
+    const FAKE_FULL_MSG = {
+      key: {
+        id: 'generated-relay-id-1',
+        remoteJid: '5511888888888@s.whatsapp.net',
+        fromMe: true,
+      },
+      message: { interactiveMessage: {} },
+    };
+
     function buildSendInstance(sendMessageResult: any): Instance {
       return buildMockInstance({
         name: 'sendInstance',
@@ -900,6 +913,7 @@ describe('WhatsappService', () => {
           ev: { on: jest.fn() },
           user: { id: '5511999999999:1@s.whatsapp.net' },
           sendMessage: jest.fn().mockResolvedValue(sendMessageResult),
+          relayMessage: jest.fn().mockResolvedValue('generated-relay-id-1'),
           onWhatsApp: jest
             .fn()
             .mockResolvedValue([
@@ -911,6 +925,7 @@ describe('WhatsappService', () => {
 
     beforeEach(() => {
       jest.clearAllMocks();
+      mockGenerateWAMessageFromContent.mockReturnValue(FAKE_FULL_MSG);
     });
 
     it('extracts display_text from quick_reply nativeFlowMessage buttons and passes them as interactiveButtons', async () => {
@@ -959,12 +974,13 @@ describe('WhatsappService', () => {
       const mockChatStore = (service as any).chatStore as jest.Mocked<
         Partial<ChatStoreService>
       >;
+      // Interactive content goes through generate+relay; recordOutgoing receives fullMsg
       expect(mockChatStore.recordOutgoing).toHaveBeenCalledWith(
         TEST_USER_ID,
         'sendInstance',
         '5511888888888',
         null, // textBody from content.text — not present at top level in modern shape
-        baileysResult,
+        FAKE_FULL_MSG,
         ['Yes', 'No'],
       );
     });
@@ -1014,12 +1030,13 @@ describe('WhatsappService', () => {
       const mockChatStore = (service as any).chatStore as jest.Mocked<
         Partial<ChatStoreService>
       >;
+      // Interactive content goes through generate+relay; recordOutgoing receives fullMsg
       expect(mockChatStore.recordOutgoing).toHaveBeenCalledWith(
         TEST_USER_ID,
         'sendInstance',
         '5511888888888',
         null, // textBody from content.text — not present at top level in modern shape
-        baileysResult,
+        FAKE_FULL_MSG,
         ['Option A', 'Option B', 'Option C'],
       );
     });
@@ -1051,12 +1068,13 @@ describe('WhatsappService', () => {
       const mockChatStore = (service as any).chatStore as jest.Mocked<
         Partial<ChatStoreService>
       >;
+      // Interactive content goes through generate+relay; recordOutgoing receives fullMsg
       expect(mockChatStore.recordOutgoing).toHaveBeenCalledWith(
         TEST_USER_ID,
         'sendInstance',
         '5511888888888',
         'Confirm?',
-        baileysResult,
+        FAKE_FULL_MSG,
         ['Confirm', 'Cancel'],
       );
     });
@@ -1084,6 +1102,135 @@ describe('WhatsappService', () => {
         baileysResult,
         undefined,
       );
+    });
+  });
+
+  describe('ICT-10 — interactive send() routing (generate+relay vs sendMessage)', () => {
+    const RELAY_FULL_MSG = {
+      key: {
+        id: 'relay-gen-id-1',
+        remoteJid: '5511888888888@s.whatsapp.net',
+        fromMe: true,
+      },
+      message: { interactiveMessage: {} },
+    };
+
+    function buildInteractiveSendInstance(): Instance {
+      return buildMockInstance({
+        name: 'interactiveInstance',
+        connected: true,
+        socket: {
+          end: jest.fn(),
+          ev: { on: jest.fn() },
+          user: { id: '5511999999999:1@s.whatsapp.net' },
+          sendMessage: jest
+            .fn()
+            .mockResolvedValue({ key: { id: 'should-not-be-called' } }),
+          relayMessage: jest.fn().mockResolvedValue('relay-gen-id-1'),
+          onWhatsApp: jest
+            .fn()
+            .mockResolvedValue([
+              { jid: '5511888888888@s.whatsapp.net', exists: true },
+            ]),
+        } as any,
+      });
+    }
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+      mockGenerateWAMessageFromContent.mockReturnValue(RELAY_FULL_MSG);
+    });
+
+    it('routes interactive content through relayMessage with a bot node, and does not call sendMessage', async () => {
+      const instance = buildInteractiveSendInstance();
+      (service as any).instances.set(
+        `${TEST_USER_ID}:interactiveInstance`,
+        instance,
+      );
+
+      const interactiveContent = {
+        interactiveMessage: {
+          body: { text: 'Choose' },
+          nativeFlowMessage: {
+            buttons: [
+              {
+                name: 'quick_reply',
+                buttonParamsJson: JSON.stringify({
+                  display_text: 'OK',
+                  id: 'ok',
+                }),
+              },
+            ],
+            messageParamsJson: '{}',
+            messageVersion: 2,
+          },
+        },
+        messageContextInfo: {},
+      };
+
+      await service.send(
+        TEST_USER_ID,
+        'interactiveInstance',
+        '5511888888888',
+        interactiveContent,
+      );
+
+      expect(mockGenerateWAMessageFromContent).toHaveBeenCalledWith(
+        '5511888888888@s.whatsapp.net',
+        interactiveContent,
+        expect.objectContaining({ userJid: '5511999999999:1@s.whatsapp.net' }),
+      );
+
+      expect(instance.socket.relayMessage).toHaveBeenCalledWith(
+        '5511888888888@s.whatsapp.net',
+        RELAY_FULL_MSG.message,
+        expect.objectContaining({
+          messageId: 'relay-gen-id-1',
+          additionalNodes: expect.arrayContaining([
+            expect.objectContaining({
+              tag: 'bot',
+              attrs: expect.objectContaining({ biz_bot: '1' }),
+            }),
+          ]),
+        }),
+      );
+
+      expect(instance.socket.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('routes plain text content through sendMessage and does not call relayMessage', async () => {
+      const baileysResult = {
+        key: { id: 'text-route-1' },
+        message: { conversation: 'Hello' },
+      };
+      const instance = buildMockInstance({
+        name: 'textRouteInstance',
+        connected: true,
+        socket: {
+          end: jest.fn(),
+          ev: { on: jest.fn() },
+          user: { id: '5511999999999:1@s.whatsapp.net' },
+          sendMessage: jest.fn().mockResolvedValue(baileysResult),
+          relayMessage: jest.fn().mockResolvedValue('should-not-be-called'),
+          onWhatsApp: jest
+            .fn()
+            .mockResolvedValue([
+              { jid: '5511888888888@s.whatsapp.net', exists: true },
+            ]),
+        } as any,
+      });
+      (service as any).instances.set(
+        `${TEST_USER_ID}:textRouteInstance`,
+        instance,
+      );
+
+      await service.send(TEST_USER_ID, 'textRouteInstance', '5511888888888', {
+        text: 'Hello',
+      });
+
+      expect(instance.socket.sendMessage).toHaveBeenCalledTimes(1);
+      expect(instance.socket.relayMessage).not.toHaveBeenCalled();
+      expect(mockGenerateWAMessageFromContent).not.toHaveBeenCalled();
     });
   });
 });

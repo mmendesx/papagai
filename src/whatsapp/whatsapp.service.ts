@@ -11,6 +11,7 @@ import { useRedisAuthState } from './utils/redis-auth-state.js';
 import makeWASocket, {
   fetchLatestBaileysVersion,
   fetchLatestWaWebVersion,
+  generateWAMessageFromContent,
 } from '@whiskeysockets/baileys';
 import * as fs from 'fs';
 import {
@@ -532,12 +533,31 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
       `Sending to JID: ${jid}, content keys: ${Object.keys(content).join(', ')}`,
     );
 
-    // All interactive types now use interactiveMessage/nativeFlowMessage (modern
-    // proto). The legacy listMessage forward-wrapper hack is no longer needed.
-    const result = await instance.socket.sendMessage(jid, content);
-    this.logger.debug(
-      `sendMessage result: id=${result?.key?.id} status=${result?.status}`,
-    );
+    // Interactive content (interactiveMessage/nativeFlowMessage) cannot be
+    // dispatched via sock.sendMessage because v7 has no content branch for it —
+    // it would fall through generateWAMessage with no recognized type and transmit
+    // an empty proto. The correct path is generate+relay with an explicit bot node,
+    // which is required for 1:1 interactive messages to render on all clients.
+    // Everything else (text, media, location, reaction, contacts) stays on sendMessage.
+    let result: any;
+    if (content?.interactiveMessage) {
+      const fullMsg = generateWAMessageFromContent(jid, content, {
+        userJid: instance.socket.user?.id ?? '',
+      });
+      await instance.socket.relayMessage(jid, fullMsg.message!, {
+        messageId: fullMsg.key.id ?? undefined,
+        // The bot node is required for interactive messages to render in 1:1 chats.
+        // Upstream v7 does not inject this automatically.
+        additionalNodes: [{ tag: 'bot', attrs: { biz_bot: '1' } }],
+      });
+      this.logger.debug(`relayMessage (interactive) id=${fullMsg.key.id}`);
+      result = fullMsg;
+    } else {
+      result = await instance.socket.sendMessage(jid, content);
+      this.logger.debug(
+        `sendMessage result: id=${result?.key?.id} status=${result?.status}`,
+      );
+    }
 
     // Extract text body for the store preview (best-effort)
     const textBody: string | null =
