@@ -221,7 +221,6 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
       markOnlineOnConnect: true,
       defaultQueryTimeoutMs: 60000,
       generateHighQualityLinkPreview: true,
-      shouldResendMessageOn475AckError: true,
       getMessage: () => Promise.resolve({ conversation: '' }),
     });
 
@@ -792,7 +791,7 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
     if (!instance) return false;
 
     this.chatStore.clearInstance(userId, instanceName);
-    instance.socket.end(undefined);
+    void instance.socket.end(undefined);
     this.instances.delete(key);
     this.qrCodes.delete(key);
     const redisKeys = await this.redis.keys(
@@ -851,7 +850,7 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
         instance.socket.ev.removeAllListeners('messaging-history.set');
         instance.socket.ev.removeAllListeners('messages.upsert');
         instance.socket.ev.removeAllListeners('messages.update');
-        instance.socket.end(undefined);
+        void instance.socket.end(undefined);
       } catch (err) {
         this.logger.warn(
           `Error closing socket for "${name}": ${err instanceof Error ? err.message : String(err)}`,

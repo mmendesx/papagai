@@ -25,7 +25,9 @@ describe('LlmsDocumentService', () => {
   });
 
   it('document contains Base URL from config', () => {
-    expect(service.getDocument()).toContain('Base URL: https://api.example.com');
+    expect(service.getDocument()).toContain(
+      'Base URL: https://api.example.com',
+    );
   });
 
   it('document contains app version', () => {
