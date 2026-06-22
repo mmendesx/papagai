@@ -162,7 +162,7 @@ export const COMMON_ERROR_RESPONSES: ErrorResponseShape[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Send-message body examples — all interactive types (button, list, cta_url)
+// Send-message body examples — all interactive types (button, list, cta_url, cta_copy, otp)
 // are fully supported by the backend (transformer.ts INTERACTIVE_BUILDERS).
 // ---------------------------------------------------------------------------
 const SEND_MESSAGE_BODY_EXAMPLES: BodyExampleDef[] = [
@@ -558,8 +558,8 @@ const SEND_MESSAGE_BODY_EXAMPLES: BodyExampleDef[] = [
       },
     ],
   },
-  // interactive: reply buttons, list picker, and cta_url are all supported
-  // by the backend (transformer.ts INTERACTIVE_BUILDERS + buildCtaInteractiveMessage).
+  // interactive: reply buttons, list picker, and cta_url/cta_copy/otp are all
+  // supported by the backend (transformer.ts INTERACTIVE_BUILDERS + CTA_BUTTON_BUILDERS).
   // Native rendering is limited to WhatsApp Personal; Web/Business fall back to
   // numbered plain text appended to the body (see transformer.ts appendFallbackText).
   {
@@ -772,6 +772,110 @@ const SEND_MESSAGE_BODY_EXAMPLES: BodyExampleDef[] = [
         type: 'string (URL)',
         required: true,
         description: 'URL que será aberta quando o usuário tocar no botão.',
+      },
+    ],
+  },
+  {
+    title: 'interactive cta_copy',
+    json: `{
+  "to": "5511999999999@s.whatsapp.net",
+  "type": "interactive",
+  "interactive": {
+    "type": "cta_copy",
+    "body": { "text": "Use o cupom abaixo no checkout" },
+    "footer": { "text": "Cupom de uso único" },
+    "action": {
+      "parameters": {
+        "display_text": "Copiar cupom",
+        "copy_code": "PROMO10"
+      }
+    }
+  }
+}`,
+    fields: [
+      { field: 'to', type: 'string', required: true, description: 'JID ou número do destinatário.' },
+      { field: 'type', type: '"interactive"', required: true, description: 'Tipo da mensagem.' },
+      {
+        field: 'interactive.type',
+        type: '"cta_copy"',
+        required: true,
+        description: 'Subtipo interativo. Use "cta_copy" para botão que copia um código.',
+      },
+      {
+        field: 'interactive.body.text',
+        type: 'string',
+        required: true,
+        description: 'Texto principal da mensagem.',
+      },
+      {
+        field: 'interactive.footer.text',
+        type: 'string',
+        required: false,
+        description: 'Rodapé opcional.',
+      },
+      {
+        field: 'interactive.action.parameters.display_text',
+        type: 'string',
+        required: true,
+        description: 'Rótulo exibido no botão de cópia.',
+      },
+      {
+        field: 'interactive.action.parameters.copy_code',
+        type: 'string',
+        required: true,
+        description: 'Código copiado para a área de transferência ao tocar no botão.',
+      },
+    ],
+  },
+  {
+    title: 'interactive otp',
+    json: `{
+  "to": "5511999999999@s.whatsapp.net",
+  "type": "interactive",
+  "interactive": {
+    "type": "otp",
+    "body": { "text": "Seu código de verificação chegou" },
+    "action": {
+      "parameters": {
+        "display_text": "Copiar código",
+        "copy_code": "482913"
+      }
+    }
+  }
+}`,
+    fields: [
+      { field: 'to', type: 'string', required: true, description: 'JID ou número do destinatário.' },
+      { field: 'type', type: '"interactive"', required: true, description: 'Tipo da mensagem.' },
+      {
+        field: 'interactive.type',
+        type: '"otp"',
+        required: true,
+        description:
+          'Subtipo interativo para códigos OTP. Enviado nativamente como cta_copy com otp_type "copy_code".',
+      },
+      {
+        field: 'interactive.body.text',
+        type: 'string',
+        required: true,
+        description: 'Texto principal da mensagem.',
+      },
+      {
+        field: 'interactive.action.parameters.display_text',
+        type: 'string',
+        required: true,
+        description: 'Rótulo exibido no botão de cópia.',
+      },
+      {
+        field: 'interactive.action.parameters.copy_code',
+        type: 'string',
+        required: true,
+        description: 'Código OTP copiado ao tocar no botão.',
+      },
+      {
+        field: 'interactive.action.parameters.url',
+        type: 'string (URL)',
+        required: false,
+        description: 'URL opcional do comerciante (mapeada para merchant_url).',
       },
     ],
   },
