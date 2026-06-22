@@ -3,5 +3,10 @@
     "target": "http://app:3000",
     "secure": false,
     "changeOrigin": true
+  },
+  "/llms.txt": {
+    "target": "http://app:3000",
+    "secure": false,
+    "changeOrigin": true
   }
 }
