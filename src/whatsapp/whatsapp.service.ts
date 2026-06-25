@@ -600,7 +600,7 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
         // The bot node is required for interactive messages to render in 1:1 chats.
         // Upstream v7 does not inject this automatically.
         additionalNodes: [{ tag: 'bot', attrs: { biz_bot: '1' } }],
-      });
+      } as any);
       this.logger.debug(`relayMessage (interactive) id=${fullMsg.key.id}`);
       result = fullMsg;
     } else {
