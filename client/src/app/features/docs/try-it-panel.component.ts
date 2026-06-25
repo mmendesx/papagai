@@ -48,7 +48,7 @@ const TOKEN_KEY = 'papagai_access_token';
         @if (pathParamNames().length > 0) {
           <section class="try-section" aria-label="Parâmetros de rota">
             <h5 class="try-section-label" id="try-params-label-{{ endpoint().id }}">Parâmetros de rota</h5>
-            <div class="try-fields" aria-labelledby="try-params-label-{{ endpoint().id }}">
+            <div class="try-fields" [attr.aria-labelledby]="'try-params-label-' + endpoint().id">
               @for (name of pathParamNames(); track name) {
                 <tui-textfield>
                   <label tuiLabel>{{ name }}</label>

@@ -55,7 +55,7 @@ import { DocsNavigationService } from './docs-navigation.service';
               (click)="selectGroup(group.id)"
             >
               <span>{{ group.title }}</span>
-              <span class="group-count" aria-label="{{ group.endpoints.length }} endpoints">{{ group.endpoints.length }}</span>
+              <span class="group-count" [attr.aria-label]="group.endpoints.length + ' endpoints'">{{ group.endpoints.length }}</span>
             </button>
           }
         </nav>
@@ -106,7 +106,7 @@ import { DocsNavigationService } from './docs-navigation.service';
             <div class="webhook-payloads">
               <h3 class="payloads-title">Payload examples</h3>
               @for (example of webhookPayloadExamples; track example.event) {
-                <section class="payload-item" aria-label="Payload do evento {{ example.event }}">
+                <section class="payload-item" [attr.aria-label]="'Payload do evento ' + example.event">
                   <header class="payload-header">
                     <code class="payload-event">{{ example.event }}</code>
                   </header>
