@@ -22,11 +22,9 @@ export default () => ({
   ),
   webhookMaxRetries: parseInt(process.env.WEBHOOK_MAX_RETRIES ?? '3', 10),
   webhookAllowPrivateHosts:
-    process.env.WEBHOOK_ALLOW_PRIVATE_HOSTS === 'true' &&
-    process.env.NODE_ENV === 'development',
+    process.env.WEBHOOK_ALLOW_PRIVATE_HOSTS === 'true',
   mediaAllowPrivateHosts:
-    process.env.MEDIA_ALLOW_PRIVATE_HOSTS === 'true' &&
-    process.env.NODE_ENV === 'development',
+    process.env.MEDIA_ALLOW_PRIVATE_HOSTS === 'true',
   wbaCredentialsSecret:
     process.env.WBA_CREDENTIALS_SECRET ?? process.env.APP_KEY ?? '',
   wbaGraphApiBaseUrl:

@@ -76,9 +76,21 @@ export async function downloadMedia(
       duration: mediaMessage.seconds ?? undefined,
     };
   } catch (error) {
-    logger.error(
-      `Failed to download ${mediaType} media for message ${msg.key?.id}: ${error instanceof Error ? error.message : String(error)}`,
-    );
+    const errMessage = error instanceof Error ? error.message : String(error);
+    const isExpectedFail =
+      errMessage.includes('status code 403') ||
+      errMessage.includes('status code 410') ||
+      errMessage.includes('ENOTFOUND');
+
+    if (isExpectedFail) {
+      logger.warn(
+        `Failed to download ${mediaType} media for message ${msg.key?.id} (expected expiration/connection issue): ${errMessage}`,
+      );
+    } else {
+      logger.error(
+        `Failed to download ${mediaType} media for message ${msg.key?.id}: ${errMessage}`,
+      );
+    }
     return null;
   }
 }

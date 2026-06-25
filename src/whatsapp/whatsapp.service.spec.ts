@@ -53,6 +53,7 @@ const mockSocket = {
   },
   end: mockSocketEnd,
   user: { id: '5511999999999:1@s.whatsapp.net' },
+  sendPresenceUpdate: jest.fn().mockResolvedValue(undefined),
 };
 
 jest.mock('@whiskeysockets/baileys', () => {
@@ -88,7 +89,7 @@ function buildMockInstance(overrides: Partial<Instance> = {}): Instance {
   return {
     userId: TEST_USER_ID,
     name: 'testPapagai',
-    socket: { end: jest.fn(), ev: { on: jest.fn() } } as any,
+    socket: { end: jest.fn(), ev: { on: jest.fn() }, sendPresenceUpdate: jest.fn().mockResolvedValue(undefined) } as any,
     webhookUrl: 'https://example.com/webhook',
     webhookHeaders: {},
     webhookEnabled: true,
@@ -212,7 +213,7 @@ describe('WhatsappService', () => {
               remoteJid: '5511999999999@s.whatsapp.net',
               fromMe: false,
             },
-            messageTimestamp: 1700000000,
+            messageTimestamp: Math.floor(Date.now() / 1000),
             message: { imageMessage: { mimetype: 'image/jpeg' } },
           },
         ],
@@ -900,6 +901,7 @@ describe('WhatsappService', () => {
           ev: { on: jest.fn() },
           user: { id: '5511999999999:1@s.whatsapp.net' },
           sendMessage: jest.fn().mockResolvedValue(sendMessageResult),
+          sendPresenceUpdate: jest.fn().mockResolvedValue(undefined),
           onWhatsApp: jest
             .fn()
             .mockResolvedValue([

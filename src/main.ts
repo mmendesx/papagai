@@ -10,11 +10,8 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor.js
 import { DEV_JWT_SECRET_PLACEHOLDER } from './config/configuration.js';
 
 function warnWebhookAllowPrivateHosts(): void {
-  if (
-    process.env.WEBHOOK_ALLOW_PRIVATE_HOSTS === 'true' &&
-    process.env.NODE_ENV !== 'development'
-  ) {
-    console.warn('WEBHOOK_ALLOW_PRIVATE_HOSTS ignored: not in development');
+  if (process.env.WEBHOOK_ALLOW_PRIVATE_HOSTS === 'true') {
+    console.warn('WEBHOOK_ALLOW_PRIVATE_HOSTS is enabled. Private/internal webhook URLs will be allowed.');
   }
 }
 
