@@ -1,13 +1,15 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { animate, style, transition, trigger } from '@angular/animations';
 import type { EndpointDef, HttpMethod } from './api-endpoints';
+import { COMMON_ERROR_RESPONSES } from './api-endpoints';
 import { DocsNavigationService } from './docs-navigation.service';
 import { TryItPanelComponent } from './try-it-panel.component';
+import { FieldTableComponent } from './field-table.component';
 
 @Component({
   selector: 'app-endpoint-card',
   standalone: true,
-  imports: [TryItPanelComponent],
+  imports: [TryItPanelComponent, FieldTableComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '[id]': 'endpoint().id' },
   animations: [
@@ -24,7 +26,7 @@ import { TryItPanelComponent } from './try-it-panel.component';
   template: `
     <article class="ep-card" [class.ep-card--open]="expanded()" [class.ep-card--detail]="detailMode()">
       @if (detailMode()) {
-        <div class="ep-header ep-header--static">
+        <div class="ep-header ep-header--static" role="heading" aria-level="3">
           <div class="ep-method-wrap">
             <span [class]="badgeClass()">{{ endpoint().method }}</span>
           </div>
@@ -47,32 +49,38 @@ import { TryItPanelComponent } from './try-it-panel.component';
           </div>
         </div>
       } @else {
-        <button type="button" class="ep-header" (click)="toggleExpanded()" [attr.aria-expanded]="expanded()">
-        <div class="ep-method-wrap">
-          <span [class]="badgeClass()">{{ endpoint().method }}</span>
-        </div>
-        <div class="ep-info">
-          <code class="ep-path">
-            @for (part of pathParts(); track $index) {
-              @if (part.startsWith(':')) {
-                <span class="path-param">{{ part }}</span>
-              } @else {
-                {{ part }}
+        <button
+          type="button"
+          class="ep-header"
+          (click)="toggleExpanded()"
+          [attr.aria-expanded]="expanded()"
+          [attr.aria-label]="endpoint().method + ' ' + endpoint().path + ' — ' + endpoint().title"
+        >
+          <div class="ep-method-wrap">
+            <span [class]="badgeClass()" aria-hidden="true">{{ endpoint().method }}</span>
+          </div>
+          <div class="ep-info">
+            <code class="ep-path" aria-hidden="true">
+              @for (part of pathParts(); track $index) {
+                @if (part.startsWith(':')) {
+                  <span class="path-param">{{ part }}</span>
+                } @else {
+                  {{ part }}
+                }
               }
+            </code>
+            <span class="ep-title" aria-hidden="true">{{ endpoint().title }}</span>
+          </div>
+          <div class="ep-right">
+            @for (chip of authChips(); track chip) {
+              <span class="auth-chip" aria-hidden="true">{{ chip }}</span>
             }
-          </code>
-          <span class="ep-title">{{ endpoint().title }}</span>
-        </div>
-        <div class="ep-right">
-          @for (chip of authChips(); track chip) {
-            <span class="auth-chip">{{ chip }}</span>
-          }
-          <span class="ep-chevron" [class.ep-chevron--open]="expanded()" aria-hidden="true">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M3 5l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </span>
-        </div>
+            <span class="ep-chevron" [class.ep-chevron--open]="expanded()" aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M3 5l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </div>
         </button>
       }
 
@@ -83,90 +91,132 @@ import { TryItPanelComponent } from './try-it-panel.component';
 
           <!-- Path params -->
           @if (endpoint().pathParams?.length) {
-            <div class="ep-section">
+            <section class="ep-section" aria-label="Parâmetros de rota">
               <h4 class="ep-section-title">Parâmetros de rota</h4>
-              <div class="param-table">
+              <div class="param-table" role="table" aria-label="Parâmetros de rota">
+                <div class="param-row param-row--head" role="row">
+                  <span role="columnheader">Nome</span>
+                  <span role="columnheader">Tipo</span>
+                  <span role="columnheader">Descrição</span>
+                </div>
                 @for (p of endpoint().pathParams!; track p.name) {
-                  <div class="param-row">
-                    <code class="param-name">{{ p.name }}</code>
-                    <span class="param-type">string</span>
-                    <span class="param-desc">{{ p.description }}</span>
+                  <div class="param-row" role="row">
+                    <code class="param-name" role="cell">{{ p.name }}</code>
+                    <span class="param-type" role="cell">string</span>
+                    <span class="param-desc" role="cell">{{ p.description }}</span>
                   </div>
                 }
               </div>
-            </div>
+            </section>
           }
 
           <!-- Query params -->
           @if (endpoint().queryParams?.length) {
-            <div class="ep-section">
+            <section class="ep-section" aria-label="Query params">
               <h4 class="ep-section-title">Query params</h4>
-              <div class="param-table">
+              <div class="param-table" role="table" aria-label="Query params">
+                <div class="param-row param-row--head" role="row">
+                  <span role="columnheader">Nome</span>
+                  <span role="columnheader">Tipo</span>
+                  <span role="columnheader">Req.</span>
+                  <span role="columnheader">Descrição</span>
+                </div>
                 @for (p of endpoint().queryParams!; track p.name) {
-                  <div class="param-row">
-                    <code class="param-name">{{ p.name }}</code>
-                    <span class="param-type">{{ p.type }}</span>
-                    @if (p.required) { <span class="param-required">obrigatório</span> }
-                    <span class="param-desc">{{ p.description }}</span>
+                  <div class="param-row" role="row">
+                    <code class="param-name" role="cell">{{ p.name }}</code>
+                    <span class="param-type" role="cell">{{ p.type }}</span>
+                    <span role="cell">
+                      @if (p.required) { <span class="param-required">obrigatório</span> }
+                    </span>
+                    <span class="param-desc" role="cell">{{ p.description }}</span>
                   </div>
                 }
               </div>
-            </div>
+            </section>
           }
 
           <!-- Body params -->
           @if (endpoint().bodyParams?.length) {
-            <div class="ep-section">
+            <section class="ep-section" aria-label="Corpo JSON">
               <h4 class="ep-section-title">Corpo (JSON)</h4>
-              <div class="param-table">
+              <div class="param-table" role="table" aria-label="Parâmetros do corpo">
+                <div class="param-row param-row--head" role="row">
+                  <span role="columnheader">Campo</span>
+                  <span role="columnheader">Tipo</span>
+                  <span role="columnheader">Req.</span>
+                  <span role="columnheader">Descrição</span>
+                </div>
                 @for (p of endpoint().bodyParams!; track p.name) {
-                  <div class="param-row">
-                    <code class="param-name">{{ p.name }}</code>
-                    <span class="param-type">{{ p.type }}</span>
-                    @if (p.required) { <span class="param-required">obrigatório</span> }
-                    <span class="param-desc">{{ p.description }}</span>
+                  <div class="param-row" role="row">
+                    <code class="param-name" role="cell">{{ p.name }}</code>
+                    <span class="param-type" role="cell">{{ p.type }}</span>
+                    <span role="cell">
+                      @if (p.required) { <span class="param-required">obrigatório</span> }
+                    </span>
+                    <span class="param-desc" role="cell">{{ p.description }}</span>
                   </div>
                 }
               </div>
-            </div>
+            </section>
           }
 
+          <!-- Body examples with per-field tables -->
           @if (endpoint().bodyExamples?.length) {
-            <div class="ep-section">
+            <section class="ep-section" aria-label="Exemplos de corpo">
               <h4 class="ep-section-title">Exemplos de corpo</h4>
               <div class="example-list">
                 @for (example of endpoint().bodyExamples!; track example.title) {
-                  <div class="code-block-wrap">
-                    <div class="code-meta">
-                      <span class="lang-tag">{{ example.title }}</span>
-                      <button type="button" class="copy-btn" (click)="copy(example.json, example.title); $event.stopPropagation()">
-                        {{ copied() === example.title ? '✓ Copiado' : 'Copiar' }}
-                      </button>
+                  <div class="example-item">
+                    <!-- Code block: copy only copies example.json, table excluded -->
+                    <div class="code-block-wrap">
+                      <div class="code-meta">
+                        <span class="lang-tag" aria-hidden="true">{{ example.title }}</span>
+                        <button
+                          type="button"
+                          class="copy-btn"
+                          [attr.aria-label]="'Copiar exemplo ' + example.title"
+                          (click)="copy(example.json, example.title); $event.stopPropagation()"
+                        >
+                          {{ copied() === example.title ? '✓ Copiado' : 'Copiar JSON' }}
+                        </button>
+                      </div>
+                      <pre class="code-block"><code>{{ example.json }}</code></pre>
                     </div>
-                    <pre class="code-block"><code>{{ example.json }}</code></pre>
+                    <!-- Field table: sibling of code block, NOT inside it -->
+                    @if (example.fields?.length) {
+                      <div class="example-fields">
+                        <p class="fields-label">Campos</p>
+                        <app-field-table [fields]="example.fields!" />
+                      </div>
+                    }
                   </div>
                 }
               </div>
-            </div>
+            </section>
           }
 
           <!-- Response example -->
-          <div class="ep-section">
+          <section class="ep-section" aria-label="Resposta de exemplo">
             <h4 class="ep-section-title">Resposta</h4>
             <div class="code-block-wrap">
               <div class="code-meta">
-                <span class="lang-tag">json</span>
-                <button type="button" class="copy-btn" (click)="copy(endpoint().responseExample, 'res'); $event.stopPropagation()">
+                <span class="lang-tag" aria-hidden="true">json</span>
+                <button
+                  type="button"
+                  class="copy-btn"
+                  aria-label="Copiar resposta de exemplo"
+                  (click)="copy(endpoint().responseExample, 'res'); $event.stopPropagation()"
+                >
                   {{ copied() === 'res' ? '✓ Copiado' : 'Copiar' }}
                 </button>
               </div>
               <pre class="code-block"><code>{{ endpoint().responseExample }}</code></pre>
             </div>
-          </div>
+          </section>
 
-          <!-- Error codes -->
+          <!-- Per-endpoint error codes (summary: which statuses) -->
           @if (endpoint().errorCodes.length > 0) {
-            <div class="ep-section">
+            <section class="ep-section" aria-label="Erros específicos">
               <h4 class="ep-section-title">Erros</h4>
               <div class="error-chips">
                 @for (e of endpoint().errorCodes; track e.status) {
@@ -176,26 +226,60 @@ import { TryItPanelComponent } from './try-it-panel.component';
                   </div>
                 }
               </div>
-            </div>
+            </section>
           }
 
+          <!-- Common error response shapes (standard envelope for all endpoints) -->
+          <section class="ep-section common-errors" aria-label="Formato padrão de erros">
+            <h4 class="ep-section-title">Formato padrão de erros</h4>
+            <p class="common-errors-note">Todos os erros HTTP seguem o mesmo envelope:</p>
+            <div class="common-errors-list">
+              @for (errShape of commonErrorResponses; track errShape.status) {
+                <div class="common-error-block">
+                  <div class="code-block-wrap">
+                    <div class="code-meta">
+                      <span class="lang-tag" aria-hidden="true">
+                        <span class="err-status-badge">{{ errShape.status }}</span>
+                        {{ errShape.title }}
+                      </span>
+                      <button
+                        type="button"
+                        class="copy-btn"
+                        [attr.aria-label]="'Copiar exemplo de erro ' + errShape.status"
+                        (click)="copy(errShape.example, 'err-' + errShape.status); $event.stopPropagation()"
+                      >
+                        {{ copied() === 'err-' + errShape.status ? '✓ Copiado' : 'Copiar' }}
+                      </button>
+                    </div>
+                    <pre class="code-block"><code>{{ errShape.example }}</code></pre>
+                  </div>
+                </div>
+              }
+            </div>
+          </section>
+
           <!-- Curl example -->
-          <div class="ep-section">
+          <section class="ep-section" aria-label="Exemplo curl">
             <h4 class="ep-section-title">curl</h4>
             <div class="code-block-wrap">
               <div class="code-meta">
-                <span class="lang-tag">bash</span>
-                <button type="button" class="copy-btn" (click)="copy(curlExpanded(), 'curl'); $event.stopPropagation()">
+                <span class="lang-tag" aria-hidden="true">bash</span>
+                <button
+                  type="button"
+                  class="copy-btn"
+                  aria-label="Copiar comando curl"
+                  (click)="copy(curlExpanded(), 'curl'); $event.stopPropagation()"
+                >
                   {{ copied() === 'curl' ? '✓ Copiado' : 'Copiar' }}
                 </button>
               </div>
               <pre class="code-block"><code>{{ curlExpanded() }}</code></pre>
             </div>
-          </div>
+          </section>
 
           <!-- Try it -->
           @if (endpoint().tryItDisabledReason) {
-            <div class="manual-note">
+            <div class="manual-note" role="note">
               <strong>Try It manual:</strong>
               <span>{{ endpoint().tryItDisabledReason }}</span>
             </div>
@@ -210,7 +294,7 @@ import { TryItPanelComponent } from './try-it-panel.component';
   `,
   styles: [
     `
-      :host { display: block; }
+      :host { display: block; min-width: 0; }
 
       .ep-card {
         background: var(--color-surface-container-lowest);
@@ -218,6 +302,7 @@ import { TryItPanelComponent } from './try-it-panel.component';
         border-radius: var(--radius-xl);
         overflow: hidden;
         transition: border-color var(--duration-fast) var(--ease-default), box-shadow var(--duration-fast) var(--ease-default);
+        min-width: 0;
       }
       .ep-card:hover { border-color: var(--color-outline); }
       .ep-card--open {
@@ -239,8 +324,14 @@ import { TryItPanelComponent } from './try-it-panel.component';
         font-family: var(--font-sans);
         color: inherit;
         transition: background var(--duration-fast) var(--ease-default);
+        min-width: 0;
+        box-sizing: border-box;
       }
       .ep-header:hover { background: var(--color-surface-container-low); }
+      .ep-header:focus-visible {
+        outline: 2px solid var(--color-primary);
+        outline-offset: -2px;
+      }
       .ep-header--static { cursor: default; }
       .ep-header--static:hover { background: transparent; }
       .ep-card--open .ep-header {
@@ -304,7 +395,8 @@ import { TryItPanelComponent } from './try-it-panel.component';
       .ep-chevron--open { transform: rotate(180deg); }
 
       /* Expanded body */
-      .ep-body { padding: 1.25rem 1.125rem 1.25rem; }
+      /* min-width:0 ensures <pre> and table descendants can shrink and scroll */
+      .ep-body { padding: 1.25rem 1.125rem; min-width: 0; }
       .ep-desc {
         font-family: var(--font-sans);
         font-size: 0.875rem;
@@ -313,7 +405,7 @@ import { TryItPanelComponent } from './try-it-panel.component';
         line-height: 1.6;
       }
 
-      .ep-section { margin-bottom: 1.25rem; }
+      .ep-section { margin-bottom: 1.25rem; min-width: 0; }
       .ep-section:last-child { margin-bottom: 0; }
       .ep-section-title {
         font-family: var(--font-display);
@@ -325,8 +417,18 @@ import { TryItPanelComponent } from './try-it-panel.component';
         margin: 0 0 0.625rem;
       }
 
-      /* Param table */
+      /* Param table (div-based for backwards compat with bodyParams/queryParams/pathParams) */
       .param-table { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--color-outline-variant); border-radius: var(--radius-lg); overflow: hidden; }
+      .param-row--head {
+        background: var(--color-surface-container-low);
+        border-bottom: 1px solid var(--color-outline-variant);
+        font-family: var(--font-display);
+        font-size: 0.625rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--color-on-surface-variant);
+      }
       .param-row {
         display: flex;
         align-items: flex-start;
@@ -337,7 +439,7 @@ import { TryItPanelComponent } from './try-it-panel.component';
         font-size: 0.8125rem;
       }
       .param-row:last-child { border-bottom: none; }
-      .param-row:nth-child(even) { background: var(--color-surface-container-low); }
+      .param-row:not(.param-row--head):nth-child(even) { background: var(--color-surface-container-low); }
       .param-name {
         font-family: 'JetBrains Mono', monospace;
         font-size: 0.75rem;
@@ -367,12 +469,31 @@ import { TryItPanelComponent } from './try-it-panel.component';
         flex-shrink: 0;
         align-self: center;
       }
-      .param-desc { color: var(--color-on-surface-variant); line-height: 1.5; flex: 1; }
+      .param-desc { color: var(--color-on-surface-variant); line-height: 1.5; flex: 1; min-width: 0; }
 
+      /* Body examples */
       .example-list {
         display: flex;
         flex-direction: column;
-        gap: 0.75rem;
+        gap: 1rem;
+        min-width: 0;
+      }
+      .example-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        min-width: 0;
+      }
+      .example-fields { min-width: 0; }
+      .fields-label {
+        font-family: var(--font-display);
+        font-size: 0.6125rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: var(--color-on-surface-variant);
+        margin: 0 0 0.375rem;
+        opacity: 0.75;
       }
 
       /* Code blocks */
@@ -380,6 +501,7 @@ import { TryItPanelComponent } from './try-it-panel.component';
         border-radius: var(--radius-lg);
         overflow: hidden;
         border: 1px solid rgba(255,255,255,0.06);
+        min-width: 0;
       }
       .code-meta {
         display: flex;
@@ -388,6 +510,7 @@ import { TryItPanelComponent } from './try-it-panel.component';
         padding: 0.4rem 0.75rem;
         background: color-mix(in srgb, var(--color-code-bg) 95%, transparent);
         border-bottom: 1px solid rgba(255,255,255,0.06);
+        gap: 0.5rem;
       }
       .lang-tag {
         font-family: var(--font-brand);
@@ -395,7 +518,28 @@ import { TryItPanelComponent } from './try-it-panel.component';
         font-weight: 700;
         letter-spacing: 0.1em;
         text-transform: uppercase;
-        color: rgba(226,217,243,0.45);
+        /* Bumped from 0.45 to meet AA contrast on dark code-bg */
+        color: rgba(226,217,243,0.65);
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .err-status-badge {
+        display: inline-flex;
+        align-items: center;
+        background: color-mix(in srgb, var(--color-error) 20%, transparent);
+        color: var(--color-error);
+        border: 1px solid color-mix(in srgb, var(--color-error) 30%, transparent);
+        border-radius: var(--radius-sm);
+        padding: 0.05rem 0.35rem;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.6875rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
       }
       .copy-btn {
         font-family: var(--font-sans);
@@ -403,13 +547,20 @@ import { TryItPanelComponent } from './try-it-panel.component';
         font-weight: 500;
         background: rgba(255,255,255,0.07);
         border: 1px solid rgba(255,255,255,0.1);
-        color: rgba(226,217,243,0.65);
+        /* Bumped from 0.65 to meet AA contrast */
+        color: rgba(226,217,243,0.82);
         padding: 0.175rem 0.55rem;
         border-radius: var(--radius-sm);
         cursor: pointer;
         transition: background var(--duration-fast);
+        flex-shrink: 0;
+        white-space: nowrap;
       }
       .copy-btn:hover { background: rgba(255,255,255,0.13); color: #e2d9f3; }
+      .copy-btn:focus-visible {
+        outline: 2px solid var(--color-primary);
+        outline-offset: 1px;
+      }
       .code-block {
         margin: 0;
         padding: 0.875rem 1rem;
@@ -418,11 +569,14 @@ import { TryItPanelComponent } from './try-it-panel.component';
         font-family: 'JetBrains Mono', 'Fira Code', monospace;
         font-size: 0.8125rem;
         line-height: 1.6;
+        /* Horizontal scroll within the block; the page never scrolls */
         overflow-x: auto;
         max-height: 18rem;
+        /* Prevent code block from stretching its parent */
+        min-width: 0;
       }
 
-      /* Error chips */
+      /* Per-endpoint error chips */
       .error-chips { display: flex; flex-direction: column; gap: 0.375rem; }
       .error-chip {
         display: flex;
@@ -447,6 +601,28 @@ import { TryItPanelComponent } from './try-it-panel.component';
         color: var(--color-on-surface-variant);
         line-height: 1.5;
       }
+
+      /* Common error shapes block */
+      .common-errors {
+        border-top: 1px solid var(--color-outline-variant);
+        padding-top: 1rem;
+        margin-top: 0.25rem;
+      }
+      .common-errors-note {
+        font-family: var(--font-sans);
+        font-size: 0.8125rem;
+        color: var(--color-on-surface-variant);
+        margin: 0 0 0.625rem;
+        line-height: 1.5;
+      }
+      .common-errors-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.625rem;
+        min-width: 0;
+      }
+      .common-error-block { min-width: 0; }
+
       .manual-note {
         display: flex;
         gap: 0.5rem;
@@ -469,6 +645,7 @@ import { TryItPanelComponent } from './try-it-panel.component';
         border-radius: var(--radius-lg);
         padding: 0.625rem;
         background: color-mix(in srgb, var(--color-surface-container-low) 70%, transparent);
+        min-width: 0;
       }
     `,
   ],
@@ -477,6 +654,8 @@ export class EndpointCardComponent {
   readonly endpoint = input.required<EndpointDef>();
   readonly forceExpanded = input(false);
   readonly detailMode = input(false);
+
+  readonly commonErrorResponses = COMMON_ERROR_RESPONSES;
 
   private readonly docsNav = inject(DocsNavigationService);
 

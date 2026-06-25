@@ -15,6 +15,7 @@ Papagai is not affiliated with, endorsed by, or sponsored by WhatsApp or Meta. I
 
 - **Multi-instance session management**: create, connect with QR Code, disconnect, and delete independent WhatsApp instances.
 - **Message sending**: text, images, audio, voice notes, video, documents, stickers, location, reactions, and interactive button messages.
+  > **Note:** interactive messages (buttons, list, CTA) render **only on the WhatsApp personal app**. WhatsApp Web and WhatsApp Business do **not** render the native component (Meta policy gate for non-official senders). The options are also appended to the message body as numbered text so they remain readable where supported.
 - **Message receiving**: inbound events are transformed, enriched, and delivered through per-instance webhooks.
 - **Signed media URLs**: downloaded media is exposed through expiring signed URLs instead of public static file paths.
 - **Per-instance webhooks**: configurable URL, custom headers, event filters, enable/disable controls, retries, and SSRF validation.

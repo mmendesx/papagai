@@ -60,7 +60,7 @@
         "@nestjs/swagger": "^11.2.7",
         "@nestjs/throttler": "^6.5.0",
         "@prisma/client": "^6.0.0",
-        "@whiskeysockets/baileys": "npm:whaileys@6.4.10",
+        "@whiskeysockets/baileys": "7.0.0-rc13",
         "axios": "^1.15.2",
         "bcryptjs": "^3.0.3",
         "bullmq": "^5.76.2",
@@ -132,6 +132,7 @@
         },
         "moduleNameMapper": {
             "^@prisma/client$": "<rootDir>/__stubs__/prisma-client",
+            "^@whiskeysockets/baileys$": "<rootDir>/__stubs__/baileys",
             "^(\\.{1,2}/.*)\\.js$": "$1"
         },
         "collectCoverageFrom": [

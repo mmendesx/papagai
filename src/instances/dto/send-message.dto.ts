@@ -171,6 +171,12 @@ export class LocationDto {
   @IsString()
   @MaxLength(255)
   name?: string;
+
+  @ApiPropertyOptional({ example: 'Av. Paulista, 1000 - São Paulo, SP' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  address?: string;
 }
 
 export class ReactionDto {
@@ -186,6 +192,29 @@ export class ReactionDto {
   emoji!: string;
 }
 
+/**
+ * Interactive messages (buttons, list, cta) are built on the modern
+ * interactiveMessage/nativeFlowMessage proto and sent via relayMessage.
+ *
+ * LIMITATION: native interactive components render only on the WhatsApp
+ * personal app. WhatsApp Web shows "couldn't load" and WhatsApp Business
+ * strips the message to plain text (button hidden). This is a Meta policy
+ * gate on native interactive for non-official (non-Cloud-API) senders — the
+ * message is delivered, decrypted, and parsed, but the client chooses not to
+ * render the component. It is not a payload bug and cannot be fixed by
+ * changing the proto shape.
+ *
+ * FALLBACK: the transformer appends the options as numbered/plain text to the
+ * interactiveMessage body (e.g. "1. Yes\n2. No") while Personal keeps the
+ * native tappable buttons. This helps clients that render the body but strip
+ * the button:
+ *   - Business (iOS): shows body text, button hidden → fallback IS shown. ✓
+ *   - Web: shows "couldn't load" for the whole interactive bubble, so the
+ *     appended body text likely never surfaces. UNVERIFIED — live-test before
+ *     relying on it; round-2 evidence suggests Web stays "couldn't load".
+ * For fully native cross-client interactivity, use the official WhatsApp
+ * Cloud API.
+ */
 export class InteractiveDto {
   @ApiProperty({ example: 'button' })
   @IsString()

@@ -11,6 +11,7 @@ import { useRedisAuthState } from './utils/redis-auth-state.js';
 import makeWASocket, {
   fetchLatestBaileysVersion,
   fetchLatestWaWebVersion,
+  generateWAMessageFromContent,
 } from '@whiskeysockets/baileys';
 import * as fs from 'fs';
 import {
@@ -40,37 +41,42 @@ import { MediaUrlService } from '../media/media-url.service.js';
 import { getProviderCapabilities } from '../instances/provider-capabilities.js';
 
 function extractButtonLabels(content: any): string[] | undefined {
-  // Regular buttons (buildButtonMessage output: content.buttons[].buttonText.displayText)
-  if (content?.buttons?.length) {
-    const labels = content.buttons
-      .map((b: any) => b.buttonText?.displayText)
-      .filter(Boolean);
-    return labels.length ? labels : undefined;
-  }
-  // List message (buildListMessage output: content.listMessage.sections[].rows[].title)
-  if (content?.listMessage?.sections?.length) {
-    const labels = (content.listMessage.sections as any[])
-      .flatMap((s: any) => s.rows ?? [])
-      .map((r: any) => r.title)
-      .filter(Boolean);
-    return labels.length ? labels : undefined;
-  }
-  // Native flow (buildCtaInteractiveMessage output)
-  if (content?.interactiveMessage?.nativeFlowMessage?.buttons?.length) {
-    const labels = (
-      content.interactiveMessage.nativeFlowMessage.buttons as any[]
-    )
-      .map((b: any) => {
-        try {
-          return JSON.parse(b.buttonParamsJson ?? '{}')?.display_text;
-        } catch {
-          return null;
+  // All interactive types now use interactiveMessage/nativeFlowMessage (modern proto).
+  // Extract labels based on the button name:
+  //   quick_reply  → buttonParamsJson.display_text (reply buttons)
+  //   single_select → buttonParamsJson.sections[].rows[].title (list rows)
+  //   cta_url / cta_copy / otp → buttonParamsJson.display_text
+  const nativeButtons: any[] =
+    content?.interactiveMessage?.nativeFlowMessage?.buttons ?? [];
+
+  if (!nativeButtons.length) return undefined;
+
+  const labels: string[] = [];
+
+  for (const b of nativeButtons) {
+    let parsed: any = {};
+    try {
+      parsed = JSON.parse(b.buttonParamsJson ?? '{}');
+    } catch {
+      // Malformed JSON — skip this button's labels
+    }
+
+    if (b.name === 'single_select') {
+      // List picker: extract all row titles from sections so the preview
+      // shows the actual options, not just the picker button label.
+      const sections: any[] = parsed.sections ?? [];
+      for (const section of sections) {
+        for (const row of section.rows ?? []) {
+          if (row.title) labels.push(row.title as string);
         }
-      })
-      .filter(Boolean);
-    return labels.length ? labels : undefined;
+      }
+    } else if (parsed.display_text) {
+      // quick_reply, cta_url, cta_copy, otp — show the button label.
+      labels.push(parsed.display_text as string);
+    }
   }
-  return undefined;
+
+  return labels.length ? labels : undefined;
 }
 
 @Injectable()
@@ -223,7 +229,6 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
       markOnlineOnConnect: false,
       defaultQueryTimeoutMs: 60000,
       generateHighQualityLinkPreview: true,
-      shouldResendMessageOn475AckError: true,
       getMessage: () => Promise.resolve({ conversation: '' }),
     });
 
@@ -571,23 +576,39 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
       `Sending to JID: ${jid}, content keys: ${Object.keys(content).join(', ')}`,
     );
 
-    let payload = content;
-    const myJid = instance.socket.user?.id ?? '';
-
-    if (content.listMessage) {
-      // listMessage requires a forward wrapper for cross-platform (iOS) compatibility
-      payload = {
-        forward: {
-          key: { remoteJid: myJid, fromMe: true },
-          message: content,
-        },
-      };
+    // A reaction targets an existing message; its key.remoteJid must be the
+    // resolved chat JID. The transformer cannot know it (it has no `to`), so it
+    // emits an empty string — fill it here or the reaction reaches the server
+    // with no target and silently no-ops.
+    if (content?.react?.key && !content.react.key.remoteJid) {
+      content.react.key.remoteJid = jid;
     }
 
-    const result = await instance.socket.sendMessage(jid, payload);
-    this.logger.debug(
-      `sendMessage result: id=${result?.key?.id} status=${result?.status}`,
-    );
+    // Interactive content (interactiveMessage/nativeFlowMessage) cannot be
+    // dispatched via sock.sendMessage because v7 has no content branch for it —
+    // it would fall through generateWAMessage with no recognized type and transmit
+    // an empty proto. The correct path is generate+relay with an explicit bot node,
+    // which is required for 1:1 interactive messages to render on all clients.
+    // Everything else (text, media, location, reaction, contacts) stays on sendMessage.
+    let result: any;
+    if (content?.interactiveMessage) {
+      const fullMsg = generateWAMessageFromContent(jid, content, {
+        userJid: instance.socket.user?.id ?? '',
+      });
+      await instance.socket.relayMessage(jid, fullMsg.message!, {
+        messageId: fullMsg.key.id ?? undefined,
+        // The bot node is required for interactive messages to render in 1:1 chats.
+        // Upstream v7 does not inject this automatically.
+        additionalNodes: [{ tag: 'bot', attrs: { biz_bot: '1' } }],
+      });
+      this.logger.debug(`relayMessage (interactive) id=${fullMsg.key.id}`);
+      result = fullMsg;
+    } else {
+      result = await instance.socket.sendMessage(jid, content);
+      this.logger.debug(
+        `sendMessage result: id=${result?.key?.id} status=${result?.status}`,
+      );
+    }
 
     // Redefine a presença como 'unavailable' imediatamente após o envio da mensagem
     instance.socket.sendPresenceUpdate('unavailable').catch((err) => {
@@ -848,7 +869,7 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
     if (!instance) return false;
 
     this.chatStore.clearInstance(userId, instanceName);
-    instance.socket.end(undefined);
+    void instance.socket.end(undefined);
     this.instances.delete(key);
     this.qrCodes.delete(key);
     const redisKeys = await this.redis.keys(
@@ -912,7 +933,7 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
         instance.socket.ev.removeAllListeners('messaging-history.set');
         instance.socket.ev.removeAllListeners('messages.upsert');
         instance.socket.ev.removeAllListeners('messages.update');
-        instance.socket.end(undefined);
+        void instance.socket.end(undefined);
       } catch (err) {
         this.logger.warn(
           `Error closing socket for "${name}": ${err instanceof Error ? err.message : String(err)}`,

@@ -86,7 +86,7 @@ describe('toMessageContent', () => {
     });
   });
 
-  it('transforms location messages', () => {
+  it('nests name and address inside location so v7 LocationMessage.create receives them', () => {
     expect(
       toMessageContent({
         type: 'location',
@@ -94,16 +94,35 @@ describe('toMessageContent', () => {
           latitude: -23.5505,
           longitude: -46.6333,
           name: 'Sao Paulo',
+          address: 'Av. Paulista, 1000',
         },
       }),
     ).toEqual({
       location: {
         degreesLatitude: -23.5505,
         degreesLongitude: -46.6333,
+        name: 'Sao Paulo',
+        address: 'Av. Paulista, 1000',
       },
-      name: 'Sao Paulo',
-      address: undefined,
     });
+  });
+
+  it('omits name and address when not provided rather than emitting null siblings', () => {
+    const result = toMessageContent({
+      type: 'location',
+      location: { latitude: 0, longitude: 0 },
+    });
+    expect(result).toEqual({
+      location: {
+        degreesLatitude: 0,
+        degreesLongitude: 0,
+        name: undefined,
+        address: undefined,
+      },
+    });
+    // Sibling keys must not leak outside the location object
+    expect(result.name).toBeUndefined();
+    expect(result.address).toBeUndefined();
   });
 
   it('transforms reaction messages', () => {
@@ -120,28 +139,7 @@ describe('toMessageContent', () => {
     });
   });
 
-  it('transforms button interactive messages', () => {
-    expect(
-      toMessageContent({
-        type: 'interactive',
-        interactive: {
-          type: 'button',
-          body: { text: 'Choose' },
-          action: {
-            buttons: [{ reply: { id: 'yes', title: 'Yes' } }],
-          },
-        },
-      }),
-    ).toEqual({
-      buttons: [
-        { buttonId: 'yes', buttonText: { displayText: 'Yes' }, type: 1 },
-      ],
-      text: 'Choose',
-      headerType: 4,
-    });
-  });
-
-  it('transforms contacts messages', () => {
+  it('maps contacts to {displayName, vcard} objects so v7 ContactMessage.create receives the right shape', () => {
     expect(
       toMessageContent({
         type: 'contacts',
@@ -156,9 +154,39 @@ describe('toMessageContent', () => {
       contacts: {
         displayName: 'John Doe',
         contacts: [
-          'BEGIN:VCARD\nVERSION:3.0\nFN:John Doe\nTEL;type=CELL;waid=5511999999999:5511999999999\nEND:VCARD',
+          {
+            displayName: 'John Doe',
+            vcard:
+              'BEGIN:VCARD\nVERSION:3.0\nFN:John Doe\nTEL;type=CELL;waid=5511999999999:5511999999999\nEND:VCARD',
+          },
         ],
       },
+    });
+  });
+
+  it('maps multiple contacts to {displayName, vcard} objects for ContactsArrayMessage', () => {
+    const result = toMessageContent({
+      type: 'contacts',
+      contacts: [
+        {
+          name: { formatted_name: 'Alice' },
+          phones: [{ phone: '5511111111111' }],
+        },
+        {
+          name: { formatted_name: 'Bob' },
+          phones: [{ phone: '5522222222222' }],
+        },
+      ],
+    });
+
+    expect(result.contacts.contacts).toHaveLength(2);
+    expect(result.contacts.contacts[0]).toMatchObject({
+      displayName: 'Alice',
+      vcard: expect.stringContaining('FN:Alice'),
+    });
+    expect(result.contacts.contacts[1]).toMatchObject({
+      displayName: 'Bob',
+      vcard: expect.stringContaining('FN:Bob'),
     });
   });
 
@@ -166,5 +194,357 @@ describe('toMessageContent', () => {
     expect(() => toMessageContent({ type: 'fax' })).toThrow(
       'Unsupported message type: fax',
     );
+  });
+
+  describe('interactive: button — reply buttons render on modern proto', () => {
+    it('emits interactiveMessage/nativeFlowMessage with quick_reply buttons', () => {
+      const result = toMessageContent({
+        type: 'interactive',
+        interactive: {
+          type: 'button',
+          body: { text: 'Choose an option' },
+          action: {
+            buttons: [
+              { reply: { id: 'yes', title: 'Yes' } },
+              { reply: { id: 'no', title: 'No' } },
+            ],
+          },
+        },
+      });
+
+      expect(result.interactiveMessage).toBeDefined();
+      // body keeps the original text plus the numbered-text fallback for
+      // clients that strip native buttons (Web/Business).
+      expect(result.interactiveMessage.body).toEqual({
+        text: 'Choose an option\n\n1. Yes\n2. No',
+      });
+      expect(result.interactiveMessage.header).toEqual({
+        title: '',
+        hasMediaAttachment: false,
+      });
+      expect(result.interactiveMessage.nativeFlowMessage.messageVersion).toBe(
+        2,
+      );
+
+      const buttons = result.interactiveMessage.nativeFlowMessage.buttons;
+      expect(buttons).toHaveLength(2);
+
+      expect(buttons[0].name).toBe('quick_reply');
+      expect(JSON.parse(buttons[0].buttonParamsJson)).toEqual({
+        display_text: 'Yes',
+        id: 'yes',
+      });
+
+      expect(buttons[1].name).toBe('quick_reply');
+      expect(JSON.parse(buttons[1].buttonParamsJson)).toEqual({
+        display_text: 'No',
+        id: 'no',
+      });
+    });
+
+    it('includes messageContextInfo sibling for device-list fan-out', () => {
+      const result = toMessageContent({
+        type: 'interactive',
+        interactive: {
+          type: 'button',
+          body: { text: 'Pick' },
+          action: { buttons: [{ reply: { id: '1', title: 'A' } }] },
+        },
+      });
+
+      expect(result.messageContextInfo).toBeDefined();
+    });
+
+    it('includes optional footer when provided', () => {
+      const result = toMessageContent({
+        type: 'interactive',
+        interactive: {
+          type: 'button',
+          body: { text: 'Body' },
+          footer: { text: 'Powered by Papagai' },
+          action: { buttons: [{ reply: { id: 'ok', title: 'OK' } }] },
+        },
+      });
+
+      expect(result.interactiveMessage.footer).toEqual({
+        text: 'Powered by Papagai',
+      });
+    });
+
+    it('sets header title when provided', () => {
+      const result = toMessageContent({
+        type: 'interactive',
+        interactive: {
+          type: 'button',
+          header: { text: 'Header text' },
+          body: { text: 'Body' },
+          action: { buttons: [{ reply: { id: 'ok', title: 'OK' } }] },
+        },
+      });
+
+      expect(result.interactiveMessage.header.title).toBe('Header text');
+    });
+
+    it('does not emit legacy buttons or buttonsMessage fields', () => {
+      const result = toMessageContent({
+        type: 'interactive',
+        interactive: {
+          type: 'button',
+          body: { text: 'Choose' },
+          action: { buttons: [{ reply: { id: 'a', title: 'A' } }] },
+        },
+      });
+
+      expect(result.buttons).toBeUndefined();
+      expect(result.buttonsMessage).toBeUndefined();
+      expect(result.listMessage).toBeUndefined();
+    });
+  });
+
+  describe('interactive: list — list picker renders via nativeFlowMessage', () => {
+    it('emits interactiveMessage/nativeFlowMessage with single_select button', () => {
+      const result = toMessageContent({
+        type: 'interactive',
+        interactive: {
+          type: 'list',
+          body: { text: 'Select a city' },
+          action: {
+            button: 'Pick city',
+            sections: [
+              {
+                title: 'Brazil',
+                rows: [
+                  { id: 'sp', title: 'São Paulo', description: 'Largest city' },
+                  { id: 'rj', title: 'Rio de Janeiro' },
+                ],
+              },
+            ],
+          },
+        },
+      });
+
+      expect(result.interactiveMessage).toBeDefined();
+      // body keeps the original text plus a numbered list of rows for clients
+      // that strip the native picker.
+      expect(result.interactiveMessage.body).toEqual({
+        text: 'Select a city\n\n*Brazil*\n1. São Paulo — Largest city\n2. Rio de Janeiro',
+      });
+
+      const buttons = result.interactiveMessage.nativeFlowMessage.buttons;
+      expect(buttons).toHaveLength(1);
+      expect(buttons[0].name).toBe('single_select');
+
+      const params = JSON.parse(buttons[0].buttonParamsJson);
+      expect(params.title).toBe('Pick city');
+      expect(params.sections).toHaveLength(1);
+      expect(params.sections[0].title).toBe('Brazil');
+      expect(params.sections[0].rows).toHaveLength(2);
+      expect(params.sections[0].rows[0]).toMatchObject({
+        id: 'sp',
+        title: 'São Paulo',
+        description: 'Largest city',
+      });
+      expect(params.sections[0].rows[1]).toMatchObject({
+        id: 'rj',
+        title: 'Rio de Janeiro',
+      });
+    });
+
+    it('includes messageContextInfo sibling for device-list fan-out', () => {
+      const result = toMessageContent({
+        type: 'interactive',
+        interactive: {
+          type: 'list',
+          body: { text: 'Pick' },
+          action: {
+            button: 'Select',
+            sections: [{ title: 'A', rows: [{ id: '1', title: 'One' }] }],
+          },
+        },
+      });
+
+      expect(result.messageContextInfo).toBeDefined();
+    });
+
+    it('does not emit legacy listMessage or forward wrapper fields', () => {
+      const result = toMessageContent({
+        type: 'interactive',
+        interactive: {
+          type: 'list',
+          body: { text: 'Pick' },
+          action: {
+            button: 'Select',
+            sections: [{ title: 'A', rows: [{ id: '1', title: 'One' }] }],
+          },
+        },
+      });
+
+      expect(result.listMessage).toBeUndefined();
+      expect(result.forward).toBeUndefined();
+    });
+
+    it('defaults button text to "Select" when action.button is absent', () => {
+      const result = toMessageContent({
+        type: 'interactive',
+        interactive: {
+          type: 'list',
+          body: { text: 'Pick' },
+          action: {
+            sections: [{ title: 'A', rows: [{ id: '1', title: 'One' }] }],
+          },
+        },
+      });
+
+      const params = JSON.parse(
+        result.interactiveMessage.nativeFlowMessage.buttons[0].buttonParamsJson,
+      );
+      expect(params.title).toBe('Select');
+    });
+
+    it('includes optional footer when provided', () => {
+      const result = toMessageContent({
+        type: 'interactive',
+        interactive: {
+          type: 'list',
+          body: { text: 'Pick' },
+          footer: { text: 'Footer note' },
+          action: {
+            button: 'Go',
+            sections: [],
+          },
+        },
+      });
+
+      expect(result.interactiveMessage.footer).toEqual({ text: 'Footer note' });
+    });
+  });
+
+  describe('interactive: cta_url — CTA URL button renders via nativeFlowMessage', () => {
+    it('emits interactiveMessage/nativeFlowMessage with cta_url button', () => {
+      const result = toMessageContent({
+        type: 'interactive',
+        interactive: {
+          type: 'cta_url',
+          body: { text: 'Visit our site' },
+          action: {
+            parameters: {
+              display_text: 'Open',
+              url: 'https://example.com',
+            },
+          },
+        },
+      });
+
+      expect(result.interactiveMessage).toBeDefined();
+      const buttons = result.interactiveMessage.nativeFlowMessage.buttons;
+      expect(buttons).toHaveLength(1);
+      expect(buttons[0].name).toBe('cta_url');
+
+      const params = JSON.parse(buttons[0].buttonParamsJson);
+      expect(params.display_text).toBe('Open');
+      expect(params.url).toBe('https://example.com');
+      expect(params.merchant_url).toBe('https://example.com');
+    });
+
+    it('includes messageContextInfo sibling', () => {
+      const result = toMessageContent({
+        type: 'interactive',
+        interactive: {
+          type: 'cta_url',
+          body: { text: 'Go' },
+          action: {
+            parameters: { display_text: 'Click', url: 'https://example.com' },
+          },
+        },
+      });
+
+      expect(result.messageContextInfo).toBeDefined();
+    });
+  });
+
+  describe('interactive: unsupported type fails fast', () => {
+    it('throws a clear error for an unknown interactive type', () => {
+      expect(() =>
+        toMessageContent({
+          type: 'interactive',
+          interactive: { type: 'carousel', body: { text: 'x' }, action: {} },
+        }),
+      ).toThrow('Unsupported interactive type: carousel');
+    });
+
+    it('does not emit a malformed proto when the type is unknown', () => {
+      expect(() =>
+        toMessageContent({
+          type: 'interactive',
+          interactive: { type: 'unknown_type', body: {}, action: {} },
+        }),
+      ).toThrow();
+    });
+  });
+
+  describe('interactive: numbered-text fallback for Web/Business', () => {
+    it('appends a CTA url line to the body', () => {
+      const result = toMessageContent({
+        type: 'interactive',
+        interactive: {
+          type: 'cta_url',
+          body: { text: 'Visit our site' },
+          action: {
+            parameters: { display_text: 'Open', url: 'https://example.com' },
+          },
+        },
+      });
+
+      expect(result.interactiveMessage.body.text).toBe(
+        'Visit our site\n\nOpen: https://example.com',
+      );
+    });
+
+    it('appends a copy code line for cta_copy', () => {
+      const result = toMessageContent({
+        type: 'interactive',
+        interactive: {
+          type: 'cta_copy',
+          body: { text: 'Your code' },
+          action: {
+            parameters: { display_text: 'Copy', copy_code: 'ABC123' },
+          },
+        },
+      });
+
+      expect(result.interactiveMessage.body.text).toBe(
+        'Your code\n\nCopy: ABC123',
+      );
+    });
+
+    it('keeps native buttons alongside the fallback text', () => {
+      const result = toMessageContent({
+        type: 'interactive',
+        interactive: {
+          type: 'button',
+          body: { text: 'Pick' },
+          action: { buttons: [{ reply: { id: 'a', title: 'A' } }] },
+        },
+      });
+
+      // native path intact (Personal iOS) AND text fallback present (Web/Business)
+      expect(result.interactiveMessage.nativeFlowMessage.buttons).toHaveLength(
+        1,
+      );
+      expect(result.interactiveMessage.body.text).toBe('Pick\n\n1. A');
+    });
+
+    it('uses fallback as the whole body when body text is empty', () => {
+      const result = toMessageContent({
+        type: 'interactive',
+        interactive: {
+          type: 'button',
+          body: { text: '' },
+          action: { buttons: [{ reply: { id: 'a', title: 'A' } }] },
+        },
+      });
+
+      expect(result.interactiveMessage.body.text).toBe('1. A');
+    });
   });
 });

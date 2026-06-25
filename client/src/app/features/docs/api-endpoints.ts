@@ -24,9 +24,22 @@ export type EndpointAuthType =
   | 'apiKey'
   | 'bearer_or_apiKey';
 
+/**
+ * A single field entry for per-field documentation tables.
+ * Use dot-path notation for nested fields, e.g. "interactive.action.buttons[].reply.id".
+ */
+export interface FieldDef {
+  field: string;
+  type: string;
+  required: boolean;
+  description: string;
+}
+
 export interface BodyExampleDef {
   title: string;
   json: string;
+  /** Optional per-field documentation rendered alongside the JSON example. */
+  fields?: FieldDef[];
 }
 
 export interface EndpointDef {
@@ -80,25 +93,78 @@ export const WEBHOOK_EVENTS: WebhookEventRef[] = [
   },
 ];
 
-export const WEBHOOK_PAYLOAD_EXAMPLES: { event: string; json: string }[] = [
+/**
+ * Error response shape emitted by HttpExceptionFilter for all HTTP errors.
+ * Source: src/common/filters/http-exception.filter.ts
+ *
+ * Fields:
+ *   statusCode  — HTTP status code (number)
+ *   timestamp   — ISO 8601 string of when the error occurred
+ *   path        — request path that triggered the error
+ *   message     — string or string[] (class-validator returns arrays for 400/422)
+ *   error       — exception name / HTTP status text
+ *   code?       — optional machine-readable code when the exception carries one
+ */
+export interface ErrorResponseShape {
+  status: number;
+  title: string;
+  example: string;
+}
+
+export const COMMON_ERROR_RESPONSES: ErrorResponseShape[] = [
   {
-    event: 'message',
-    json: `{
-  "event": "message",
-  "instance": "minha-instancia",
-  "data": { "...": "payload normalizado da mensagem via Baileys" }
+    status: 400,
+    title: 'Bad Request',
+    example: `{
+  "statusCode": 400,
+  "timestamp": "2026-06-22T12:00:00.000Z",
+  "path": "/api/instances/meu-papagai/messages",
+  "message": "Falha no envio ou instância inválida.",
+  "error": "Bad Request"
 }`,
   },
   {
-    event: 'connected',
-    json: `{
-  "event": "connected",
-  "instance": "minha-instancia",
-  "data": { "phoneNumber": "5511999999999" }
+    status: 401,
+    title: 'Unauthorized',
+    example: `{
+  "statusCode": 401,
+  "timestamp": "2026-06-22T12:00:00.000Z",
+  "path": "/api/instances/meu-papagai/messages",
+  "message": "Unauthorized",
+  "error": "Unauthorized"
+}`,
+  },
+  {
+    status: 422,
+    title: 'Unprocessable Entity (validação)',
+    example: `{
+  "statusCode": 422,
+  "timestamp": "2026-06-22T12:00:00.000Z",
+  "path": "/api/instances/meu-papagai/messages",
+  "message": [
+    "to é obrigatório",
+    "type must be a valid enum value"
+  ],
+  "error": "Unprocessable Entity"
+}`,
+  },
+  {
+    status: 429,
+    title: 'Too Many Requests',
+    example: `{
+  "statusCode": 429,
+  "timestamp": "2026-06-22T12:00:00.000Z",
+  "path": "/api/auth/login",
+  "message": "ThrottlerException: Too Many Requests",
+  "error": "Too Many Requests"
 }`,
   },
 ];
 
+// ---------------------------------------------------------------------------
+// Send-message body examples — all interactive types (button, list, cta_url, cta_copy, otp)
+// are fully supported by the backend (transformer.ts INTERACTIVE_BUILDERS).
+// ---------------------------------------------------------------------------
 const SEND_MESSAGE_BODY_EXAMPLES: BodyExampleDef[] = [
   {
     title: 'text',
@@ -107,6 +173,26 @@ const SEND_MESSAGE_BODY_EXAMPLES: BodyExampleDef[] = [
   "type": "text",
   "text": { "body": "Hello from Papagai!" }
 }`,
+    fields: [
+      {
+        field: 'to',
+        type: 'string',
+        required: true,
+        description: 'JID do destinatário (ex.: 5511999999999@s.whatsapp.net) ou número puro.',
+      },
+      {
+        field: 'type',
+        type: '"text"',
+        required: true,
+        description: 'Tipo da mensagem. Deve ser "text".',
+      },
+      {
+        field: 'text.body',
+        type: 'string',
+        required: true,
+        description: 'Corpo da mensagem de texto. Máximo 4096 caracteres.',
+      },
+    ],
   },
   {
     title: 'image by URL',
@@ -118,6 +204,22 @@ const SEND_MESSAGE_BODY_EXAMPLES: BodyExampleDef[] = [
     "caption": "Photo by URL"
   }
 }`,
+    fields: [
+      { field: 'to', type: 'string', required: true, description: 'JID ou número do destinatário.' },
+      { field: 'type', type: '"image"', required: true, description: 'Tipo da mensagem.' },
+      {
+        field: 'image.link',
+        type: 'string (URL)',
+        required: true,
+        description: 'URL pública da imagem. Obrigatório quando image.data não está presente.',
+      },
+      {
+        field: 'image.caption',
+        type: 'string',
+        required: false,
+        description: 'Legenda opcional. Máximo 1024 caracteres.',
+      },
+    ],
   },
   {
     title: 'image base64',
@@ -130,6 +232,28 @@ const SEND_MESSAGE_BODY_EXAMPLES: BodyExampleDef[] = [
     "caption": "Inline photo"
   }
 }`,
+    fields: [
+      { field: 'to', type: 'string', required: true, description: 'JID ou número do destinatário.' },
+      { field: 'type', type: '"image"', required: true, description: 'Tipo da mensagem.' },
+      {
+        field: 'image.data',
+        type: 'string (base64)',
+        required: true,
+        description: 'Conteúdo da imagem em base64. Máximo ~16 MB. Obrigatório quando image.link não está presente.',
+      },
+      {
+        field: 'image.mimetype',
+        type: 'string',
+        required: true,
+        description: 'MIME type da imagem (ex.: image/jpeg, image/png). Obrigatório quando image.data está presente.',
+      },
+      {
+        field: 'image.caption',
+        type: 'string',
+        required: false,
+        description: 'Legenda opcional. Máximo 1024 caracteres.',
+      },
+    ],
   },
   {
     title: 'audio URL and voice note',
@@ -141,6 +265,22 @@ const SEND_MESSAGE_BODY_EXAMPLES: BodyExampleDef[] = [
     "ptt": true
   }
 }`,
+    fields: [
+      { field: 'to', type: 'string', required: true, description: 'JID ou número do destinatário.' },
+      { field: 'type', type: '"audio"', required: true, description: 'Tipo da mensagem.' },
+      {
+        field: 'audio.link',
+        type: 'string (URL)',
+        required: true,
+        description: 'URL pública do arquivo de áudio. Obrigatório quando audio.data não está presente.',
+      },
+      {
+        field: 'audio.ptt',
+        type: 'boolean',
+        required: false,
+        description: 'true envia como nota de voz (push-to-talk). Padrão: false.',
+      },
+    ],
   },
   {
     title: 'audio base64',
@@ -153,6 +293,28 @@ const SEND_MESSAGE_BODY_EXAMPLES: BodyExampleDef[] = [
     "ptt": false
   }
 }`,
+    fields: [
+      { field: 'to', type: 'string', required: true, description: 'JID ou número do destinatário.' },
+      { field: 'type', type: '"audio"', required: true, description: 'Tipo da mensagem.' },
+      {
+        field: 'audio.data',
+        type: 'string (base64)',
+        required: true,
+        description: 'Conteúdo do áudio em base64. Obrigatório quando audio.link não está presente.',
+      },
+      {
+        field: 'audio.mimetype',
+        type: 'string',
+        required: true,
+        description: 'MIME type do áudio (ex.: audio/ogg, audio/mpeg). Obrigatório quando audio.data está presente.',
+      },
+      {
+        field: 'audio.ptt',
+        type: 'boolean',
+        required: false,
+        description: 'true envia como nota de voz. Padrão: false.',
+      },
+    ],
   },
   {
     title: 'video URL',
@@ -164,6 +326,22 @@ const SEND_MESSAGE_BODY_EXAMPLES: BodyExampleDef[] = [
     "caption": "Video by URL"
   }
 }`,
+    fields: [
+      { field: 'to', type: 'string', required: true, description: 'JID ou número do destinatário.' },
+      { field: 'type', type: '"video"', required: true, description: 'Tipo da mensagem.' },
+      {
+        field: 'video.link',
+        type: 'string (URL)',
+        required: true,
+        description: 'URL pública do vídeo. Obrigatório quando video.data não está presente.',
+      },
+      {
+        field: 'video.caption',
+        type: 'string',
+        required: false,
+        description: 'Legenda opcional. Máximo 1024 caracteres.',
+      },
+    ],
   },
   {
     title: 'video base64',
@@ -176,6 +354,28 @@ const SEND_MESSAGE_BODY_EXAMPLES: BodyExampleDef[] = [
     "caption": "Inline video"
   }
 }`,
+    fields: [
+      { field: 'to', type: 'string', required: true, description: 'JID ou número do destinatário.' },
+      { field: 'type', type: '"video"', required: true, description: 'Tipo da mensagem.' },
+      {
+        field: 'video.data',
+        type: 'string (base64)',
+        required: true,
+        description: 'Conteúdo do vídeo em base64. Obrigatório quando video.link não está presente.',
+      },
+      {
+        field: 'video.mimetype',
+        type: 'string',
+        required: true,
+        description: 'MIME type do vídeo (ex.: video/mp4). Obrigatório quando video.data está presente.',
+      },
+      {
+        field: 'video.caption',
+        type: 'string',
+        required: false,
+        description: 'Legenda opcional. Máximo 1024 caracteres.',
+      },
+    ],
   },
   {
     title: 'document URL',
@@ -188,6 +388,28 @@ const SEND_MESSAGE_BODY_EXAMPLES: BodyExampleDef[] = [
     "caption": "Monthly report"
   }
 }`,
+    fields: [
+      { field: 'to', type: 'string', required: true, description: 'JID ou número do destinatário.' },
+      { field: 'type', type: '"document"', required: true, description: 'Tipo da mensagem.' },
+      {
+        field: 'document.link',
+        type: 'string (URL)',
+        required: true,
+        description: 'URL pública do documento. Obrigatório quando document.data não está presente.',
+      },
+      {
+        field: 'document.filename',
+        type: 'string',
+        required: false,
+        description: 'Nome do arquivo exibido ao destinatário.',
+      },
+      {
+        field: 'document.caption',
+        type: 'string',
+        required: false,
+        description: 'Legenda opcional. Máximo 1024 caracteres.',
+      },
+    ],
   },
   {
     title: 'document base64',
@@ -200,6 +422,28 @@ const SEND_MESSAGE_BODY_EXAMPLES: BodyExampleDef[] = [
     "filename": "report.pdf"
   }
 }`,
+    fields: [
+      { field: 'to', type: 'string', required: true, description: 'JID ou número do destinatário.' },
+      { field: 'type', type: '"document"', required: true, description: 'Tipo da mensagem.' },
+      {
+        field: 'document.data',
+        type: 'string (base64)',
+        required: true,
+        description: 'Conteúdo do documento em base64. Obrigatório quando document.link não está presente.',
+      },
+      {
+        field: 'document.mimetype',
+        type: 'string',
+        required: true,
+        description: 'MIME type do documento (ex.: application/pdf). Obrigatório quando document.data está presente.',
+      },
+      {
+        field: 'document.filename',
+        type: 'string',
+        required: false,
+        description: 'Nome do arquivo exibido ao destinatário.',
+      },
+    ],
   },
   {
     title: 'sticker URL',
@@ -208,6 +452,16 @@ const SEND_MESSAGE_BODY_EXAMPLES: BodyExampleDef[] = [
   "type": "sticker",
   "sticker": { "link": "https://example.com/sticker.webp" }
 }`,
+    fields: [
+      { field: 'to', type: 'string', required: true, description: 'JID ou número do destinatário.' },
+      { field: 'type', type: '"sticker"', required: true, description: 'Tipo da mensagem.' },
+      {
+        field: 'sticker.link',
+        type: 'string (URL)',
+        required: true,
+        description: 'URL pública do sticker WebP. Obrigatório quando sticker.data não está presente.',
+      },
+    ],
   },
   {
     title: 'sticker base64',
@@ -219,6 +473,22 @@ const SEND_MESSAGE_BODY_EXAMPLES: BodyExampleDef[] = [
     "mimetype": "image/webp"
   }
 }`,
+    fields: [
+      { field: 'to', type: 'string', required: true, description: 'JID ou número do destinatário.' },
+      { field: 'type', type: '"sticker"', required: true, description: 'Tipo da mensagem.' },
+      {
+        field: 'sticker.data',
+        type: 'string (base64)',
+        required: true,
+        description: 'Conteúdo do sticker em base64. Obrigatório quando sticker.link não está presente.',
+      },
+      {
+        field: 'sticker.mimetype',
+        type: 'string',
+        required: true,
+        description: 'MIME type do sticker. Deve ser image/webp. Obrigatório quando sticker.data está presente.',
+      },
+    ],
   },
   {
     title: 'location',
@@ -228,9 +498,38 @@ const SEND_MESSAGE_BODY_EXAMPLES: BodyExampleDef[] = [
   "location": {
     "latitude": -23.5505,
     "longitude": -46.6333,
-    "name": "Sao Paulo"
+    "name": "Sao Paulo",
+    "address": "Av. Paulista, 1000 - São Paulo, SP"
   }
 }`,
+    fields: [
+      { field: 'to', type: 'string', required: true, description: 'JID ou número do destinatário.' },
+      { field: 'type', type: '"location"', required: true, description: 'Tipo da mensagem.' },
+      {
+        field: 'location.latitude',
+        type: 'number',
+        required: true,
+        description: 'Latitude em graus decimais. Intervalo: -90 a 90.',
+      },
+      {
+        field: 'location.longitude',
+        type: 'number',
+        required: true,
+        description: 'Longitude em graus decimais. Intervalo: -180 a 180.',
+      },
+      {
+        field: 'location.name',
+        type: 'string',
+        required: false,
+        description: 'Nome do local exibido acima do mapa. Máximo 255 caracteres.',
+      },
+      {
+        field: 'location.address',
+        type: 'string',
+        required: false,
+        description: 'Endereço exibido abaixo do nome. Máximo 255 caracteres.',
+      },
+    ],
   },
   {
     title: 'reaction',
@@ -242,7 +541,27 @@ const SEND_MESSAGE_BODY_EXAMPLES: BodyExampleDef[] = [
     "emoji": "👍"
   }
 }`,
+    fields: [
+      { field: 'to', type: 'string', required: true, description: 'JID ou número do destinatário.' },
+      { field: 'type', type: '"reaction"', required: true, description: 'Tipo da mensagem.' },
+      {
+        field: 'reaction.message_id',
+        type: 'string',
+        required: true,
+        description: 'ID da mensagem alvo da reação (retornado no campo messages[].id ao enviar).',
+      },
+      {
+        field: 'reaction.emoji',
+        type: 'string',
+        required: true,
+        description: 'Emoji Unicode da reação. Máximo 8 bytes. Envie string vazia "" para remover a reação.',
+      },
+    ],
   },
+  // interactive: reply buttons, list picker, and cta_url/cta_copy/otp are all
+  // supported by the backend (transformer.ts INTERACTIVE_BUILDERS + CTA_BUTTON_BUILDERS).
+  // Native rendering is limited to WhatsApp Personal; Web/Business fall back to
+  // numbered plain text appended to the body (see transformer.ts appendFallbackText).
   {
     title: 'interactive buttons',
     json: `{
@@ -250,15 +569,315 @@ const SEND_MESSAGE_BODY_EXAMPLES: BodyExampleDef[] = [
   "type": "interactive",
   "interactive": {
     "type": "button",
-    "body": { "text": "Choose an option" },
+    "header": { "text": "Título opcional" },
+    "body": { "text": "Escolha uma opção" },
+    "footer": { "text": "Rodapé opcional" },
     "action": {
       "buttons": [
-        { "type": "reply", "reply": { "id": "yes", "title": "Yes" } },
-        { "type": "reply", "reply": { "id": "no", "title": "No" } }
+        { "type": "reply", "reply": { "id": "yes", "title": "Sim" } },
+        { "type": "reply", "reply": { "id": "no", "title": "Não" } }
       ]
     }
   }
 }`,
+    fields: [
+      { field: 'to', type: 'string', required: true, description: 'JID ou número do destinatário.' },
+      { field: 'type', type: '"interactive"', required: true, description: 'Tipo da mensagem.' },
+      {
+        field: 'interactive.type',
+        type: '"button"',
+        required: true,
+        description: 'Subtipo interativo. Use "button" para botões de resposta rápida.',
+      },
+      {
+        field: 'interactive.body.text',
+        type: 'string',
+        required: true,
+        description: 'Texto principal da mensagem exibido acima dos botões.',
+      },
+      {
+        field: 'interactive.header.text',
+        type: 'string',
+        required: false,
+        description: 'Título opcional exibido acima do corpo.',
+      },
+      {
+        field: 'interactive.footer.text',
+        type: 'string',
+        required: false,
+        description: 'Rodapé opcional exibido abaixo dos botões.',
+      },
+      {
+        field: 'interactive.action.buttons[].type',
+        type: '"reply"',
+        required: true,
+        description: 'Tipo do botão. Deve ser "reply".',
+      },
+      {
+        field: 'interactive.action.buttons[].reply.id',
+        type: 'string',
+        required: true,
+        description: 'Identificador enviado de volta quando o usuário toca o botão.',
+      },
+      {
+        field: 'interactive.action.buttons[].reply.title',
+        type: 'string',
+        required: true,
+        description: 'Rótulo exibido no botão. Máximo 20 caracteres recomendados.',
+      },
+    ],
+  },
+  {
+    title: 'interactive list',
+    json: `{
+  "to": "5511999999999@s.whatsapp.net",
+  "type": "interactive",
+  "interactive": {
+    "type": "list",
+    "header": { "text": "Cardápio" },
+    "body": { "text": "Escolha um item do cardápio" },
+    "footer": { "text": "Horário: 11h–22h" },
+    "action": {
+      "button": "Ver opções",
+      "sections": [
+        {
+          "title": "Lanches",
+          "rows": [
+            { "id": "x-burguer", "title": "X-Burguer", "description": "Pão, carne e queijo" },
+            { "id": "x-salada",  "title": "X-Salada",  "description": "Com alface e tomate" }
+          ]
+        },
+        {
+          "title": "Bebidas",
+          "rows": [
+            { "id": "suco-laranja", "title": "Suco de Laranja", "description": "300 ml" }
+          ]
+        }
+      ]
+    }
+  }
+}`,
+    fields: [
+      { field: 'to', type: 'string', required: true, description: 'JID ou número do destinatário.' },
+      { field: 'type', type: '"interactive"', required: true, description: 'Tipo da mensagem.' },
+      {
+        field: 'interactive.type',
+        type: '"list"',
+        required: true,
+        description: 'Subtipo interativo. Use "list" para seletor de lista com seções.',
+      },
+      {
+        field: 'interactive.body.text',
+        type: 'string',
+        required: true,
+        description: 'Texto principal da mensagem.',
+      },
+      {
+        field: 'interactive.header.text',
+        type: 'string',
+        required: false,
+        description: 'Título opcional exibido acima do corpo.',
+      },
+      {
+        field: 'interactive.footer.text',
+        type: 'string',
+        required: false,
+        description: 'Rodapé opcional.',
+      },
+      {
+        field: 'interactive.action.button',
+        type: 'string',
+        required: true,
+        description: 'Rótulo do botão que abre o seletor de lista.',
+      },
+      {
+        field: 'interactive.action.sections[].title',
+        type: 'string',
+        required: false,
+        description: 'Título da seção exibido como separador na lista.',
+      },
+      {
+        field: 'interactive.action.sections[].rows[].id',
+        type: 'string',
+        required: true,
+        description: 'Identificador enviado de volta quando o usuário seleciona o item.',
+      },
+      {
+        field: 'interactive.action.sections[].rows[].title',
+        type: 'string',
+        required: true,
+        description: 'Rótulo principal do item de lista.',
+      },
+      {
+        field: 'interactive.action.sections[].rows[].description',
+        type: 'string',
+        required: false,
+        description: 'Descrição secundária exibida abaixo do título do item.',
+      },
+    ],
+  },
+  {
+    title: 'interactive cta_url',
+    json: `{
+  "to": "5511999999999@s.whatsapp.net",
+  "type": "interactive",
+  "interactive": {
+    "type": "cta_url",
+    "header": { "text": "Oferta especial" },
+    "body": { "text": "Acesse o link abaixo para ver a promoção" },
+    "footer": { "text": "Válido até amanhã" },
+    "action": {
+      "parameters": {
+        "display_text": "Ver promoção",
+        "url": "https://example.com/promo"
+      }
+    }
+  }
+}`,
+    fields: [
+      { field: 'to', type: 'string', required: true, description: 'JID ou número do destinatário.' },
+      { field: 'type', type: '"interactive"', required: true, description: 'Tipo da mensagem.' },
+      {
+        field: 'interactive.type',
+        type: '"cta_url"',
+        required: true,
+        description: 'Subtipo interativo. Use "cta_url" para botão com link externo.',
+      },
+      {
+        field: 'interactive.body.text',
+        type: 'string',
+        required: true,
+        description: 'Texto principal da mensagem.',
+      },
+      {
+        field: 'interactive.header.text',
+        type: 'string',
+        required: false,
+        description: 'Título opcional exibido acima do corpo.',
+      },
+      {
+        field: 'interactive.footer.text',
+        type: 'string',
+        required: false,
+        description: 'Rodapé opcional.',
+      },
+      {
+        field: 'interactive.action.parameters.display_text',
+        type: 'string',
+        required: true,
+        description: 'Rótulo exibido no botão de link.',
+      },
+      {
+        field: 'interactive.action.parameters.url',
+        type: 'string (URL)',
+        required: true,
+        description: 'URL que será aberta quando o usuário tocar no botão.',
+      },
+    ],
+  },
+  {
+    title: 'interactive cta_copy',
+    json: `{
+  "to": "5511999999999@s.whatsapp.net",
+  "type": "interactive",
+  "interactive": {
+    "type": "cta_copy",
+    "body": { "text": "Use o cupom abaixo no checkout" },
+    "footer": { "text": "Cupom de uso único" },
+    "action": {
+      "parameters": {
+        "display_text": "Copiar cupom",
+        "copy_code": "PROMO10"
+      }
+    }
+  }
+}`,
+    fields: [
+      { field: 'to', type: 'string', required: true, description: 'JID ou número do destinatário.' },
+      { field: 'type', type: '"interactive"', required: true, description: 'Tipo da mensagem.' },
+      {
+        field: 'interactive.type',
+        type: '"cta_copy"',
+        required: true,
+        description: 'Subtipo interativo. Use "cta_copy" para botão que copia um código.',
+      },
+      {
+        field: 'interactive.body.text',
+        type: 'string',
+        required: true,
+        description: 'Texto principal da mensagem.',
+      },
+      {
+        field: 'interactive.footer.text',
+        type: 'string',
+        required: false,
+        description: 'Rodapé opcional.',
+      },
+      {
+        field: 'interactive.action.parameters.display_text',
+        type: 'string',
+        required: true,
+        description: 'Rótulo exibido no botão de cópia.',
+      },
+      {
+        field: 'interactive.action.parameters.copy_code',
+        type: 'string',
+        required: true,
+        description: 'Código copiado para a área de transferência ao tocar no botão.',
+      },
+    ],
+  },
+  {
+    title: 'interactive otp',
+    json: `{
+  "to": "5511999999999@s.whatsapp.net",
+  "type": "interactive",
+  "interactive": {
+    "type": "otp",
+    "body": { "text": "Seu código de verificação chegou" },
+    "action": {
+      "parameters": {
+        "display_text": "Copiar código",
+        "copy_code": "482913"
+      }
+    }
+  }
+}`,
+    fields: [
+      { field: 'to', type: 'string', required: true, description: 'JID ou número do destinatário.' },
+      { field: 'type', type: '"interactive"', required: true, description: 'Tipo da mensagem.' },
+      {
+        field: 'interactive.type',
+        type: '"otp"',
+        required: true,
+        description:
+          'Subtipo interativo para códigos OTP. Enviado nativamente como cta_copy com otp_type "copy_code".',
+      },
+      {
+        field: 'interactive.body.text',
+        type: 'string',
+        required: true,
+        description: 'Texto principal da mensagem.',
+      },
+      {
+        field: 'interactive.action.parameters.display_text',
+        type: 'string',
+        required: true,
+        description: 'Rótulo exibido no botão de cópia.',
+      },
+      {
+        field: 'interactive.action.parameters.copy_code',
+        type: 'string',
+        required: true,
+        description: 'Código OTP copiado ao tocar no botão.',
+      },
+      {
+        field: 'interactive.action.parameters.url',
+        type: 'string (URL)',
+        required: false,
+        description: 'URL opcional do comerciante (mapeada para merchant_url).',
+      },
+    ],
   },
   {
     title: 'contacts',
@@ -272,6 +891,28 @@ const SEND_MESSAGE_BODY_EXAMPLES: BodyExampleDef[] = [
     }
   ]
 }`,
+    fields: [
+      { field: 'to', type: 'string', required: true, description: 'JID ou número do destinatário.' },
+      { field: 'type', type: '"contacts"', required: true, description: 'Tipo da mensagem.' },
+      {
+        field: 'contacts[].name.formatted_name',
+        type: 'string',
+        required: true,
+        description: 'Nome completo do contato a ser compartilhado.',
+      },
+      {
+        field: 'contacts[].phones[].phone',
+        type: 'string',
+        required: true,
+        description: 'Número de telefone do contato (com código do país).',
+      },
+      {
+        field: 'contacts[].phones[].type',
+        type: 'string',
+        required: false,
+        description: 'Aceito na requisição mas ignorado pelo backend — o vCard sempre gera o número como tipo CELL independente do valor enviado.',
+      },
+    ],
   },
   {
     title: 'template',
@@ -280,9 +921,133 @@ const SEND_MESSAGE_BODY_EXAMPLES: BodyExampleDef[] = [
   "type": "template",
   "template": {
     "name": "hello_world",
-    "language": { "code": "pt_BR" }
+    "language": { "code": "pt_BR" },
+    "components": []
   }
 }`,
+    fields: [
+      { field: 'to', type: 'string', required: true, description: 'Número do destinatário (sem @s.whatsapp.net para provider wba).' },
+      { field: 'type', type: '"template"', required: true, description: 'Tipo da mensagem. Suportado apenas por instâncias provider=wba.' },
+      {
+        field: 'template.name',
+        type: 'string',
+        required: true,
+        description: 'Nome do template aprovado na Meta Business Manager.',
+      },
+      {
+        field: 'template.language.code',
+        type: 'string',
+        required: true,
+        description: 'Código BCP-47 do idioma do template, ex.: "pt_BR", "en_US".',
+      },
+      {
+        field: 'template.components',
+        type: 'object[]',
+        required: false,
+        description: 'Componentes do template (header, body, button) com variáveis substituídas.',
+      },
+    ],
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Webhook payload examples — flat shape confirmed from whatsapp.service.ts.
+// The payload is the WebhookData object sent directly (no nested "data" key).
+// ---------------------------------------------------------------------------
+export const WEBHOOK_PAYLOAD_EXAMPLES: { event: string; json: string; fields?: FieldDef[] }[] = [
+  {
+    event: 'message',
+    json: `{
+  "event": "message",
+  "instance": "minha-instancia",
+  "from": "5511999999999",
+  "pushName": "João",
+  "messageId": "BAE5F4B2D36387E3",
+  "messageType": "text",
+  "text": "Olá, preciso de ajuda!",
+  "timestamp": 1750000000000,
+  "isGroup": false,
+  "groupId": null
+}`,
+    fields: [
+      { field: 'event', type: '"message"', required: true, description: 'Tipo do evento.' },
+      { field: 'instance', type: 'string', required: true, description: 'Nome da instância que recebeu a mensagem.' },
+      { field: 'from', type: 'string', required: true, description: 'Número do remetente (sem sufixo @s.whatsapp.net).' },
+      { field: 'pushName', type: 'string', required: true, description: 'Nome de exibição do remetente no WhatsApp.' },
+      { field: 'messageId', type: 'string', required: true, description: 'ID único da mensagem no WhatsApp.' },
+      { field: 'messageType', type: 'string', required: true, description: 'Tipo da mensagem: text, image, audio, voice, video, document, sticker, location, contact, button_response, reaction.' },
+      { field: 'text', type: 'string', required: false, description: 'Corpo da mensagem (presente quando messageType=text).' },
+      { field: 'timestamp', type: 'number', required: true, description: 'Timestamp Unix em milissegundos.' },
+      { field: 'isGroup', type: 'boolean', required: true, description: 'true quando a mensagem veio de um grupo.' },
+      { field: 'groupId', type: 'string | null', required: true, description: 'JID do grupo ou null para chats privados.' },
+    ],
+  },
+  {
+    event: 'message_update',
+    json: `{
+  "event": "message_update",
+  "instance": "minha-instancia",
+  "timestamp": 1750000005000,
+  "updates": [
+    {
+      "key": { "remoteJid": "5511999999999@s.whatsapp.net", "id": "BAE5F4B2D36387E3", "fromMe": true },
+      "update": { "status": 3 }
+    }
+  ]
+}`,
+    fields: [
+      { field: 'event', type: '"message_update"', required: true, description: 'Tipo do evento.' },
+      { field: 'instance', type: 'string', required: true, description: 'Nome da instância.' },
+      { field: 'timestamp', type: 'number', required: true, description: 'Timestamp Unix em milissegundos.' },
+      { field: 'updates', type: 'object[]', required: true, description: 'Array de atualizações de status do Baileys. update.status (WAMessageStatus): 1=PENDING, 2=SERVER_ACK (enviado ao servidor), 3=DELIVERY_ACK (entregue ao dispositivo), 4=READ (lido).' },
+    ],
+  },
+  {
+    event: 'qr',
+    json: `{
+  "event": "qr",
+  "instance": "minha-instancia",
+  "qr": "2@abc123...",
+  "timestamp": 1750000000000
+}`,
+    fields: [
+      { field: 'event', type: '"qr"', required: true, description: 'Tipo do evento.' },
+      { field: 'instance', type: 'string', required: true, description: 'Nome da instância.' },
+      { field: 'qr', type: 'string', required: true, description: 'String raw do QR code para renderização com biblioteca qrcode.' },
+      { field: 'timestamp', type: 'number', required: true, description: 'Timestamp Unix em milissegundos.' },
+    ],
+  },
+  {
+    event: 'connected',
+    json: `{
+  "event": "connected",
+  "instance": "minha-instancia",
+  "phoneNumber": "5511999999999",
+  "timestamp": 1750000000000
+}`,
+    fields: [
+      { field: 'event', type: '"connected"', required: true, description: 'Tipo do evento.' },
+      { field: 'instance', type: 'string', required: true, description: 'Nome da instância.' },
+      { field: 'phoneNumber', type: 'string', required: true, description: 'Número de telefone vinculado à sessão conectada.' },
+      { field: 'timestamp', type: 'number', required: true, description: 'Timestamp Unix em milissegundos.' },
+    ],
+  },
+  {
+    event: 'disconnected',
+    json: `{
+  "event": "disconnected",
+  "instance": "minha-instancia",
+  "reason": "Connection Failure",
+  "willReconnect": true,
+  "timestamp": 1750000000000
+}`,
+    fields: [
+      { field: 'event', type: '"disconnected"', required: true, description: 'Tipo do evento.' },
+      { field: 'instance', type: 'string', required: true, description: 'Nome da instância.' },
+      { field: 'reason', type: 'string', required: true, description: 'Mensagem de erro do Baileys descrevendo o motivo da desconexão.' },
+      { field: 'willReconnect', type: 'boolean', required: true, description: 'true quando a instância tentará reconectar automaticamente. false quando deslogada ou em conflito de sessão.' },
+      { field: 'timestamp', type: 'number', required: true, description: 'Timestamp Unix em milissegundos.' },
+    ],
   },
 ];
 
@@ -1102,7 +1867,7 @@ curl -sS -X DELETE "$BASE/api/instances/meu-papagai/apikeys/9b1deb4d-3b7d-4f7f-8
             name: 'location',
             type: 'object',
             required: false,
-            description: '{ latitude, longitude, name? }.',
+            description: '{ latitude, longitude, name?, address? }.',
           },
           {
             name: 'reaction',
@@ -1114,7 +1879,7 @@ curl -sS -X DELETE "$BASE/api/instances/meu-papagai/apikeys/9b1deb4d-3b7d-4f7f-8
             name: 'interactive',
             type: 'object',
             required: false,
-            description: 'Payload interativo compatível com botões/listas.',
+            description: 'Payload interativo: type="button", "list", "cta_url", "cta_copy" ou "otp".',
           },
           {
             name: 'contacts',
