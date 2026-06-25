@@ -88,6 +88,7 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
   private readonly redis: Redis;
   private readonly webhookEnricher: WebhookEnricher;
   private readonly reconnectionContext: ReconnectionContext;
+  private presenceInterval: NodeJS.Timeout | null = null;
 
   constructor(
     private configService: ConfigService,
@@ -131,6 +132,12 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
   }
 
   async onModuleInit(): Promise<void> {
+    // Inicia timer periódico para garantir que todas as instâncias conectadas permaneçam 'unavailable'
+    const PRESENCE_REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos
+    this.presenceInterval = setInterval(() => {
+      this.refreshInstancesPresence();
+    }, PRESENCE_REFRESH_INTERVAL_MS);
+
     const configs = await this.prisma.instanceConfig.findMany({
       where: { provider: 'web' },
     });
@@ -219,7 +226,7 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
       printQRInTerminal: false,
       browser: [`Papagai-${instanceName}`, 'Chrome', '120.0.0.0'],
       syncFullHistory: false,
-      markOnlineOnConnect: true,
+      markOnlineOnConnect: false,
       defaultQueryTimeoutMs: 60000,
       generateHighQualityLinkPreview: true,
       getMessage: () => Promise.resolve({ conversation: '' }),
@@ -320,6 +327,13 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
           messages,
         );
         void this.enrichHistorySyncMedia(instance, messages);
+
+        // Força a presença como 'unavailable' após receber o histórico
+        instance.socket.sendPresenceUpdate('unavailable').catch((err) => {
+          this.logger.warn(
+            `Falha ao definir presença como unavailable após history sync para "${instance.name}": ${err instanceof Error ? err.message : String(err)}`,
+          );
+        });
       },
     );
 
@@ -366,7 +380,7 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
   }
 
   private handleConnectionUpdate(instance: Instance, update: any): void {
-    const { connection, lastDisconnect, qr } = update;
+    const { connection, lastDisconnect, qr, receivedPendingNotifications } = update;
 
     if (qr) {
       instance.qr = qr;
@@ -383,12 +397,29 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
       this.webhookService.sendWebhook(instance, data).catch(() => undefined);
     }
 
+    if (receivedPendingNotifications) {
+      this.logger.log(`Sincronização inicial concluća para "${instance.name}". Definindo presença como 'unavailable'...`);
+      instance.socket.sendPresenceUpdate('unavailable').catch((err) => {
+        this.logger.warn(
+          `Falha ao definir presença como unavailable pós-sync para "${instance.name}": ${err instanceof Error ? err.message : String(err)}`,
+        );
+      });
+    }
+
     if (connection === 'open') {
       instance.connected = true;
       instance.lastConnectedAt = Date.now();
       instance.retryCount = 0;
       instance.qr = null;
       this.qrCodes.delete(this.instanceKeyOf(instance));
+
+      // Atualiza a presença como 'unavailable' para que o WhatsApp do usuário continue recebendo notificações push no celular
+      instance.socket.sendPresenceUpdate('unavailable').catch((err) => {
+        this.logger.warn(
+          `Falha ao definir presença como unavailable para "${instance.name}": ${err instanceof Error ? err.message : String(err)}`,
+        );
+      });
+
       const phoneNumber = (instance.socket.user?.id ?? '').split(':')[0];
       this.logger.log(
         `Instance "${instance.name}" connected as ${phoneNumber}`,
@@ -455,7 +486,19 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
     instance: Instance,
     messages: any[],
   ): Promise<void> {
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    // Limita o download de mídias de histórico apenas para mensagens recentes (últimas 2 horas),
+    // pois mídias mais antigas invariavelmente expiram nos servidores do WhatsApp (gerando erros 403/410).
+    const MAX_HISTORY_MEDIA_AGE_SECONDS = 2 * 60 * 60;
+
     for (const message of messages) {
+      const timestamp = message.messageTimestamp
+        ? Number(message.messageTimestamp)
+        : 0;
+      if (timestamp > 0 && (nowSeconds - timestamp) > MAX_HISTORY_MEDIA_AGE_SECONDS) {
+        continue;
+      }
+
       const messageType = this.webhookEnricher.getMessageType(message);
       const mediaType =
         messageType === 'voice'
@@ -566,6 +609,13 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
         `sendMessage result: id=${result?.key?.id} status=${result?.status}`,
       );
     }
+
+    // Redefine a presença como 'unavailable' imediatamente após o envio da mensagem
+    instance.socket.sendPresenceUpdate('unavailable').catch((err) => {
+      this.logger.warn(
+        `Falha ao restaurar presença como unavailable pós-envio para "${instanceName}": ${err instanceof Error ? err.message : String(err)}`,
+      );
+    });
 
     // Extract text body for the store preview (best-effort)
     const textBody: string | null =
@@ -870,6 +920,11 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
   }
 
   onModuleDestroy(): void {
+    if (this.presenceInterval) {
+      clearInterval(this.presenceInterval);
+      this.presenceInterval = null;
+    }
+
     for (const [name, instance] of this.instances) {
       this.logger.log(`Shutting down instance "${name}"`);
       try {
@@ -888,5 +943,18 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
     this.instances.clear();
     this.qrCodes.clear();
     this.redis.disconnect();
+  }
+
+  private refreshInstancesPresence(): void {
+    for (const [key, instance] of this.instances) {
+      if (instance.connected && instance.socket) {
+        this.logger.debug(`Forçando atualização de presença para 'unavailable' na instância "${key}"`);
+        instance.socket.sendPresenceUpdate('unavailable').catch((err) => {
+          this.logger.warn(
+            `Falha ao atualizar presença periódica para "${instance.name}": ${err instanceof Error ? err.message : String(err)}`,
+          );
+        });
+      }
+    }
   }
 }
