@@ -79,6 +79,8 @@ services:
       INSTANCES_DIR: /app/instances
       MEDIA_DIR: /app/media
       MEDIA_URL_TTL_SECONDS: ${MEDIA_URL_TTL_SECONDS:-86400}
+      MEDIA_DOWNLOAD_ENABLED: ${MEDIA_DOWNLOAD_ENABLED:-true}
+      MEDIA_RETENTION_DAYS: ${MEDIA_RETENTION_DAYS:-0}
       
       # Cache (internal service reference)
       REDIS_URL: redis://redis:6379

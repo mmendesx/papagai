@@ -93,7 +93,11 @@ function buildMockInstance(overrides: Partial<Instance> = {}): Instance {
   return {
     userId: TEST_USER_ID,
     name: 'testPapagai',
-    socket: { end: jest.fn(), ev: { on: jest.fn() }, sendPresenceUpdate: jest.fn().mockResolvedValue(undefined) } as any,
+    socket: {
+      end: jest.fn(),
+      ev: { on: jest.fn() },
+      sendPresenceUpdate: jest.fn().mockResolvedValue(undefined),
+    } as any,
     webhookUrl: 'https://example.com/webhook',
     webhookHeaders: {},
     webhookEnabled: true,
@@ -144,7 +148,16 @@ describe('WhatsappService', () => {
         WhatsappService,
         {
           provide: ConfigService,
-          useValue: { get: jest.fn().mockReturnValue('./media') },
+          useValue: {
+            get: jest.fn((key: string, fallback?: unknown) => {
+              const values: Record<string, unknown> = {
+                redisUrl: 'redis://localhost:6379',
+                mediaDir: './media',
+                mediaDownloadEnabled: true,
+              };
+              return values[key] ?? fallback;
+            }),
+          },
         },
         {
           provide: WebhookService,
@@ -309,6 +322,82 @@ describe('WhatsappService', () => {
       expect(chatStore.recordHistorySync).toHaveBeenCalled();
       expect(mockedDownloadMedia).not.toHaveBeenCalled();
       expect(chatStore.attachMediaToMessage).not.toHaveBeenCalled();
+    });
+
+    it('does not download historical media when storage is disabled', async () => {
+      const mockedDownloadMedia = downloadMedia as jest.MockedFunction<
+        typeof downloadMedia
+      >;
+      (service as any).mediaDownloadEnabled = false;
+
+      await service.createInstance(TEST_USER_ID, 'history-disabled');
+      const historyHandler = getHistorySyncHandler();
+      historyHandler({
+        chats: [{ id: '5511999999999@s.whatsapp.net' }],
+        messages: [
+          {
+            key: {
+              id: 'hist-img-disabled',
+              remoteJid: '5511999999999@s.whatsapp.net',
+              fromMe: false,
+            },
+            messageTimestamp: Math.floor(Date.now() / 1000),
+            message: { imageMessage: { mimetype: 'image/jpeg' } },
+          },
+        ],
+        isLatest: false,
+      });
+
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const chatStore = getChatStoreMock();
+      expect(chatStore.recordHistorySync).toHaveBeenCalled();
+      expect(mockedDownloadMedia).not.toHaveBeenCalled();
+      expect(chatStore.attachMediaToMessage).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('incoming media storage configuration', () => {
+    it('delivers the message event without downloading media when storage is disabled', async () => {
+      const mockedDownloadMedia = downloadMedia as jest.MockedFunction<
+        typeof downloadMedia
+      >;
+      (service as any).mediaDownloadEnabled = false;
+
+      await service.createInstance(TEST_USER_ID, 'incoming-disabled');
+      const messageEntry = mockSocket.ev.on.mock.calls.find(
+        ([eventName]: [string]) => eventName === 'messages.upsert',
+      );
+      const messageHandler = messageEntry?.[1] as (payload: any) => void;
+
+      messageHandler({
+        type: 'notify',
+        messages: [
+          {
+            key: {
+              id: 'incoming-image-disabled',
+              remoteJid: '5511999999999@s.whatsapp.net',
+              fromMe: false,
+            },
+            pushName: 'Customer',
+            messageTimestamp: Math.floor(Date.now() / 1000),
+            message: { imageMessage: { mimetype: 'image/jpeg' } },
+          },
+        ],
+      });
+
+      await new Promise<void>((resolve) => setImmediate(resolve));
+
+      expect(mockedDownloadMedia).not.toHaveBeenCalled();
+      expect(mockWebhookService.sendWebhook).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'incoming-disabled' }),
+        expect.objectContaining({
+          event: 'message',
+          messageType: 'image',
+          messageId: 'incoming-image-disabled',
+        }),
+      );
     });
   });
 
@@ -1129,6 +1218,7 @@ describe('WhatsappService', () => {
             .fn()
             .mockResolvedValue({ key: { id: 'should-not-be-called' } }),
           relayMessage: jest.fn().mockResolvedValue('relay-gen-id-1'),
+          sendPresenceUpdate: jest.fn().mockResolvedValue(undefined),
           onWhatsApp: jest
             .fn()
             .mockResolvedValue([
@@ -1214,6 +1304,7 @@ describe('WhatsappService', () => {
           user: { id: '5511999999999:1@s.whatsapp.net' },
           sendMessage: jest.fn().mockResolvedValue(baileysResult),
           relayMessage: jest.fn().mockResolvedValue('should-not-be-called'),
+          sendPresenceUpdate: jest.fn().mockResolvedValue(undefined),
           onWhatsApp: jest
             .fn()
             .mockResolvedValue([

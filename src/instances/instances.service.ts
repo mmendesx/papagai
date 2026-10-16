@@ -339,11 +339,12 @@ export class InstancesService {
     webhookEnabled: boolean;
     webhookEvents: string[];
   }> {
+    const provider = await this.getProvider(userId, name);
+
     if (config.webhookUrl) {
       await this.validateWebhookUrl(config.webhookUrl);
     }
 
-    const provider = await this.getProvider(userId, name);
     if (provider === 'wba') {
       return this.wbaService.updateWebhookConfig(userId, name, config);
     }
