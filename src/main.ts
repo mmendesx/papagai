@@ -11,7 +11,9 @@ import { DEV_JWT_SECRET_PLACEHOLDER } from './config/configuration.js';
 
 function warnWebhookAllowPrivateHosts(): void {
   if (process.env.WEBHOOK_ALLOW_PRIVATE_HOSTS === 'true') {
-    console.warn('WEBHOOK_ALLOW_PRIVATE_HOSTS is enabled. Private/internal webhook URLs will be allowed.');
+    console.warn(
+      'WEBHOOK_ALLOW_PRIVATE_HOSTS is enabled. Private/internal webhook URLs will be allowed.',
+    );
   }
 }
 

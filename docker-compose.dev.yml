@@ -65,6 +65,8 @@ services:
       DATABASE_URL: postgresql://papagai:papagai@db:5432/papagai
       REDIS_URL: redis://redis:6379
       MEDIA_DIR: /app/media
+      MEDIA_DOWNLOAD_ENABLED: ${MEDIA_DOWNLOAD_ENABLED:-true}
+      MEDIA_RETENTION_DAYS: ${MEDIA_RETENTION_DAYS:-0}
       INSTANCES_DIR: /app/instances
       # WEBHOOK_ALLOW_PRIVATE_HOSTS: "true"  # dev only — allows localhost webhook targets
     volumes:

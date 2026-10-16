@@ -125,6 +125,8 @@ Development defaults are defined in `docker-compose.dev.yml` and `.env.example`.
 | `DB_NAME`                | `papagai`                                                        | PostgreSQL database name.                                                           |
 | `REDIS_URL`              | `redis://localhost:6380` locally, `redis://redis:6379` in Docker | Redis connection string.                                                            |
 | `MEDIA_DIR`              | `./media`                                                        | Directory for downloaded media.                                                     |
+| `MEDIA_DOWNLOAD_ENABLED` | `true`                                                           | Downloads inbound and history-sync media. Set `false` to keep events without storing media. |
+| `MEDIA_RETENTION_DAYS`   | `0`                                                              | Deletes downloaded media older than this many days. `0` disables cleanup.           |
 | `INSTANCES_DIR`          | `./instances`                                                    | Directory for Baileys session data.                                                 |
 | `BASE_URL`               | `http://localhost:PORT`                                          | Public URL used to generate signed media links.                                     |
 | `MEDIA_URL_TTL_SECONDS`  | `86400`                                                          | Signed media URL lifetime in seconds.                                               |

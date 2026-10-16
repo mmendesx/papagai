@@ -85,6 +85,7 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
   private instances: Map<string, Instance> = new Map();
   private qrCodes: Map<string, string> = new Map();
   private mediaDir: string;
+  private readonly mediaDownloadEnabled: boolean;
   private readonly redis: Redis;
   private readonly webhookEnricher: WebhookEnricher;
   private readonly reconnectionContext: ReconnectionContext;
@@ -101,15 +102,25 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
       this.configService.get<string>('redisUrl') || 'redis://localhost:6379',
     );
     this.mediaDir = this.configService.get<string>('mediaDir') || './media';
+    this.mediaDownloadEnabled =
+      this.configService.get<boolean>('mediaDownloadEnabled') ?? true;
     if (!fs.existsSync(this.mediaDir)) {
       fs.mkdirSync(this.mediaDir, { recursive: true });
     }
 
-    this.webhookEnricher = new WebhookEnricher((msg, type) =>
-      downloadMedia(msg, type, this.mediaDir, this.logger, (path) =>
+    this.webhookEnricher = new WebhookEnricher((msg, type) => {
+      if (!this.mediaDownloadEnabled) return Promise.resolve(null);
+
+      return downloadMedia(msg, type, this.mediaDir, this.logger, (path) =>
         this.mediaUrlService.signPath(path),
-      ),
-    );
+      );
+    });
+
+    if (!this.mediaDownloadEnabled) {
+      this.logger.log(
+        'Incoming WhatsApp media downloads are disabled by configuration',
+      );
+    }
 
     this.reconnectionContext = {
       maxRetries: MAX_RECONNECT_RETRIES,
@@ -380,7 +391,8 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
   }
 
   private handleConnectionUpdate(instance: Instance, update: any): void {
-    const { connection, lastDisconnect, qr, receivedPendingNotifications } = update;
+    const { connection, lastDisconnect, qr, receivedPendingNotifications } =
+      update;
 
     if (qr) {
       instance.qr = qr;
@@ -398,7 +410,9 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
     }
 
     if (receivedPendingNotifications) {
-      this.logger.log(`Sincronização inicial concluća para "${instance.name}". Definindo presença como 'unavailable'...`);
+      this.logger.log(
+        `Sincronização inicial concluća para "${instance.name}". Definindo presença como 'unavailable'...`,
+      );
       instance.socket.sendPresenceUpdate('unavailable').catch((err) => {
         this.logger.warn(
           `Falha ao definir presença como unavailable pós-sync para "${instance.name}": ${err instanceof Error ? err.message : String(err)}`,
@@ -486,6 +500,8 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
     instance: Instance,
     messages: any[],
   ): Promise<void> {
+    if (!this.mediaDownloadEnabled) return;
+
     const nowSeconds = Math.floor(Date.now() / 1000);
     // Limita o download de mídias de histórico apenas para mensagens recentes (últimas 2 horas),
     // pois mídias mais antigas invariavelmente expiram nos servidores do WhatsApp (gerando erros 403/410).
@@ -495,7 +511,10 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
       const timestamp = message.messageTimestamp
         ? Number(message.messageTimestamp)
         : 0;
-      if (timestamp > 0 && (nowSeconds - timestamp) > MAX_HISTORY_MEDIA_AGE_SECONDS) {
+      if (
+        timestamp > 0 &&
+        nowSeconds - timestamp > MAX_HISTORY_MEDIA_AGE_SECONDS
+      ) {
         continue;
       }
 
@@ -948,7 +967,9 @@ export class WhatsappService implements OnModuleDestroy, OnModuleInit {
   private refreshInstancesPresence(): void {
     for (const [key, instance] of this.instances) {
       if (instance.connected && instance.socket) {
-        this.logger.debug(`Forçando atualização de presença para 'unavailable' na instância "${key}"`);
+        this.logger.debug(
+          `Forçando atualização de presença para 'unavailable' na instância "${key}"`,
+        );
         instance.socket.sendPresenceUpdate('unavailable').catch((err) => {
           this.logger.warn(
             `Falha ao atualizar presença periódica para "${instance.name}": ${err instanceof Error ? err.message : String(err)}`,

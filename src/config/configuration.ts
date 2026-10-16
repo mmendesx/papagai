@@ -5,6 +5,13 @@ export default () => ({
   port: parseInt(process.env.PORT ?? '3000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
   mediaDir: process.env.MEDIA_DIR || './media',
+  mediaDownloadEnabled:
+    (process.env.MEDIA_DOWNLOAD_ENABLED ?? 'true').trim().toLowerCase() !==
+    'false',
+  mediaRetentionDays: Math.max(
+    parseInt(process.env.MEDIA_RETENTION_DAYS ?? '0', 10) || 0,
+    0,
+  ),
   instancesDir: process.env.INSTANCES_DIR || './instances',
   defaultWebhook: process.env.DEFAULT_WEBHOOK || null,
   maxFileSize: parseInt(process.env.MAX_FILE_SIZE ?? `${50 * 1024 * 1024}`, 10),
@@ -21,10 +28,8 @@ export default () => ({
     10,
   ),
   webhookMaxRetries: parseInt(process.env.WEBHOOK_MAX_RETRIES ?? '3', 10),
-  webhookAllowPrivateHosts:
-    process.env.WEBHOOK_ALLOW_PRIVATE_HOSTS === 'true',
-  mediaAllowPrivateHosts:
-    process.env.MEDIA_ALLOW_PRIVATE_HOSTS === 'true',
+  webhookAllowPrivateHosts: process.env.WEBHOOK_ALLOW_PRIVATE_HOSTS === 'true',
+  mediaAllowPrivateHosts: process.env.MEDIA_ALLOW_PRIVATE_HOSTS === 'true',
   wbaCredentialsSecret:
     process.env.WBA_CREDENTIALS_SECRET ?? process.env.APP_KEY ?? '',
   wbaGraphApiBaseUrl:
